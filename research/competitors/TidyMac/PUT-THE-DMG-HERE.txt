@@ -1,0 +1,5 @@
+Put the TidyMac .dmg you downloaded in this folder, and do not open it.
+
+It will be checked without running it: who signed it, whether Apple notarized it,
+which permissions it asks for, and what is inside. You will be told whether it
+looks safe to install before you open it.
