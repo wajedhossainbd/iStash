@@ -1,0 +1,112 @@
+# App recipes: which folders an app owns, how to tell it is open, and how its data may move.
+#
+#   running = regex on running command lines that means the app is open
+#   verdict = move (copy + link; quit the app first) | app (use the app's own setting) | keep | unsupported
+#             leave it out to only name the owner and let the generic rules decide
+#
+# Paths are relative to home; `*` matches anything. Within a recipe and across recipes the first match wins,
+# so list inner folders before the folders that contain them.
+
+[[recipe]]
+id = "claude"
+app = "Claude"
+running = '/Claude\.app/'
+[[recipe.folder]]
+path = "Library/Application Support/Claude/vm_bundles"
+app = "Claude (Cowork)"
+verdict = "move"
+note = "Claude Cowork's virtual machine. Quit Claude first."
+[[recipe.folder]]
+path = "Library/Application Support/Claude"
+verdict = "keep"
+note = "Claude's settings and sign-in. Only its Cowork VM (listed separately) is safe to move."
+
+[[recipe]]
+id = "claude-code"
+app = "Claude Code (CLI)"
+[[recipe.folder]]
+path = ".claude"
+verdict = "keep"
+note = "Claude Code reads this at every start; it would not start without the drive."
+
+[[recipe]]
+id = "docker"
+app = "Docker"
+running = '/Docker\.app/|com\.docker\.'
+[[recipe.folder]]
+path = "Library/Containers/com.docker.docker"
+verdict = "app"
+note = "Use Docker → Settings → Resources → Advanced → Disk image location. A link would corrupt Docker's disk if the drive is unplugged while it runs."
+
+[[recipe]]
+id = "chrome"
+app = "Google Chrome"
+running = '/Google Chrome\.app/'
+[[recipe.folder]]
+path = "Library/Application Support/Google"
+verdict = "keep"
+note = "Chrome profiles and Google's background updater are always in use."
+[[recipe.folder]]
+path = "Library/Caches/Google"
+
+[[recipe]]
+id = "xcode"
+app = "Xcode"
+running = '/Xcode\.app/'
+[[recipe.folder]]
+path = "Library/Developer/CoreSimulator"
+verdict = "keep"
+note = "Xcode's simulator service keeps this open. Delete old simulators in Xcode instead."
+[[recipe.folder]]
+path = "Library/Developer/Xcode/*"
+
+[[recipe]]
+id = "gradle"
+app = "Android builds (Gradle)"
+running = 'GradleDaemon'
+[[recipe.folder]]
+path = ".gradle"
+
+[[recipe]]
+id = "android-emulator"
+app = "Android emulator"
+running = 'qemu-system'
+[[recipe.folder]]
+path = ".android"
+[[recipe.folder]]
+path = "Library/Android"
+app = "Android SDK"
+
+[[recipe]]
+id = "antigravity"
+app = "Antigravity"
+running = '/Antigravity( IDE)?\.app/|/gemini\b'
+[[recipe.folder]]
+path = ".antigravity"
+[[recipe.folder]]
+path = ".antigravity-ide"
+app = "Antigravity IDE"
+[[recipe.folder]]
+path = ".gemini"
+app = "Antigravity / Gemini"
+
+[[recipe]]
+id = "nvm"
+app = "Node.js (nvm)"
+[[recipe.folder]]
+path = ".nvm"
+
+[[recipe]]
+id = "npm"
+app = "npm"
+[[recipe.folder]]
+path = ".npm"
+
+[[recipe]]
+id = "rust"
+app = "Rust"
+running = '/(rustc|cargo)\b'
+[[recipe.folder]]
+path = ".rustup"
+[[recipe.folder]]
+path = ".cargo"
