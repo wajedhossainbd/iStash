@@ -1,0 +1,197 @@
+# App recipes: which folders an app owns, how to tell it is open, and how its data may move.
+#
+#   running = regex on running command lines that means the app is open
+#   verdict = move (copy + link; quit the app first) | app (use the app's own setting) | keep | unsupported
+#             leave it out to only name the owner and let the generic rules decide
+#
+# Paths are relative to home; `*` matches anything. Within a recipe and across recipes the first match wins,
+# so list inner folders before the folders that contain them.
+
+[[recipe]]
+id = "claude"
+app = "Claude"
+running = '/Claude\.app/'
+[[recipe.folder]]
+path = "Library/Application Support/Claude/vm_bundles"
+app = "Claude (Cowork)"
+verdict = "move"
+note = "Claude Cowork's virtual machine. Quit Claude first."
+[[recipe.folder]]
+path = "Library/Application Support/Claude"
+verdict = "keep"
+note = "Claude's settings and sign-in. Only its Cowork VM (listed separately) is safe to move."
+
+[[recipe]]
+id = "claude-code"
+app = "Claude Code (CLI)"
+[[recipe.folder]]
+path = ".claude"
+verdict = "keep"
+note = "Claude Code reads this at every start; it would not start without the drive."
+
+[[recipe]]
+id = "docker"
+app = "Docker"
+running = '/Docker\.app/|com\.docker\.'
+[[recipe.folder]]
+path = "Library/Containers/com.docker.docker"
+verdict = "app"
+note = "Use Docker → Settings → Resources → Advanced → Disk image location. A link would corrupt Docker's disk if the drive is unplugged while it runs."
+
+[[recipe]]
+id = "chrome"
+app = "Google Chrome"
+running = '/Google Chrome\.app/'
+[[recipe.folder]]
+path = "Library/Application Support/Google"
+verdict = "keep"
+note = "Chrome profiles and Google's background updater are always in use."
+[[recipe.folder]]
+path = "Library/Caches/Google"
+
+[[recipe]]
+id = "xcode"
+app = "Xcode"
+running = '/Xcode\.app/'
+[[recipe.folder]]
+path = "Library/Developer/Xcode/DerivedData"
+verdict = "move"
+note = "Build products Xcode recreates. Quit Xcode first. If a test target insists on the startup disk, bring it back."
+[[recipe.folder]]
+path = "Library/Developer/Xcode/*OS DeviceSupport"  # iOS, watchOS, tvOS, visionOS, macOS
+verdict = "move"
+note = "Debug symbols copied from your devices. Quit Xcode first; Xcode copies them again if the drive is missing."
+[[recipe.folder]]
+path = "Library/Developer/CoreSimulator"
+verdict = "keep"
+note = "Xcode's simulator service keeps this open. Delete old simulators in Xcode instead."
+[[recipe.folder]]
+path = "Library/Developer/Xcode/*"
+
+[[recipe]]
+id = "gradle"
+app = "Android builds (Gradle)"
+running = 'GradleDaemon'
+[[recipe.folder]]
+path = ".gradle"
+verdict = "move"
+note = "Gradle's caches and wrappers. Stop its daemons first (gradle --stop); builds need the drive connected."
+
+[[recipe]]
+id = "android-emulator"
+app = "Android emulator"
+running = 'qemu-system'
+[[recipe.folder]]
+path = ".android"
+[[recipe.folder]]
+path = "Library/Android"
+app = "Android SDK"
+
+[[recipe]]
+id = "antigravity"
+app = "Antigravity"
+running = '/Antigravity( IDE)?\.app/|/gemini\b'
+[[recipe.folder]]
+path = ".antigravity"
+[[recipe.folder]]
+path = ".antigravity-ide"
+app = "Antigravity IDE"
+[[recipe.folder]]
+path = ".gemini"
+app = "Antigravity / Gemini"
+
+[[recipe]]
+id = "nvm"
+app = "Node.js (nvm)"
+[[recipe.folder]]
+path = ".nvm"
+
+[[recipe]]
+id = "npm"
+app = "npm"
+running = '/bin/npm\b|npm-cli\.js'
+[[recipe.folder]]
+path = ".npm"
+verdict = "move"
+note = "npm's download cache. Installs need the drive connected."
+
+[[recipe]]
+id = "pnpm"
+app = "pnpm"
+running = '/pnpm\b|pnpm\.c?js'
+[[recipe.folder]]
+path = "Library/pnpm/store"
+verdict = "app"
+note = "Set pnpm's store-dir on the drive that holds your projects: pnpm hard-links from its store, and a store on another drive turns every project into a full copy."
+[[recipe.folder]]
+path = "Library/Caches/pnpm"
+verdict = "move"
+note = "pnpm's metadata cache. Installs need the drive connected."
+
+[[recipe]]
+id = "rust"
+app = "Rust"
+running = '/(rustc|cargo)\b'
+[[recipe.folder]]
+path = ".cargo/registry"
+verdict = "move"
+note = "Cargo's crate downloads. Builds that fetch crates need the drive connected."
+[[recipe.folder]]
+path = ".cargo/git"
+verdict = "move"
+note = "Cargo's git checkouts. Builds that fetch crates need the drive connected."
+[[recipe.folder]]
+path = ".rustup"
+verdict = "move"
+note = "Rust toolchains. Rust tools stop working while the drive is unplugged."
+[[recipe.folder]]
+path = ".cargo"
+verdict = "move"
+note = "Cargo's home, including installed tools (~/.cargo/bin). They stop working while the drive is unplugged."
+
+[[recipe]]
+id = "homebrew"
+app = "Homebrew"
+running = '/bin/brew\b|/Library/Homebrew/brew\.(rb|sh)'
+[[recipe.folder]]
+path = "Library/Caches/Homebrew"
+verdict = "move"
+note = "Downloaded bottles. brew downloads again if the drive is missing."
+
+[[recipe]]
+id = "ollama"
+app = "Ollama"
+running = '/Ollama\.app/|/ollama (serve|runner)\b'
+[[recipe.folder]]
+path = ".ollama/models"
+verdict = "move"
+note = "Downloaded models. Quit Ollama in the menu bar first; models load from the drive afterwards."
+
+[[recipe]]
+id = "lm-studio"
+app = "LM Studio"
+running = '/LM Studio\.app/|/\.lmstudio/bin/lms\b'
+[[recipe.folder]]
+path = ".lmstudio/models"
+verdict = "move"
+note = "Downloaded models. Quit LM Studio first, or change Models Directory in LM Studio's My Models tab."
+[[recipe.folder]]
+path = ".cache/lm-studio/models"
+verdict = "move"
+note = "Downloaded models (older LM Studio). Quit LM Studio first."
+
+[[recipe]]
+id = "huggingface"
+app = "Hugging Face models"
+[[recipe.folder]]
+path = ".cache/huggingface"
+verdict = "move"
+note = "Models and datasets downloaded by Python tools. Stop scripts that use them first."
+
+[[recipe]]
+id = "mobilesync"
+app = "iPhone and iPad backups"
+[[recipe.folder]]
+path = "Library/Application Support/MobileSync"
+verdict = "unsupported"
+note = "Since macOS Catalina, Finder no longer follows a link here, so backups would fail. Not moved; delete old backups in Finder instead."

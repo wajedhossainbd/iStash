@@ -1,0 +1,12 @@
+[workspace]
+resolver = "2"
+members = ["crates/stowaway-core", "crates/stowaway-cli"]
+
+[workspace.package]
+edition = "2021"
+version = "0.1.0"
+license = "UNLICENSED"
+
+# Hashing dominates move tests; keep it fast in debug builds too.
+[profile.dev.package.blake3]
+opt-level = 3
