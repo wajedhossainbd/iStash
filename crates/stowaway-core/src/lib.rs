@@ -3,8 +3,10 @@
 
 pub mod diskarb;
 pub mod drives;
+pub mod forecast;
 pub mod fsx;
 pub mod journal;
+pub mod metrics;
 pub mod mover;
 pub mod procs;
 pub mod rules;

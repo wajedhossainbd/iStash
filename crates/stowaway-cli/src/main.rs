@@ -3,7 +3,9 @@
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 use stowaway_core::drives::{self, Moved};
+use stowaway_core::forecast::forecast;
 use stowaway_core::journal::Journal;
+use stowaway_core::metrics::{self, Sampler, Snapshot};
 use stowaway_core::mover::{Mover, Plan};
 use stowaway_core::rules::Catalog;
 use stowaway_core::{diskarb, procs, scan, Fail, Result};
@@ -16,6 +18,7 @@ const USAGE: &str = "usage: stowaway-cli <command>
   bring-back <path> [--yes]   copy a moved folder back to this Mac (dry run without --yes)
   recover                     finish or undo moves a crash interrupted
   drives                      which drive holds which moved folders, and which apps need it
+  status [--net] [--watch]    CPU, memory, swap, disk, network, top apps, memory forecast
   guard                       refuse ejecting a drive while apps that need it are open (Ctrl-C stops)";
 
 fn main() -> ExitCode {
@@ -29,6 +32,7 @@ fn main() -> ExitCode {
         ["bring-back", p, rest @ ..] => cmd_bring_back(&cat, &abs(p), rest.contains(&"--yes")),
         ["recover"] => recover(&cat),
         ["drives"] => cmd_drives(&cat),
+        ["status", rest @ ..] => cmd_status(rest),
         ["guard"] => cmd_guard(cat.clone()),
         ["quit", p] => procs::quit_users(&cat, &abs(p)).map(|()| println!("Nothing uses it now.")),
         _ => {
@@ -188,4 +192,66 @@ fn cmd_guard(cat: Catalog) -> Result<()> {
     loop {
         std::thread::park();
     }
+}
+
+fn mb(bytes: u64) -> String {
+    if bytes < 1_000_000 {
+        format!("{:.0} KB", bytes as f64 / 1e3)
+    } else {
+        format!("{:.1} MB", bytes as f64 / 1e6)
+    }
+}
+
+fn status_line(s: &Snapshot) -> String {
+    format!(
+        "CPU {:>3.0}%  load {:.1}  memory {:.0}% free of {} ({:?})  swap {} of {}  disk {} free  net ↓{}/s ↑{}/s",
+        s.cpu_pct,
+        s.load1,
+        s.mem_free_pct,
+        gb(s.mem_total),
+        s.pressure,
+        gb(s.swap_used),
+        gb(s.swap_total),
+        gb(s.disk_free),
+        mb(s.net_in_bps as u64),
+        mb(s.net_out_bps as u64)
+    )
+}
+
+fn cmd_status(rest: &[&str]) -> Result<()> {
+    let mut sampler = Sampler::new();
+    sampler.sample();
+    if rest.contains(&"--watch") {
+        let mut history = Vec::new();
+        loop {
+            std::thread::sleep(std::time::Duration::from_secs(2));
+            let s = sampler.sample();
+            history.push(s.forecast_sample());
+            let f = forecast(&history);
+            println!("{}\n  forecast: {:?} — {}", status_line(&s), f.level, f.reason);
+        }
+    }
+    std::thread::sleep(std::time::Duration::from_secs(1));
+    let s = sampler.sample();
+    println!("{}", status_line(&s));
+    println!(
+        "top CPU: {}",
+        s.apps.iter().take(6).map(|a| format!("{} {:.1}%", a.name, a.cpu_pct)).collect::<Vec<_>>().join(", ")
+    );
+    let mut by_mem = s.apps.clone();
+    by_mem.sort_by_key(|a| std::cmp::Reverse(a.rss));
+    println!(
+        "top RAM: {}",
+        by_mem.iter().take(6).map(|a| format!("{} {}", a.name, gb(a.rss))).collect::<Vec<_>>().join(", ")
+    );
+    if rest.contains(&"--net") {
+        let net = metrics::app_network();
+        println!(
+            "top net: {}",
+            net.iter().map(|(n, i, o)| format!("{n} ↓{}/s ↑{}/s", mb(*i), mb(*o))).collect::<Vec<_>>().join(", ")
+        );
+    }
+    let f = forecast(&[s.forecast_sample()]);
+    println!("forecast: {:?} — {}", f.level, f.reason);
+    Ok(())
 }
