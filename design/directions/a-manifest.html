@@ -1,0 +1,330 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Stowaway · A Manifest</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Big+Shoulders+Stencil+Display:wght@700;800&display=swap" rel="stylesheet">
+<style>
+/* Direction A — Manifest. A ship's manifest for your data: every crate counted, stamped, accounted for.
+   Warm paper + hull ink + one signal orange. Light-first. */
+:root {
+  --wall: linear-gradient(135deg, #c9b99a 0%, #8f9aa3 55%, #4f5b66 100%);
+  --side: rgba(238, 233, 222, .78); --content: #fbf9f4; --panel: #f3efe6; --panel-2: #ebe5d8;
+  --ink: #1b2430; --ink-2: #4c5562; --ink-3: #646c76; --rule: rgba(27, 36, 48, .12); --rule-2: rgba(27, 36, 48, .22);
+  --signal: #c2410c; --signal-fill: #e8590c; --signal-tint: rgba(232, 89, 12, .12);
+  --ok: #1f7a4d; --ok-tint: rgba(31, 122, 77, .12); --info: #2b5c8a; --info-tint: rgba(43, 92, 138, .12);
+  --bad: #b42318; --bad-tint: rgba(180, 35, 24, .1); --crate: #b98a52; --crate-dark: #8a6236;
+  --btn: #fffdf8; --btn-line: rgba(27, 36, 48, .18); --shadow: 0 .5px 1px rgba(27, 36, 48, .14);
+  --win-shadow: 0 30px 80px rgba(20, 24, 30, .35), 0 0 0 .5px rgba(0, 0, 0, .25);
+  --board: #f6f3ec; --board-ink: #1b2430;
+}
+:root[data-theme="dark"] {
+  --wall: linear-gradient(135deg, #2b3440 0%, #141b24 60%, #0a0e13 100%);
+  --side: rgba(22, 31, 42, .78); --content: #0f1620; --panel: #16202c; --panel-2: #1c2836;
+  --ink: #ede7da; --ink-2: #b4b0a6; --ink-3: #868b91; --rule: rgba(237, 231, 218, .1); --rule-2: rgba(237, 231, 218, .2);
+  --signal: #ff8a4c; --signal-fill: #ff7a33; --signal-tint: rgba(255, 122, 51, .14);
+  --ok: #5fd39a; --ok-tint: rgba(95, 211, 154, .12); --info: #8cbcec; --info-tint: rgba(140, 188, 236, .13);
+  --bad: #ff8577; --bad-tint: rgba(255, 133, 119, .12); --crate: #c99a62; --crate-dark: #93693b;
+  --btn: #22303f; --btn-line: rgba(237, 231, 218, .14); --shadow: 0 .5px 1px rgba(0, 0, 0, .5);
+  --win-shadow: 0 30px 80px rgba(0, 0, 0, .6), 0 0 0 .5px rgba(255, 255, 255, .12);
+  --board: #121a24; --board-ink: #ede7da;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body { background: var(--board); color: var(--ink); font: 13px/1.4 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif;
+  -webkit-font-smoothing: antialiased; }
+.mono { font-family: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace; font-variant-numeric: tabular-nums; }
+.stencil { font-family: "Big Shoulders Stencil Display", "Impact", sans-serif; letter-spacing: .06em; }
+
+/* Desktop + window */
+.desk { background: var(--wall); padding: 56px 0 64px; display: flex; justify-content: center; }
+.win { width: 1200px; height: 760px; border-radius: 12px; overflow: hidden; display: grid; grid-template-columns: 220px 1fr; grid-template-rows: 100%;
+  box-shadow: var(--win-shadow); background: var(--content); }
+.side { background: var(--side); backdrop-filter: blur(30px) saturate(1.4); -webkit-backdrop-filter: blur(30px) saturate(1.4);
+  padding: 14px 10px 12px; display: flex; flex-direction: column; border-right: .5px solid var(--rule-2); }
+.lights { display: flex; gap: 8px; padding: 4px 8px 18px; }
+.lights i { width: 12px; height: 12px; border-radius: 50%; background: #ff5f57; box-shadow: inset 0 0 0 .5px rgba(0,0,0,.2); }
+.lights i:nth-child(2) { background: #febc2e; } .lights i:nth-child(3) { background: #28c840; }
+.brand { display: flex; align-items: center; gap: 8px; padding: 0 8px 14px; }
+.brand b { font-size: 20px; color: var(--ink); line-height: 1; }
+.group { font-size: 11px; font-weight: 600; color: var(--ink-3); padding: 12px 8px 4px; }
+.nav { display: flex; align-items: center; gap: 9px; padding: 5px 8px; border-radius: 6px; color: var(--ink); }
+.nav svg { width: 16px; height: 16px; color: var(--signal); flex: none; }
+.nav.on { background: rgba(27, 36, 48, .09); }
+:root[data-theme="dark"] .nav.on { background: rgba(237, 231, 218, .1); }
+.nav .n { margin-left: auto; font-size: 11px; color: var(--ink-3); }
+.nav.later { color: var(--ink-3); } .nav.later svg { color: var(--ink-3); }
+.led { width: 8px; height: 8px; border-radius: 50%; flex: none; margin: 0 4px; background: var(--ok); box-shadow: 0 0 0 3px var(--ok-tint); }
+.led.off { background: transparent; box-shadow: inset 0 0 0 1.5px var(--bad); }
+.drive-sub { font-size: 11px; color: var(--ink-3); padding: 0 8px 4px 29px; margin-top: -3px; }
+.drive-sub.bad { color: var(--bad); }
+.side-foot { margin-top: auto; padding: 8px; font-size: 11px; color: var(--ink-3); border-top: .5px solid var(--rule); }
+
+.main { display: flex; flex-direction: column; min-width: 0; }
+.bar { display: flex; align-items: center; gap: 12px; padding: 16px 24px 12px; }
+.bar h1 { font-size: 20px; margin: 0; letter-spacing: -.01em; }
+.bar .sub { color: var(--ink-2); }
+.bar .sp { flex: 1; }
+.seg { display: inline-flex; background: var(--panel-2); border-radius: 7px; padding: 2px; gap: 2px; }
+.seg button { font: inherit; font-size: 12px; border: 0; background: none; color: var(--ink); padding: 3px 10px; border-radius: 5px; }
+.seg button.on { background: var(--btn); box-shadow: var(--shadow), 0 0 0 .5px var(--btn-line); }
+.seg .c { color: var(--ink-3); margin-left: 4px; }
+.btn { font: inherit; font-size: 12px; padding: 4px 11px; border-radius: 6px; border: .5px solid var(--btn-line); background: var(--btn);
+  color: var(--ink); box-shadow: var(--shadow); white-space: nowrap; }
+.btn.primary { background: var(--signal-fill); color: #1b1006; border-color: transparent; font-weight: 600; }
+:root:not([data-theme="dark"]) .btn.primary { background: #c2410c; color: #fff; }
+.btn.ghost { background: none; box-shadow: none; border-color: transparent; color: var(--signal); }
+.scroll { flex: 1; overflow: hidden; padding: 0 24px 20px; display: flex; flex-direction: column; gap: 14px; }
+
+/* Hold gauge: how full this Mac is, and what stowing would free */
+.hold { display: grid; grid-template-columns: 1fr auto; gap: 6px 24px; padding: 14px 16px; background: var(--panel); border-radius: 10px;
+  border: .5px solid var(--rule); }
+.hold .label { font-size: 11px; font-weight: 600; color: var(--ink-3); text-transform: uppercase; letter-spacing: .06em; }
+.hold .big { font-size: 26px; font-weight: 500; letter-spacing: -.02em; }
+.hold .big small { font-size: 13px; color: var(--ink-2); font-weight: 400; letter-spacing: 0; }
+.hold .after { text-align: right; }
+.hold .after .big { color: var(--ok); }
+.deck { grid-column: 1 / -1; height: 22px; display: flex; gap: 2px; border-radius: 5px; overflow: hidden; margin-top: 6px; }
+.deck i { display: block; height: 100%; }
+.deck .sys { background: var(--ink-3); opacity: .55; width: 21%; }
+.deck .apps { background: var(--ink-2); opacity: .55; width: 31%; }
+.deck .stow { width: 27%; background: repeating-linear-gradient(135deg, var(--crate) 0 6px, var(--crate-dark) 6px 8px); }
+.deck .other { background: var(--ink-3); opacity: .3; width: 15%; }
+.deck .free { flex: 1; background: transparent; box-shadow: inset 0 0 0 1.5px var(--rule-2); border-radius: 0 5px 5px 0; }
+.legend { grid-column: 1 / -1; display: flex; gap: 16px; font-size: 11px; color: var(--ink-2); }
+.legend i { display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; }
+
+/* In transit: the crate on the rail */
+.transit { padding: 14px 16px 12px; border-radius: 10px; border: .5px solid var(--rule); background: var(--content);
+  box-shadow: 0 1px 0 var(--rule), 0 8px 24px -12px rgba(27, 36, 48, .25); display: grid; grid-template-columns: 1fr 300px; gap: 6px 24px; }
+.transit .t-head { display: flex; align-items: baseline; gap: 10px; }
+.transit .t-head b { font-size: 14px; }
+.transit .t-head .mono { color: var(--ink-2); font-size: 12px; }
+.rail { position: relative; height: 54px; margin-top: 4px; display: flex; align-items: center; }
+.dock { width: 64px; height: 40px; border-radius: 6px; border: 1.5px solid var(--rule-2); display: grid; place-items: center;
+  font-size: 11px; font-weight: 600; color: var(--ink-2); letter-spacing: .08em; flex: none; background: var(--panel); }
+.dock.to { border-color: var(--ok); color: var(--ok); }
+.track { flex: 1; height: 2px; margin: 0 10px; position: relative;
+  background: repeating-linear-gradient(90deg, var(--rule-2) 0 6px, transparent 6px 11px); }
+.track .done { position: absolute; left: 0; top: 0; height: 2px; width: 62%; background: var(--signal-fill); }
+.crate { position: absolute; left: 62%; top: -19px; transform: translateX(-50%); width: 36px; height: 36px; animation: bob 2.4s ease-in-out infinite; }
+@keyframes bob { 50% { transform: translateX(-50%) translateY(-2px) rotate(-1.5deg); } }
+@media (prefers-reduced-motion: reduce) { .crate { animation: none; } }
+.steps { display: flex; gap: 6px; align-items: center; font-size: 11px; }
+.step { padding: 2px 8px; border-radius: 4px; border: 1px solid var(--rule-2); color: var(--ink-3); letter-spacing: .04em; }
+.step.done { color: var(--ok); border-color: var(--ok); }
+.step.now { color: var(--signal); border-color: var(--signal); background: var(--signal-tint); font-weight: 600; }
+.t-side { border-left: .5px solid var(--rule); padding-left: 20px; display: flex; flex-direction: column; gap: 8px; }
+.t-side .kv { display: grid; grid-template-columns: auto 1fr; gap: 3px 12px; font-size: 12px; }
+.t-side .kv span:nth-child(odd) { color: var(--ink-3); }
+.t-side .note { font-size: 12px; color: var(--ink-2); }
+.t-side .row { display: flex; gap: 8px; margin-top: auto; }
+
+/* Manifest */
+.manifest { border: .5px solid var(--rule); border-radius: 10px; overflow: hidden; background: var(--content); }
+.m-head, .m-row { display: grid; grid-template-columns: 34px minmax(0,1.25fr) minmax(0,1.4fr) 82px minmax(0,1.35fr) 112px; gap: 12px; align-items: center; padding: 0 14px; }
+.m-head { height: 28px; font-size: 11px; color: var(--ink-3); background: var(--panel); border-bottom: .5px solid var(--rule); letter-spacing: .02em; }
+.m-row { min-height: 50px; border-bottom: .5px solid var(--rule); }
+.m-row:last-child { border-bottom: 0; }
+.m-row .name b { display: block; font-weight: 600; }
+.m-row .name span { font-size: 11px; color: var(--ink-3); }
+.path { font-size: 11px; color: var(--ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.size { text-align: right; font-size: 13px; font-weight: 500; }
+.verdict { display: flex; flex-direction: column; gap: 2px; align-items: flex-start; }
+.verdict small { font-size: 11px; color: var(--ink-3); }
+.pill { font-size: 11px; font-weight: 600; padding: 1px 7px; border-radius: 4px; letter-spacing: .02em; }
+.pill.move { color: var(--signal); background: var(--signal-tint); }
+.pill.setting { color: var(--info); background: var(--info-tint); }
+.pill.no { color: var(--bad); background: var(--bad-tint); }
+.pill.stowed { color: var(--ok); background: var(--ok-tint); }
+.act { text-align: right; }
+.m-row.refused { background: repeating-linear-gradient(135deg, transparent 0 10px, var(--bad-tint) 10px 11px); }
+.m-row.stowed { position: relative; }
+.stamp { display: inline-block; transform: rotate(-7deg); border: 2px solid var(--ok); color: var(--ok);
+  border-radius: 4px; padding: 0 6px; font-size: 15px; opacity: .8; line-height: 1.25; }
+.hint { font-size: 11px; color: var(--ink-3); }
+.hint b { color: var(--signal); font-weight: 500; }
+
+/* Board below the window: the direction spec */
+.board { width: 1200px; margin: 0 auto; padding: 40px 0 56px; color: var(--board-ink); display: grid; grid-template-columns: 1.1fr 1fr 1fr; gap: 36px; }
+.board h2 { font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-3); margin: 0 0 10px; font-weight: 600; }
+.board .title { grid-column: 1 / -1; display: flex; align-items: baseline; gap: 18px; border-bottom: 1px solid var(--rule-2); padding-bottom: 16px; }
+.board .title b { font-size: 44px; line-height: 1; }
+.board .title p { margin: 0; font-size: 15px; color: var(--ink-2); max-width: 760px; }
+.board p, .board li { font-size: 13px; color: var(--ink-2); margin: 0 0 6px; }
+.board ul { padding-left: 16px; margin: 0; }
+.sw { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-bottom: 10px; }
+.sw div { border-radius: 6px; height: 48px; padding: 5px 6px; font-size: 10px; display: flex; flex-direction: column; justify-content: flex-end;
+  box-shadow: inset 0 0 0 .5px rgba(0,0,0,.15); }
+.sw div span { font-family: "IBM Plex Mono", monospace; }
+.spec-type div { margin-bottom: 10px; }
+.spec-type .s1 { font-size: 30px; }
+.spec-type .s2 { font: 600 20px -apple-system, sans-serif; }
+.spec-type .s3 { font-size: 15px; }
+.spec-type small { display: block; font-size: 11px; color: var(--ink-3); }
+</style>
+</head>
+<body>
+<div class="desk">
+<div class="win">
+  <aside class="side">
+    <div class="lights"><i></i><i></i><i></i></div>
+    <div class="brand">
+      <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="6" width="18" height="14" rx="2" fill="var(--crate)"/><path d="M3 10h18M8 6v14M16 6v14" stroke="var(--crate-dark)" stroke-width="1.6"/><path d="M7 3h10l2 3H5z" fill="var(--signal-fill)"/></svg>
+      <b class="stencil">STOWAWAY</b>
+    </div>
+    <div class="nav"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="5" height="5" rx="1"/><rect x="9" y="2" width="5" height="5" rx="1"/><rect x="2" y="9" width="5" height="5" rx="1"/><rect x="9" y="9" width="5" height="5" rx="1"/></svg>Overview</div>
+    <div class="nav on"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="5" width="12" height="9" rx="1.5"/><path d="M2 8h12M6 5V3h4v2"/></svg>Offload<span class="n mono">6</span></div>
+    <div class="nav"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="4" width="12" height="8" rx="2"/><circle cx="11" cy="8" r="1" fill="currentColor"/></svg>Drives<span class="n mono">1 missing</span></div>
+    <div class="nav"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 12l3-4 3 2 3-5 3 3"/></svg>Memory</div>
+    <div class="group">Drives</div>
+    <div class="nav"><span class="led"></span>Samsung T7</div>
+    <div class="drive-sub mono">412 GB free · 4 apps</div>
+    <div class="nav"><span class="led off"></span>Archive</div>
+    <div class="drive-sub bad">Missing · LM Studio held</div>
+    <div class="group">Coming later</div>
+    <div class="nav later"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 4h10l-1 9H4z M6 4V2h4v2"/></svg>Clean</div>
+    <div class="nav later"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="10" height="10" rx="3"/></svg>Apps</div>
+    <div class="side-foot mono">Journal · 1 move in progress<br>Nothing to recover</div>
+  </aside>
+
+  <section class="main">
+    <div class="bar">
+      <h1>Offload</h1><span class="sub">Stow heavy app data on a drive. Apps keep working.</span>
+      <span class="sp"></span>
+      <div class="seg"><button class="on">Suggested<span class="c mono">5</span></button><button>Stowed<span class="c mono">4</span></button><button>All</button></div>
+      <button class="btn">Scan again</button>
+    </div>
+    <div class="scroll">
+      <div class="hold">
+        <div><div class="label">This Mac</div><div class="big mono">31.2 GB <small>free of 494 GB</small></div></div>
+        <div class="after"><div class="label">After stowing suggested</div><div class="big mono">108.4 GB <small>free</small></div></div>
+        <div class="deck"><i class="sys"></i><i class="apps"></i><i class="stow"></i><i class="other"></i><i class="free"></i></div>
+        <div class="legend"><span><i style="background:var(--ink-3);opacity:.55"></i>macOS 104 GB</span><span><i style="background:var(--ink-2);opacity:.55"></i>Apps 153 GB</span><span><i style="background:repeating-linear-gradient(135deg,var(--crate) 0 3px,var(--crate-dark) 3px 4px)"></i>Can be stowed 77.2 GB</span><span><i style="background:var(--ink-3);opacity:.3"></i>Other 128 GB</span><span><i style="box-shadow:inset 0 0 0 1.5px var(--rule-2)"></i>Free</span></div>
+      </div>
+
+      <div class="transit">
+        <div>
+          <div class="t-head"><b>Hugging Face cache</b><span class="mono">~/.cache/huggingface → Samsung T7</span></div>
+          <div class="rail">
+            <div class="dock mono">MAC</div>
+            <div class="track"><div class="done"></div>
+              <svg class="crate" viewBox="0 0 36 36" aria-hidden="true"><rect x="3" y="7" width="30" height="26" rx="3" fill="var(--crate)"/><path d="M3 14h30M12 7v26M24 7v26" stroke="var(--crate-dark)" stroke-width="2"/><rect x="14" y="17" width="8" height="6" rx="1" fill="var(--content)" opacity=".7"/></svg>
+            </div>
+            <div class="dock to mono">T7</div>
+          </div>
+          <div class="steps mono"><span class="step done">✓ COPY</span><span class="step now">VERIFY 62%</span><span class="step">LINK</span><span class="step">REMOVE ORIGINAL</span></div>
+        </div>
+        <div class="t-side">
+          <div class="kv mono"><span>checked</span><span>20.5 of 33.1 GB · BLAKE3</span><span>files</span><span>148,212 match</span><span>left</span><span>about 40 s</span></div>
+          <div class="note">Nothing is using this folder, so apps can stay open. The original stays until the copy is proven.</div>
+          <div class="row"><button class="btn">Pause</button><button class="btn ghost">Cancel and keep on Mac</button></div>
+        </div>
+      </div>
+
+      <div class="manifest">
+        <div class="m-head"><span></span><span>Item</span><span>Where it lives</span><span style="text-align:right">Size</span><span>Verdict</span><span></span></div>
+        <div class="m-row">
+          <svg viewBox="0 0 24 24" width="24"><rect x="2" y="5" width="20" height="16" rx="2" fill="var(--crate)"/><path d="M2 10h20M8 5v16M16 5v16" stroke="var(--crate-dark)" stroke-width="1.5"/></svg>
+          <div class="name"><b>Ollama models</b><span>Ollama</span></div>
+          <div class="path mono">~/.ollama/models</div>
+          <div class="size mono">48.2 GB</div>
+          <div class="verdict"><span class="pill move">Move</span><small>Ollama is open — quit it first</small></div>
+          <div class="act"><button class="btn primary">Quit &amp; move</button></div>
+        </div>
+        <div class="m-row">
+          <svg viewBox="0 0 24 24" width="24"><rect x="2" y="5" width="20" height="16" rx="2" fill="var(--crate)"/><path d="M2 10h20M8 5v16M16 5v16" stroke="var(--crate-dark)" stroke-width="1.5"/></svg>
+          <div class="name"><b>Derived data</b><span>Xcode</span></div>
+          <div class="path mono">~/Library/Developer/Xcode/DerivedData</div>
+          <div class="size mono">21.7 GB</div>
+          <div class="verdict"><span class="pill move">Move</span><small>Rebuilt if the drive is away</small></div>
+          <div class="act"><button class="btn">Move</button></div>
+        </div>
+        <div class="m-row">
+          <svg viewBox="0 0 24 24" width="24"><rect x="2" y="5" width="20" height="16" rx="2" fill="none" stroke="var(--info)" stroke-width="1.6" stroke-dasharray="3 2"/></svg>
+          <div class="name"><b>Docker disk image</b><span>Docker Desktop</span></div>
+          <div class="path mono">~/Library/Containers/com.docker.docker</div>
+          <div class="size mono">59.6 GB</div>
+          <div class="verdict"><span class="pill setting">Use Docker's setting</span><small>A link here can corrupt data</small></div>
+          <div class="act"><button class="btn">Show how</button></div>
+        </div>
+        <div class="m-row refused">
+          <svg viewBox="0 0 24 24" width="24"><rect x="2" y="5" width="20" height="16" rx="2" fill="none" stroke="var(--bad)" stroke-width="1.6"/><path d="M6 9l12 8M18 9L6 17" stroke="var(--bad)" stroke-width="1.6"/></svg>
+          <div class="name"><b>iPhone backups</b><span>Finder</span></div>
+          <div class="path mono">~/Library/Application Support/MobileSync</div>
+          <div class="size mono">28.4 GB</div>
+          <div class="verdict"><span class="pill no">Can't move</span><small>macOS ignores links here since 10.15</small></div>
+          <div class="act"><button class="btn ghost">Why?</button></div>
+        </div>
+        <div class="m-row stowed">
+          <svg viewBox="0 0 24 24" width="24"><rect x="2" y="5" width="20" height="16" rx="2" fill="var(--ok)" opacity=".85"/><path d="M7 13l3 3 7-7" stroke="var(--content)" stroke-width="2" fill="none"/></svg>
+          <div class="name"><b>Cowork VM</b><span>Claude</span></div>
+          <div class="path mono" style="overflow:visible;display:flex;gap:12px;align-items:center">→ T7/Stowaway/Claude <span class="stamp stencil">VERIFIED</span></div>
+          <div class="size mono">12.4 GB</div>
+          <div class="verdict"><span class="pill stowed">Stowed on T7</span><small>Verified 3 Nov · app opened fine</small></div>
+          <div class="act"><button class="btn">Bring back</button></div>
+        </div>
+      </div>
+      <div class="hint mono"><b>▸</b> drag a row onto a drive in the sidebar to stow it there · <b>⌘Z</b> undoes the last move</div>
+    </div>
+  </section>
+</div>
+</div>
+
+<div class="board">
+  <div class="title"><b class="stencil">A · MANIFEST</b><p>A ship's manifest for your data. Every folder is a crate: weighed, labelled, stamped when it's verified, and always on the list so you can bring it home.</p></div>
+  <div>
+    <h2>Mood</h2>
+    <p>Calm logistics. Warm paper and hull ink, one signal orange used only for the thing that needs you. Feels like a careful quartermaster, not a cleaner shouting about junk.</p>
+    <h2 style="margin-top:18px">Motion</h2>
+    <ul>
+      <li>Crates ride a dashed rail from MAC to the drive while copying; a slight bob, never a spin.</li>
+      <li>Verify ends in a stamp — a 120 ms "thump" scale 1.15 → 1 with a tiny rotation settle.</li>
+      <li>Sizes count up in mono with tabular figures; the free-space bar slides as crates leave.</li>
+      <li>Reduced Motion: crates jump, stamps fade.</li>
+    </ul>
+    <h2 style="margin-top:18px">Why it fits</h2>
+    <p>Stowaway = cargo. The journal becomes the manifest; trust is shown as stamps and counts, not promises.</p>
+  </div>
+  <div>
+    <h2>Palette · light</h2>
+    <div class="sw">
+      <div style="background:#fbf9f4;color:#1b2430">paper<span>#FBF9F4</span></div>
+      <div style="background:#1b2430;color:#fbf9f4">ink<span>#1B2430</span></div>
+      <div style="background:#c2410c;color:#fff">signal<span>#C2410C</span></div>
+      <div style="background:#b98a52;color:#1b2430">crate<span>#B98A52</span></div>
+      <div style="background:#1f7a4d;color:#fff">stowed<span>#1F7A4D</span></div>
+      <div style="background:#2b5c8a;color:#fff">setting<span>#2B5C8A</span></div>
+      <div style="background:#b42318;color:#fff">refused<span>#B42318</span></div>
+      <div style="background:#f3efe6;color:#1b2430">panel<span>#F3EFE6</span></div>
+    </div>
+    <h2>Palette · dark</h2>
+    <div class="sw">
+      <div style="background:#0f1620;color:#ede7da">hull<span>#0F1620</span></div>
+      <div style="background:#ede7da;color:#0f1620">canvas<span>#EDE7DA</span></div>
+      <div style="background:#ff7a33;color:#1b1006">signal<span>#FF7A33</span></div>
+      <div style="background:#c99a62;color:#0f1620">crate<span>#C99A62</span></div>
+      <div style="background:#5fd39a;color:#0f1620">stowed<span>#5FD39A</span></div>
+      <div style="background:#8cbcec;color:#0f1620">setting<span>#8CBCEC</span></div>
+      <div style="background:#ff8577;color:#0f1620">refused<span>#FF8577</span></div>
+      <div style="background:#16202c;color:#ede7da">panel<span>#16202C</span></div>
+    </div>
+  </div>
+  <div class="spec-type">
+    <h2>Type</h2>
+    <div><span class="s1 stencil">STOWAWAY · T7</span><small>Big Shoulders Stencil (OFL) — wordmark, stamps, drive labels only</small></div>
+    <div><span class="s2">Offload</span><small>SF Pro (system) — all UI text, 20/13/11 pt</small></div>
+    <div><span class="s3 mono">48.2 GB · ~/.ollama/models</span><small>IBM Plex Mono (OFL) — sizes, paths, counts, hint lines</small></div>
+    <h2 style="margin-top:18px">Signature details</h2>
+    <ul><li>Crate glyphs with strapping; hatched = can be stowed.</li><li>Rubber-stamp "VERIFIED" on stowed rows.</li><li>Refused rows hatched in red, always with a reason.</li></ul>
+  </div>
+</div>
+<script>
+  // ?theme=dark|light forces a theme for screenshots; otherwise follow the system.
+  const t = new URLSearchParams(location.search).get('theme') || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+  document.documentElement.dataset.theme = t;
+</script>
+</body>
+</html>

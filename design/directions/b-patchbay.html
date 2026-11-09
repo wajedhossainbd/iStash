@@ -1,0 +1,306 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Stowaway · B Patch Bay</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+/* Direction B — Patch Bay. Studio hardware: drives are rack modules, apps are patched to them with real cables.
+   Graphite + one cable colour per drive. Dark-first. */
+:root {
+  --wall: radial-gradient(120% 90% at 20% 0%, #3a3d44 0%, #1a1b1f 55%, #0c0c0e 100%);
+  --side: rgba(30, 31, 35, .74); --content: #131417; --panel: #191a1e; --panel-2: #212226;
+  --face: linear-gradient(180deg, #24252a 0%, #1b1c20 100%); --face-line: rgba(255, 255, 255, .07);
+  --ink: #ececee; --ink-2: #a6a8ae; --ink-3: #878a90; --rule: rgba(255, 255, 255, .08); --rule-2: rgba(255, 255, 255, .16);
+  --accent: #ffb547; --accent-ink: #1d1404; --led-off: #2c2d32;
+  --c-t7: #4cc2ff; --c-t7-d: #1d6f99; --c-arc: #ff8a3d; --c-int: #a99bff;
+  --ok: #3ddc84; --bad: #ff6b6b; --bad-tint: rgba(255, 107, 107, .1);
+  --btn: #2a2b30; --btn-line: rgba(255, 255, 255, .1); --shadow: 0 .5px 1px rgba(0, 0, 0, .5);
+  --win-shadow: 0 30px 80px rgba(0, 0, 0, .65), 0 0 0 .5px rgba(255, 255, 255, .14);
+  --board: #0f1012; --cshadow: rgba(0,0,0,.4); --hole: #050506; --screw: #3a3b41;
+}
+:root[data-theme="light"] {
+  --wall: radial-gradient(120% 90% at 20% 0%, #f2f3f5 0%, #c9ccd2 60%, #9da2aa 100%);
+  --side: rgba(236, 237, 240, .78); --content: #f7f7f8; --panel: #efeff1; --panel-2: #e6e7ea;
+  --face: linear-gradient(180deg, #fdfdfd 0%, #ececee 100%); --face-line: rgba(0, 0, 0, .08);
+  --ink: #16171a; --ink-2: #50535a; --ink-3: #5f626a; --rule: rgba(0, 0, 0, .09); --rule-2: rgba(0, 0, 0, .18);
+  --accent: #a65400; --accent-ink: #fff; --led-off: #d5d6da;
+  --c-t7: #0670a8; --c-t7-d: #07587f; --c-arc: #d4610b; --c-int: #6b5ce7;
+  --ok: #1a8f4c; --bad: #c92a2a; --bad-tint: rgba(201, 42, 42, .08);
+  --btn: #ffffff; --btn-line: rgba(0, 0, 0, .14); --shadow: 0 .5px 1px rgba(0, 0, 0, .14);
+  --win-shadow: 0 30px 80px rgba(30, 34, 40, .35), 0 0 0 .5px rgba(0, 0, 0, .22);
+  --board: #f4f4f6; --cshadow: rgba(0,0,0,.1); --hole: #2a2b30; --screw: #c3c5ca;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body { background: var(--board); color: var(--ink); font: 13px/1.4 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif; -webkit-font-smoothing: antialiased; }
+.mono { font-family: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace; font-variant-numeric: tabular-nums; }
+.caps { font-family: "JetBrains Mono", ui-monospace, monospace; text-transform: uppercase; letter-spacing: .12em; font-size: 10px; font-weight: 700; }
+
+.desk { background: var(--wall); padding: 56px 0 64px; display: flex; justify-content: center; }
+.win { width: 1200px; height: 760px; border-radius: 12px; overflow: hidden; display: grid; grid-template-columns: 220px 1fr; grid-template-rows: 100%; box-shadow: var(--win-shadow); background: var(--content); }
+.side { background: var(--side); backdrop-filter: blur(30px) saturate(1.5); -webkit-backdrop-filter: blur(30px) saturate(1.5); padding: 14px 10px 12px; display: flex; flex-direction: column; border-right: .5px solid var(--rule-2); }
+.lights { display: flex; gap: 8px; padding: 4px 8px 18px; }
+.lights i { width: 12px; height: 12px; border-radius: 50%; background: #ff5f57; } .lights i:nth-child(2) { background: #febc2e; } .lights i:nth-child(3) { background: #28c840; }
+.brand { display: flex; align-items: center; gap: 9px; padding: 0 8px 16px; font-weight: 700; font-size: 15px; letter-spacing: -.01em; }
+.group { font-size: 11px; font-weight: 600; color: var(--ink-3); padding: 12px 8px 4px; }
+.nav { display: flex; align-items: center; gap: 9px; padding: 5px 8px; border-radius: 6px; }
+.nav svg { width: 16px; height: 16px; color: var(--accent); flex: none; }
+.nav.on { background: var(--rule-2); }
+.nav .n { margin-left: auto; font-size: 11px; color: var(--ink-3); }
+.nav .n.bad { color: var(--bad); }
+.nav.later { color: var(--ink-3); } .nav.later svg { color: var(--ink-3); }
+.side-foot { margin-top: auto; padding: 10px 8px 2px; border-top: .5px solid var(--rule); display: grid; gap: 6px; font-size: 11px; color: var(--ink-2); }
+.meter { display: flex; align-items: center; gap: 6px; }
+.meter span:first-child { width: 34px; color: var(--ink-3); }
+.meter .mbar { flex: 1; height: 4px; border-radius: 2px; background: var(--rule-2); overflow: hidden; }
+.meter .mbar i { display: block; height: 100%; background: var(--ink-2); }
+
+.main { display: flex; flex-direction: column; min-width: 0; }
+.bar { display: flex; align-items: center; gap: 12px; padding: 16px 24px 12px; }
+.bar h1 { font-size: 20px; margin: 0; letter-spacing: -.01em; }
+.bar .sub { color: var(--ink-2); } .bar .sp { flex: 1; }
+.seg { display: inline-flex; background: var(--panel-2); border-radius: 7px; padding: 2px; gap: 2px; }
+.seg button { font: inherit; font-size: 12px; border: 0; background: none; color: var(--ink); padding: 3px 10px; border-radius: 5px; }
+.seg button.on { background: var(--btn); box-shadow: var(--shadow), 0 0 0 .5px var(--btn-line); }
+.btn { font: inherit; font-size: 12px; padding: 4px 11px; border-radius: 6px; border: .5px solid var(--btn-line); background: var(--btn); color: var(--ink); box-shadow: var(--shadow); white-space: nowrap; }
+.btn.primary { background: var(--accent); color: var(--accent-ink); border-color: transparent; font-weight: 600; }
+.btn:disabled { opacity: .45; }
+.scroll { flex: 1; overflow: hidden; padding: 0 24px 20px; display: flex; flex-direction: column; gap: 14px; }
+
+/* Rack modules */
+.rack { display: grid; grid-template-columns: 1.15fr 1fr 1fr; gap: 12px; }
+.mod { position: relative; background: var(--face); border-radius: 8px; padding: 12px 16px 12px; border: .5px solid var(--face-line);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.06), 0 1px 2px rgba(0,0,0,.35); }
+:root[data-theme="light"] .mod { box-shadow: inset 0 1px 0 #fff, 0 1px 2px rgba(0,0,0,.12); }
+.mod::before, .mod::after { content: ""; position: absolute; top: 7px; width: 5px; height: 5px; border-radius: 50%; background: var(--screw); }
+.mod::before { left: 6px; } .mod::after { right: 6px; }
+.mod-top { display: flex; align-items: center; gap: 8px; }
+.mod-top .caps { color: var(--ink); }
+.mod-top .sp { flex: 1; }
+.led { width: 8px; height: 8px; border-radius: 50%; background: var(--ok); box-shadow: 0 0 8px var(--ok); }
+.led.blink { animation: blink 1.2s steps(2) infinite; }
+.led.off { background: var(--led-off); box-shadow: inset 0 0 0 1.5px var(--bad); }
+@keyframes blink { 50% { opacity: .35; } }
+@media (prefers-reduced-motion: reduce) { .led.blink { animation: none; } }
+.vu { display: grid; grid-template-columns: repeat(24, 1fr); gap: 2px; margin: 12px 0 8px; }
+.vu i { height: 12px; border-radius: 1.5px; background: var(--led-off); }
+.vu i.on { background: var(--c); }
+.vu i.stow { background: var(--c); opacity: 1; box-shadow: 0 0 6px var(--c); }
+.mod .line { display: flex; justify-content: space-between; font-size: 11px; color: var(--ink-2); }
+.mod .line b { color: var(--ink); font-weight: 500; }
+.mod.missing { background: repeating-linear-gradient(135deg, transparent 0 10px, var(--bad-tint) 10px 12px), var(--face); }
+.mod.missing .caps { color: var(--ink-2); }
+.eject { width: 22px; height: 22px; border-radius: 5px; display: grid; place-items: center; border: .5px solid var(--btn-line); background: var(--btn); color: var(--ink-2); }
+
+/* Patch bay */
+.bay { position: relative; background: var(--panel); border-radius: 10px; border: .5px solid var(--rule); padding: 10px 14px 6px; }
+.bay-head { display: flex; justify-content: space-between; align-items: baseline; color: var(--ink-3); }
+.bay svg { display: block; width: 100%; height: auto; overflow: visible; }
+.cable { fill: none; stroke-linecap: round; }
+.sway { animation: sway 5s ease-in-out infinite; transform-origin: 50% 0; transform-box: fill-box; }
+@keyframes sway { 50% { transform: translateY(2px); } }
+@media (prefers-reduced-motion: reduce) { .sway { animation: none; } }
+
+.banner { display: grid; grid-template-columns: auto 1fr auto; gap: 14px; align-items: center; padding: 12px 16px; border-radius: 10px;
+  background: var(--bad-tint); border: .5px solid color-mix(in srgb, var(--bad) 40%, transparent); }
+.banner b { display: block; }
+.banner p { margin: 2px 0 0; color: var(--ink-2); font-size: 12px; }
+.banner .acts { display: flex; gap: 8px; align-items: center; }
+.banner .why { font-size: 11px; color: var(--ink-3); text-align: right; margin-top: 4px; }
+.hint { font-size: 11px; color: var(--ink-3); } .hint b { color: var(--accent); font-weight: 500; }
+
+.board { width: 1200px; margin: 0 auto; padding: 40px 0 56px; display: grid; grid-template-columns: 1.1fr 1fr 1fr; gap: 36px; }
+.board h2 { font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-3); margin: 0 0 10px; font-weight: 600; }
+.board .title { grid-column: 1 / -1; display: flex; align-items: baseline; gap: 18px; border-bottom: 1px solid var(--rule-2); padding-bottom: 16px; }
+.board .title b { font: 700 40px/1 "JetBrains Mono", monospace; letter-spacing: -.02em; }
+.board .title p { margin: 0; font-size: 15px; color: var(--ink-2); max-width: 760px; }
+.board p, .board li { font-size: 13px; color: var(--ink-2); margin: 0 0 6px; }
+.board ul { padding-left: 16px; margin: 0; }
+.sw { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-bottom: 10px; }
+.sw div { border-radius: 6px; height: 48px; padding: 5px 6px; font-size: 10px; display: flex; flex-direction: column; justify-content: flex-end; box-shadow: inset 0 0 0 .5px rgba(127,127,127,.35); }
+.sw div span { font-family: "JetBrains Mono", monospace; }
+.spec-type div { margin-bottom: 10px; }
+.spec-type small { display: block; font-size: 11px; color: var(--ink-3); }
+</style>
+</head>
+<body>
+<div class="desk">
+<div class="win">
+  <aside class="side">
+    <div class="lights"><i></i><i></i><i></i></div>
+    <div class="brand">
+      <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="4" width="20" height="16" rx="4" fill="var(--panel-2)" stroke="var(--rule-2)"/><circle cx="8" cy="12" r="3" fill="var(--hole)" stroke="var(--c-t7)" stroke-width="1.6"/><circle cx="16" cy="12" r="3" fill="var(--hole)" stroke="var(--accent)" stroke-width="1.6"/></svg>
+      Stowaway
+    </div>
+    <div class="nav"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 13a6 6 0 0 1 12 0M8 13l3-4"/></svg>Overview</div>
+    <div class="nav"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 2v8M5 7l3 3 3-3M3 13h10"/></svg>Offload<span class="n mono">5</span></div>
+    <div class="nav on"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="4" cy="5" r="1.6"/><circle cx="12" cy="11" r="1.6"/><path d="M5.5 5.5C9 6 7 10.5 10.5 10.7"/></svg>Drives<span class="n bad mono">1 missing</span></div>
+    <div class="nav"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 12l3-4 3 2 3-5 3 3"/></svg>Memory</div>
+    <div class="group">Coming later</div>
+    <div class="nav later"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 4h10l-1 9H4z M6 4V2h4v2"/></svg>Clean</div>
+    <div class="nav later"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="10" height="10" rx="3"/></svg>Apps</div>
+    <div class="side-foot mono">
+      <div class="meter"><span>CPU</span><div class="mbar"><i style="width:34%"></i></div><span>34%</span></div>
+      <div class="meter"><span>MEM</span><div class="mbar"><i style="width:72%;background:var(--accent)"></i></div><span>72%</span></div>
+      <div class="meter"><span>DISK</span><div class="mbar"><i style="width:94%;background:var(--bad)"></i></div><span>31G</span></div>
+    </div>
+  </aside>
+
+  <section class="main">
+    <div class="bar">
+      <h1>Drives</h1><span class="sub">Which app needs which drive.</span><span class="sp"></span>
+      <div class="seg"><button class="on">Patch bay</button><button>List</button></div>
+      <button class="btn">Eject T7 safely…</button>
+    </div>
+    <div class="scroll">
+      <div class="rack">
+        <div class="mod" style="--c:var(--c-t7)">
+          <div class="mod-top"><span class="led blink"></span><span class="caps">Samsung T7</span><span class="mono" style="font-size:11px;color:var(--ink-3)">APFS · USB-C</span><span class="sp"></span><span class="eject" title="Eject guard on"><svg width="11" height="11" viewBox="0 0 12 12" fill="currentColor"><path d="M6 2l4 5H2zM2 9h8v1.5H2z"/></svg></span></div>
+          <div class="vu"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="stow"></i><i class="stow"></i><i class="stow"></i><i class="stow"></i><i class="stow"></i><i class="stow"></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+          <div class="line mono"><span><b>412 GB</b> free of 1 TB</span><span><b>5 apps</b> · 140.4 GB stowed</span></div>
+        </div>
+        <div class="mod missing" style="--c:var(--c-arc)">
+          <div class="mod-top"><span class="led off"></span><span class="caps">Archive</span><span class="mono" style="font-size:11px;color:var(--bad)">NOT CONNECTED</span></div>
+          <div class="vu"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+          <div class="line mono"><span>last seen <b>2 days ago</b></span><span><b>1 app</b> · 61.0 GB</span></div>
+        </div>
+        <div class="mod" style="--c:var(--c-int)">
+          <div class="mod-top"><span class="led"></span><span class="caps">Macintosh HD</span><span class="mono" style="font-size:11px;color:var(--ink-3)">internal</span></div>
+          <div class="vu"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i style="background:var(--bad);opacity:.7"></i><i></i></div>
+          <div class="line mono"><span><b style="color:var(--bad)">31.2 GB</b> free of 494 GB</span><span>low</span></div>
+        </div>
+      </div>
+
+      <div class="bay">
+        <div class="bay-head"><span class="caps">Apps</span><span class="caps">Patch bay · 6 links</span><span class="caps">Drives</span></div>
+        <svg viewBox="0 0 932 318" role="img" aria-label="Five apps patched to Samsung T7; LM Studio's cable hangs loose because Archive is missing">
+          <defs>
+            <linearGradient id="hl" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".35"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient>
+          </defs>
+          <!-- App jacks (left) -->
+          <g font-size="13" fill="var(--ink)">
+            <g transform="translate(0,34)"><rect x="0" y="-15" width="28" height="28" rx="7" fill="#2b2d33"/><text x="14" y="4" text-anchor="middle" fill="#fff" font-weight="700" font-size="12">O</text><text x="40" y="-2">Ollama</text><text x="40" y="13" class="mono" font-size="11" fill="var(--ink-3)">48.2 GB · models</text></g>
+            <g transform="translate(0,82)"><rect x="0" y="-15" width="28" height="28" rx="7" fill="#1c7cf4"/><text x="14" y="4" text-anchor="middle" fill="#fff" font-weight="700" font-size="12">X</text><text x="40" y="-2">Xcode</text><text x="40" y="13" class="mono" font-size="11" fill="var(--ink-3)">21.7 GB · DerivedData</text></g>
+            <g transform="translate(0,130)"><rect x="0" y="-15" width="28" height="28" rx="7" fill="#f5b82e"/><text x="14" y="4" text-anchor="middle" fill="#2a1d00" font-weight="700" font-size="12">H</text><text x="40" y="-2">Hugging Face</text><text x="40" y="13" class="mono" font-size="11" fill="var(--ink-3)">33.1 GB · cache</text></g>
+            <g transform="translate(0,178)"><rect x="0" y="-15" width="28" height="28" rx="7" fill="#d97757"/><text x="14" y="4" text-anchor="middle" fill="#fff" font-weight="700" font-size="12">C</text><text x="40" y="-2">Claude</text><text x="40" y="13" class="mono" font-size="11" fill="var(--ink-3)">12.4 GB · Cowork VM</text></g>
+            <g transform="translate(0,226)"><rect x="0" y="-15" width="28" height="28" rx="7" fill="#6b5ce7"/><text x="14" y="4" text-anchor="middle" fill="#fff" font-weight="700" font-size="12">He</text><text x="40" y="-2">hermes</text><text x="40" y="13" class="mono" font-size="11" fill="var(--ink-3)">25.0 GB · ~/.hermes</text></g>
+            <g transform="translate(0,274)"><rect x="0" y="-15" width="28" height="28" rx="7" fill="#4b4e57"/><text x="14" y="4" text-anchor="middle" fill="#fff" font-weight="700" font-size="11">LM</text><text x="40" y="-2">LM Studio</text><text x="40" y="13" class="mono" font-size="11" fill="var(--bad)">held — drive missing</text></g>
+          </g>
+          <g fill="var(--hole)" stroke="var(--ink-3)" stroke-width="2">
+            <circle cx="262" cy="34" r="9"/><circle cx="262" cy="82" r="9"/><circle cx="262" cy="130" r="9"/><circle cx="262" cy="178" r="9"/><circle cx="262" cy="226" r="9"/><circle cx="262" cy="274" r="9" stroke="var(--bad)"/>
+          </g>
+
+          <!-- Drive ports (right) -->
+          <rect x="640" y="12" width="292" height="200" rx="8" fill="var(--panel-2)" stroke="var(--rule-2)"/>
+          <text x="912" y="34" text-anchor="end" class="caps" fill="var(--c-t7)" font-size="10" letter-spacing="1.2">SAMSUNG T7</text>
+          <text x="912" y="50" text-anchor="end" class="mono" fill="var(--ink-3)" font-size="11">5 ports in use</text>
+          <circle cx="896" cy="70" r="4" fill="var(--ok)"/>
+          <rect x="640" y="232" width="292" height="78" rx="8" fill="none" stroke="var(--bad)" stroke-dasharray="4 4"/>
+          <text x="912" y="256" text-anchor="end" class="caps" fill="var(--bad)" font-size="10" letter-spacing="1.2">ARCHIVE · MISSING</text>
+          <text x="912" y="272" text-anchor="end" class="mono" fill="var(--ink-3)" font-size="11">plug it in to reconnect</text>
+          <g fill="var(--hole)" stroke="var(--ink-3)" stroke-width="2">
+            <circle cx="666" cy="40" r="9"/><circle cx="666" cy="78" r="9"/><circle cx="666" cy="116" r="9"/><circle cx="666" cy="154" r="9"/><circle cx="666" cy="192" r="9"/><circle cx="666" cy="271" r="9" stroke="var(--bad)"/>
+          </g>
+
+          <!-- Cables: shadow, body, highlight -->
+          <g class="cable">
+            <path d="M262 34 C430 104 500 110 666 40" stroke="var(--cshadow)" stroke-width="8" transform="translate(0,3)"/>
+            <path d="M262 82 C430 152 500 148 666 78" stroke="var(--cshadow)" stroke-width="8" transform="translate(0,3)"/>
+            <path d="M262 130 C430 200 500 186 666 116" stroke="var(--cshadow)" stroke-width="8" transform="translate(0,3)"/>
+            <path d="M262 178 C430 248 500 224 666 154" stroke="var(--cshadow)" stroke-width="8" transform="translate(0,3)"/>
+            <path d="M262 226 C430 296 500 262 666 192" stroke="var(--cshadow)" stroke-width="8" transform="translate(0,3)"/>
+          </g>
+          <g class="cable sway" stroke="var(--c-t7)" stroke-width="6">
+            <path d="M262 34 C430 104 500 110 666 40"/>
+            <path d="M262 82 C430 152 500 148 666 78"/>
+            <path d="M262 130 C430 200 500 186 666 116" stroke-width="7.5"/>
+            <path d="M262 178 C430 248 500 224 666 154"/>
+            <path d="M262 226 C430 296 500 262 666 192"/>
+          </g>
+          <g class="cable sway" stroke="url(#hl)" stroke-width="2" transform="translate(0,-1.5)">
+            <path d="M262 34 C430 104 500 110 666 40"/><path d="M262 82 C430 152 500 148 666 78"/><path d="M262 130 C430 200 500 186 666 116"/><path d="M262 178 C430 248 500 224 666 154"/><path d="M262 226 C430 296 500 262 666 192"/>
+          </g>
+          <!-- hovered cable label -->
+          <g transform="translate(464,168)">
+            <rect x="-62" y="-13" width="124" height="22" rx="11" fill="var(--content)" stroke="var(--c-t7)"/>
+            <text x="0" y="2" text-anchor="middle" class="mono" font-size="11" fill="var(--ink)">33.1 GB · 3 links</text>
+          </g>
+          <!-- Plugs on jacks -->
+          <g fill="var(--c-t7)">
+            <rect x="254" y="28" width="16" height="12" rx="3"/><rect x="254" y="76" width="16" height="12" rx="3"/><rect x="254" y="124" width="16" height="12" rx="3"/><rect x="254" y="172" width="16" height="12" rx="3"/><rect x="254" y="220" width="16" height="12" rx="3"/>
+            <rect x="658" y="34" width="16" height="12" rx="3"/><rect x="658" y="72" width="16" height="12" rx="3"/><rect x="658" y="110" width="16" height="12" rx="3"/><rect x="658" y="148" width="16" height="12" rx="3"/><rect x="658" y="186" width="16" height="12" rx="3"/>
+          </g>
+          <!-- Loose cable: LM Studio → nowhere -->
+          <path d="M262 274 C330 318 400 316 452 308" stroke="var(--c-arc)" stroke-width="6" stroke-dasharray="1 0" class="cable" opacity=".9"/>
+          <rect x="254" y="268" width="16" height="12" rx="3" fill="var(--c-arc)"/>
+          <g transform="translate(452,308) rotate(-4)"><rect x="0" y="-6" width="22" height="12" rx="3" fill="var(--c-arc)"/><rect x="22" y="-3" width="9" height="6" rx="1" fill="var(--ink-3)"/></g>
+          <text x="492" y="312" class="mono" font-size="11" fill="var(--bad)">unplugged</text>
+        </svg>
+      </div>
+
+      <div class="banner">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="var(--bad)" stroke-width="1.8"><rect x="3" y="6" width="18" height="12" rx="3"/><path d="M8 12h8" /></svg>
+        <div><b>Archive is missing. LM Studio is held so it can't write to an empty folder.</b><p>Its models (61.0 GB) live on Archive. Plug the drive in and LM Studio opens normally — or bring the models back to this Mac.</p></div>
+        <div><div class="acts"><button class="btn" disabled>Bring back to Mac</button><button class="btn primary">Wait for Archive</button></div><div class="why mono">needs 61.0 GB · 31.2 GB free here</div></div>
+      </div>
+      <div class="hint mono"><b>▸</b> tug a cable to see what breaks if you unplug it · hover a drive to light its apps</div>
+    </div>
+  </section>
+</div>
+</div>
+
+<div class="board">
+  <div class="title"><b>B · PATCH BAY</b><p>Studio hardware for your storage. Drives are rack modules, apps are patched into them with cables. Pull a drive and you see exactly which cables fall loose.</p></div>
+  <div>
+    <h2>Mood</h2>
+    <p>Tactile, precise, a little nerdy — a well-kept recording studio. Graphite faceplates, LED meters and one bright cable colour per drive. The map is the hero: dependency is something you can see and touch.</p>
+    <h2 style="margin-top:18px">Motion</h2>
+    <ul>
+      <li>Cables are spring-simulated (verlet, 12 points): they sway when hovered and stretch when tugged.</li>
+      <li>Unplugging a drive drops its cables with gravity and a small bounce; reconnecting snaps plugs home with a click haptic.</li>
+      <li>LEDs blink with real read/write activity; capacity meters fill segment by segment.</li>
+      <li>Reduced Motion: cables are static curves, state changes crossfade.</li>
+    </ul>
+  </div>
+  <div>
+    <h2>Palette · dark (primary)</h2>
+    <div class="sw">
+      <div style="background:#131417;color:#ececee">graphite<span>#131417</span></div>
+      <div style="background:#ececee;color:#131417">ink<span>#ECECEE</span></div>
+      <div style="background:#ffb547;color:#1d1404">accent<span>#FFB547</span></div>
+      <div style="background:#4cc2ff;color:#06222f">cable 1<span>#4CC2FF</span></div>
+      <div style="background:#ff8a3d;color:#2a1200">cable 2<span>#FF8A3D</span></div>
+      <div style="background:#a99bff;color:#140d3a">cable 3<span>#A99BFF</span></div>
+      <div style="background:#3ddc84;color:#05210f">ok<span>#3DDC84</span></div>
+      <div style="background:#ff6b6b;color:#2a0505">missing<span>#FF6B6B</span></div>
+    </div>
+    <h2>Palette · light</h2>
+    <div class="sw">
+      <div style="background:#f7f7f8;color:#16171a">alu<span>#F7F7F8</span></div>
+      <div style="background:#16171a;color:#f7f7f8">ink<span>#16171A</span></div>
+      <div style="background:#a65400;color:#fff">accent<span>#A65400</span></div>
+      <div style="background:#0670a8;color:#fff">cable 1<span>#0670A8</span></div>
+      <div style="background:#d4610b;color:#fff">cable 2<span>#D4610B</span></div>
+      <div style="background:#6b5ce7;color:#fff">cable 3<span>#6B5CE7</span></div>
+      <div style="background:#1a8f4c;color:#fff">ok<span>#1A8F4C</span></div>
+      <div style="background:#c92a2a;color:#fff">missing<span>#C92A2A</span></div>
+    </div>
+  </div>
+  <div class="spec-type">
+    <h2>Type</h2>
+    <div><span class="caps" style="font-size:16px">SAMSUNG T7 · 5 PORTS</span><small>JetBrains Mono Bold, tracked caps — faceplate labels</small></div>
+    <div><span style="font:600 20px -apple-system,sans-serif">Drives</span><small>SF Pro (system) — all UI text</small></div>
+    <div><span class="mono" style="font-size:15px">412 GB free · 140.4 GB stowed</span><small>JetBrains Mono (OFL) — numbers, sizes, paths, hints</small></div>
+    <h2 style="margin-top:18px">Signature details</h2>
+    <ul><li>Segmented LED capacity meters instead of rings.</li><li>Screws, faceplates, jacks — used on drive surfaces only, never on lists.</li><li>Each drive owns a cable colour across the whole app.</li></ul>
+  </div>
+</div>
+<script>
+  const t = new URLSearchParams(location.search).get('theme') || (matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+  document.documentElement.dataset.theme = t;
+</script>
+</body>
+</html>
