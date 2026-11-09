@@ -1,11 +1,14 @@
 //! stowaway-cli: exercise the Stowaway core from a terminal.
 
+use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 use stowaway_core::rules::Catalog;
-use stowaway_core::{scan, Result};
+use stowaway_core::{procs, scan, Fail, Result};
 
 const USAGE: &str = "usage: stowaway-cli <command>
-  scan [--min-mb N]           big folders under home with verdicts (default 200 MB)";
+  scan [--min-mb N]           big folders under home with verdicts (default 200 MB)
+  who-uses <path>             apps and programs using a folder right now
+  quit <path>                 quit them (apps normally, programs with SIGTERM)";
 
 fn main() -> ExitCode {
     let args: Vec<String> = std::env::args().skip(1).collect();
@@ -13,6 +16,8 @@ fn main() -> ExitCode {
     let cat = Catalog::for_user();
     let res = match a.as_slice() {
         ["scan", rest @ ..] => cmd_scan(&cat, rest),
+        ["who-uses", p] => who_uses(&cat, &abs(p)),
+        ["quit", p] => procs::quit_users(&cat, &abs(p)).map(|()| println!("Nothing uses it now.")),
         _ => {
             eprintln!("{USAGE}");
             return ExitCode::from(2);
@@ -51,5 +56,30 @@ fn cmd_scan(cat: &Catalog, rest: &[&str]) -> Result<()> {
         );
     }
     eprintln!("{} folders in {:.1}s", items.len(), t.elapsed().as_secs_f64());
+    Ok(())
+}
+
+/// Absolute path without resolving links (a moved folder is the link itself).
+fn abs(p: &str) -> PathBuf {
+    let p = Path::new(p);
+    let p = if p.is_absolute() { p.to_path_buf() } else { std::env::current_dir().unwrap_or_default().join(p) };
+    PathBuf::from(p.to_string_lossy().trim_end_matches('/'))
+}
+
+fn who_uses(cat: &Catalog, path: &Path) -> Result<()> {
+    if path.symlink_metadata().is_err() {
+        return Err(Fail(format!("{} does not exist.", path.display())));
+    }
+    let (table, apps) = (procs::process_table(), procs::open_apps());
+    let users = procs::users_of(cat, path, &table, &apps);
+    if users.is_empty() {
+        println!("Nothing uses {} right now.", cat.show(path));
+    }
+    for name in procs::user_names(cat, path, &users, &apps) {
+        println!("{name}");
+    }
+    for p in users {
+        eprintln!("  {:>6} {}", p.pid, p.cmd.chars().take(140).collect::<String>());
+    }
     Ok(())
 }
