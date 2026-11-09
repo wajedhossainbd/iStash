@@ -1,6 +1,9 @@
 //! Stowaway core: moves heavy app data to external drives while apps keep working.
 //! No UI here; the CLI and (later) the Tauri app call into this crate.
 
+pub mod fsx;
+pub mod journal;
+pub mod mover;
 pub mod procs;
 pub mod rules;
 pub mod scan;
@@ -27,7 +30,6 @@ impl From<std::io::Error> for Fail {
 
 pub type Result<T> = std::result::Result<T, Fail>;
 
-#[allow(dead_code)] // used from T4 on
 pub(crate) fn fail<T>(msg: impl Into<String>) -> Result<T> {
     Err(Fail(msg.into()))
 }
