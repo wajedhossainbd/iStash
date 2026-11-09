@@ -1,4 +1,7 @@
-# D1 — Visual directions (pick one)
+# D1 — Visual directions
+
+**Picked: B · Patch Bay** (owner, 9 Nov 2026), then given a de-AI pass. The result is specified in
+[`../system.md`](../system.md) and built in [`../prototype/`](../prototype/); `b-patchbay.html` below is the earlier draft.
 
 Three directions for Stowaway. Each has its own hero screen, so between them they cover the three things only
 Stowaway does: **Offload** (A), **Drives / dependency map** (B), **Memory forecast** (C). Every file is standalone
