@@ -1,64 +1,96 @@
-# Stowaway — task list
+# Stowaway — task list (v2, 10 Nov 2026)
 
-Sizes: S = 1–2 files, M = 3–5 files. Build order follows the dependency graph; checkpoints need the owner's review.
-Prior art to port behaviour and tests from: `Development/Projects/Other-Projects/system-dashboard/system_dashboard.py`.
+Sizes: S = 1–2 files, M = 3–5 files. Every task must meet the quality bar in `tasks/plan.md`
+(tests + `scripts/check.sh` green, acceptance shown). Checkpoints need the owner's review.
 
-## Phase 0 — Design (UI/UX session) — output in `design/`
+## Phase 0 — Design ✅
+- [x] **D1** Three visual directions (owner chose Patch Bay)
+- [x] **D2** Design system (`design/tokens.json`, `design/system.md`)
+- [x] **D3** Clickable prototype (`design/prototype/`)
 
-- [ ] **D1: Three visual directions** — 2–3 distinct directions (name, mood, palette, type, motion idea), each with one
-  hero screen. Must not copy TidyMac's water metaphor or layout. *Accept:* owner picks one. *Size:* M. *Deps:* none.
-- [ ] **D2: Design system** — tokens (colour light+dark, type scale with mono for numbers, spacing, radius, elevation,
-  motion durations), components (sidebar/tab nav, gauge, chart, table row, segmented control, buttons, pills, dialog,
-  banner, empty state). *Accept:* `design/tokens.json` + `design/system.md`; WCAG AA contrast. *Deps:* D1.
-- [ ] **D3: Information architecture + key screens** — Overview, Offload (move/quit/bring back), Drives (dependency map),
-  Memory forecast, Settings, onboarding (permissions explainer), menu-bar popover; empty/loading/error states.
-  *Accept:* clickable HTML prototype in `design/prototype/` the app can mirror. *Deps:* D2.
+## Phase 1 — Core engine ✅
+- [x] **T1** Workspace scaffold · [x] **T2** Rules + scanner · [x] **T3** In-use detection
+- [x] **T4** Move + bring back with journal · [x] **T5** Crash recovery · [x] **T6** Drive map + eject guard
+- [x] **T7** Metrics + memory forecast · [x] **T8** App recipes
 
-## Phase 1 — Core engine (app-build session) — `crates/stowaway-core`, `crates/stowaway-cli`
+### Checkpoint A ✅ passed 10 Nov 2026
+- [x] `scripts/check.sh` on merged main: fmt, clippy, 51/51 tests
+- [x] Real drive: 301 MB test folder (203 files + nested link) moved to "Mac 1TB SSD" in 4 s, identical through the
+  link (SHA-256 of every file), listed by `drives`, brought back identical, drive tidied
+- [x] SIGKILL during a real move at 0.4 s, 1.5 s and 2.8 s: `recover` undid each, data identical
+- [x] Design reviewed and chosen by the owner
+- Found: an undone move leaves empty `Stowaway/Library/Caches` folders on the drive (cosmetic) → T16
 
-- [ ] **T1: Workspace scaffold** — Cargo workspace, core + cli crates, CI script (`cargo test`, `clippy -D warnings`,
-  `fmt --check`). *Accept:* `cargo test` green on an empty test. *Size:* S. *Deps:* none.
-- [ ] **T2: Rules + scanner** — classify folders (move / app-setting / keep + reason), skip sandbox containers and
-  protected Apple data, measure sizes in parallel. *Accept:* unit tests for every rule from the prototype's self-test;
-  `stowaway-cli scan` lists folders ≥ 200 MB with verdicts in < 60 s on this Mac. *Size:* M. *Deps:* T1.
-- [ ] **T3: In-use detection** — process table, open apps (LaunchServices), "who uses this folder", readable names,
-  quit (graceful app quit; SIGTERM for programs). *Accept:* tests ported from prototype (python-in-Xcode is not Xcode,
-  hermes launcher named "hermes"); CLI `who-uses <path>`. *Size:* M. *Deps:* T1.
-- [ ] **T4: Move + bring back with journal** — copy (clonefile when same volume), verify count+bytes+BLAKE3 hash,
-  rename aside, symlink, delete; reverse for bring back; refuse non-APFS/HFS targets, ~/Documents, sandbox paths.
-  *Accept:* integration tests on a temp APFS disk image (hdiutil) incl. nested links; CLI `move`/`bring-back`.
-  *Size:* M. *Deps:* T2, T3.
-- [ ] **T5: Crash recovery** — replay the journal on start: finish or undo each half-done step. *Accept:* tests that kill
-  the mover at every step and recover with identical data. *Size:* S. *Deps:* T4.
-- [ ] **T6: Drive map** — moved folders → drive → apps; connected/missing; DiskArbitration unmount-approval hook that
-  names the apps. *Accept:* CLI `drives` output; test with a disk image detached. *Size:* M. *Deps:* T4.
-- [ ] **T7: Metrics + memory forecast** — CPU, memory pressure, swap, network rate, per-app CPU/RAM; forecast minutes
-  until out-of-memory from pressure + swap trend + free disk. *Accept:* CLI `status`; forecast unit tests on recorded
-  samples; agent-side cost < 1% CPU. *Size:* M. *Deps:* T1.
-- [ ] **T8: App recipes** — TOML recipes (Docker via setting, Xcode DerivedData/Device Support, Ollama/LM Studio/Hugging
-  Face models, npm/pnpm/Gradle/Cargo/Homebrew caches, Claude Cowork VM; MobileSync marked unsupported). *Accept:*
-  recipes loaded and applied by scanner; tests per recipe. *Size:* M. *Deps:* T2, T3.
+## Phase 2 — v0.1 "Offload" (free core as an app)
 
-### Checkpoint A — see plan.md (engine proven + design reviewed)
+- [ ] **T16: Mover hardening** — fault-injection tests: drive detached mid-copy, target full, permission denied, source
+  changed during copy, sparse files stay sparse (Docker.raw-style), hard links, xattrs/ACLs, sockets/FIFOs skipped with
+  a report, long/Unicode paths; remove empty parent folders after undo. *Accept:* each case has a test on a temporary
+  disk image and leaves data in exactly one valid place. *Size:* M. *Deps:* none.
+- [ ] **T17: State store + manifests** — SQLite `state.db`; write a manifest (path, size, mtime, BLAKE3) for every
+  stowed folder at move time; backfill for folders already linked. *Accept:* manifest matches a fresh hash in tests;
+  migration test. *Size:* M. *Deps:* T16.
+- [ ] **T18: Agent** — `crates/stowaway-agent`: launchd login agent with its own bundle id, Unix-socket API with token,
+  owns journal + state, runs recover on login, forecast notifications, eject guard. *Accept:* app/CLI talk only through
+  the socket; forced-threshold notification test; < 25 MB RAM, < 1% CPU idle measured. *Size:* M. *Deps:* T17.
+- [ ] **T19: Tauri shell** — window per `design/prototype` (vibrancy sidebar, merged draggable title bar), routing,
+  tokens, light/dark, onboarding screen that asks for drive access once. *Accept:* opens, navigates, VoiceOver reads
+  the sidebar. *Size:* M. *Deps:* T18.
+- [ ] **T20: Overview screen** — live gauges, charts, memory forecast card. *Accept:* matches prototype; app < 150 MB.
+  *Deps:* T19.
+- [ ] **T21: Offload screen** — list with verdicts and real app icons, Move / Quit / Bring back, progress, refusals,
+  dry-run preview dialog. *Accept:* a real folder moved end to end from the UI. *Deps:* T19.
+- [ ] **T22: Drives screen (cable map)** — apps patched to drives, missing-drive state, eject warning. *Accept:* reacts
+  to a disk image attach/detach within 2 s. *Deps:* T19.
+- [ ] **T23: Menu-bar popover + Settings.** *Deps:* T20.
+- [ ] **T24: Recipe verification, first set** — Docker, Xcode (DerivedData, Device Support), Ollama, LM Studio, Claude
+  Cowork VM, Android SDK/emulator, npm/pnpm/Gradle/Cargo caches: move, launch, use, bring back on the owner's Mac; mark
+  verified or unsupported with the reason. *Accept:* `docs/recipes.md` table with evidence. *Deps:* T21.
+- [ ] **T25: Packaging** — DMG, Tauri updater, signing/notarization hooks (ad-hoc until a Developer ID exists),
+  migration from the Python prototype's links (`Mac Offload/…`). *Accept:* installs on a clean user account; updates
+  0.1.0 → 0.1.1; prototype links adopted without moving data. *Deps:* T19–T23.
 
-## Phase 2 — App v0.1 "Offload" — `app/` (after Checkpoint A)
+### Checkpoint B — v0.1 on the owner's Mac for a week
+- [ ] Real folders moved with the app (e.g. ~/.hermes, Claude Cowork VM); eject warning seen; forecast notification
+  seen in a forced test; no data incidents; budgets measured; owner approves the UI.
 
-- [ ] **T9: Tauri shell** — window per design (vibrancy sidebar, merged title bar, draggable), routing, design tokens.
-  *Accept:* app opens, navigates between empty screens, light/dark. *Deps:* D2, T1.
-- [ ] **T10: Overview** — live gauges and charts from T7. *Accept:* matches prototype screen; < 150 MB RAM. *Deps:* T9, T7.
-- [ ] **T11: Offload screen** — list with verdicts, Move / Quit / Bring back, progress, dialogs. *Accept:* moves a real
-  folder end to end from the UI; refusals shown inline. *Deps:* T9, T4, T3, T8.
-- [ ] **T12: Drives screen** — dependency map, missing-drive banners. *Accept:* matches design; reacts to unplug. *Deps:* T9, T6.
-- [ ] **T13: Background agent** — launchd login agent with its own bundle id: memory forecast notifications, eject
-  guard, recovery on login. *Accept:* forced-threshold test fires a notification; eject of a needed drive warns. *Deps:* T5–T7.
-- [ ] **T14: Menu-bar popover** — memory, disk, drives at a glance. *Deps:* T10, T13.
-- [ ] **T15: Packaging** — DMG, updater, signing hooks, install-help page. *Accept:* DMG installs on a clean user
-  account; update from 0.1.0 → 0.1.1 works. *Deps:* T9–T14.
+## Phase 3 — v0.2 "Autopilot" (first Pro features)
 
-### Checkpoint B — see plan.md (v0.1 usable on the owner's Mac)
+- [ ] **D4: Design for Pro screens** — Autopilot (target, rules, plan preview, activity log), Travel mode (pack list,
+  progress), Timeline, Memory relief, licence/trial states. *Deps:* Checkpoint B.
+- [ ] **T26: Timeline** — daily size snapshots per folder/app in `state.db`; "what grew" over 1/7/30 days.
+  *Accept:* snapshot + diff tests; screen per D4. *Size:* M.
+- [ ] **T27: Planner** — pure function: (state, rules, drives, running apps) → ordered plan with reasons; used for
+  dry-run and execution. *Accept:* table-driven tests incl. "never plan a folder in use / unverified recipe / unfit
+  drive / low battery". *Size:* M. *Deps:* T17.
+- [ ] **T28: Autopilot** — "keep N GB free" + per-folder rules + schedule; agent executes planner output, logs every
+  action, notifies, one-click undo; global pause. *Accept:* simulated low-space test stows the planned folders and
+  stops at the target; nothing runs while its app is open. *Size:* M. *Deps:* T27, T18.
+- [ ] **T29: Travel mode** — pack list of apps; "Pack" brings their data back if it fits (plan shown first) and holds
+  the rest; restow on reconnect. *Accept:* disk-image test: pack → detach → apps' folders are local → attach → restowed
+  identical. *Size:* M. *Deps:* T27.
+- [ ] **T30: Launch guard** — when an app launches and its drive is missing: notification with Connect / Pack /
+  Quit choices. *Accept:* NSWorkspace launch event test with a detached image. *Size:* S. *Deps:* T18.
+- [ ] **T31: Memory relief** — per-app growth trend (leak detection), forecast with confidence, "Restart app" action
+  (quit + relaunch), optional rule. *Accept:* forecast tests on recorded traces; restart tested on a sample app. *Size:* M.
 
-## Phase 3 — v0.2 "Analyze & Clean" (outline; detail after Checkpoint B)
-Storage map, large/old files, rebuildable caches to Trash with dry-run + undo, developer-aware categories.
+### Checkpoint C — two weeks with Autopilot on
+- [ ] Zero data incidents, zero "disk full" warnings, activity log reviewed with the owner.
 
-## Phase 4 — v0.3 "Apps" + launch (outline)
-Uninstaller with leftovers to Trash, login items, landing page, notarized release, Homebrew cask, public repo.
+## Phase 4 — v0.3 "Integrity"
+- [ ] **T32: Drive fitness** — write/read/small-file speed test, format, encryption, free space, S.M.A.R.T. where
+  available → verdict per use ("too slow for Docker"). *Accept:* slow-image test yields "unfit"; planner respects it.
+- [ ] **T33: Scrub** — re-hash stowed files against manifests, incremental, on power only, pausable; report missing or
+  changed files. *Accept:* detects an injected bit-flip and a deleted file on a test image.
+- [ ] **T34: Mirror** — second copy of chosen stowed folders on another drive; restore from mirror. *Accept:* restore
+  after Scrub failure returns identical data.
+
+### Checkpoint D — integrity proven on test drives
+
+## Phase 5 — v0.4 "Analyze & Clean" (outline; detail after Checkpoint C)
+Storage map, developer-aware cleanup to Trash with dry-run + undo log, cold storage for stale projects, uninstaller
+with leftovers, CLI polish + Shortcuts actions.
+
+## Phase 6 — v1.0 launch (outline)
+Offline licence + 14-day trial, merchant of record, Developer ID + notarization, website with install help, docs,
+privacy policy, private beta (10–20 testers), Homebrew cask, public launch.

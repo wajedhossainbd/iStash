@@ -1,85 +1,115 @@
 # Implementation Plan: Stowaway
 
+Revised 10 Nov 2026 (v2): rebuilt around features worth paying for, and a stricter quality bar.
+Research: `research/market.md`, `research/tidymac-teardown.md`, `research/naming-and-emroze.md`.
+Design: `design/system.md` (direction "Patch Bay", signature element: the cable map).
+
 ## Overview
-Stowaway is a native macOS utility that gives a full Mac room to breathe: it **moves heavy app data to external drives
-while the apps keep working**, knows **which app needs which drive**, **predicts the "out of application memory"
-freeze** before it happens, and shows live CPU, memory, disk and network. Later it adds a storage map, cleanup and an
-uninstaller to compete head-on with CleanMyMac and TidyMac. Research: `research/market.md`,
-`research/tidymac-teardown.md`, `research/naming-and-emroze.md`.
+Stowaway is a native macOS utility for people whose Mac is too small for their work. It **moves heavy app data to
+external drives while the apps keep working**, and then **runs that for you**: it keeps a set amount of space free,
+packs what you need before you unplug, warns before memory runs out, and checks that data on external drives is still
+intact.
 
-**Positioning:** "Make room on your Mac. Keep every app working." Free core, no account, no tracking, no nags;
-trust is the product (dry-run first, Trash not delete, an undo journal, never touch ~/Documents).
+**Promise:** "Never see 'Your disk is almost full' again. Keep every app working."
 
-**Prior art in this repo family:** `Development/Projects/Other-Projects/system-dashboard` (Python + WebKit prototype).
-It proves the move/link/verify/recover engine, in-use detection, sandbox rules and the memory warning. Port its
-behaviour and its tests; do not port its code style or its Python dependency.
+## Why people would pay (strategy)
+Cleaning is a commodity: TidyMac and Mole are free, CleanMyMac's subscription is its most-hated feature
+(`research/market.md`). Stowaway does not sell cleaning. It sells three outcomes no product delivers:
+
+1. **Space that manages itself** — Autopilot keeps N GB free by stowing the right folders at the right time.
+2. **A laptop that still works away from the desk** — Travel mode packs the apps you choose before you unplug; a launch
+   guard tells you the moment an app needs a missing drive.
+3. **Data you can trust on cheap external drives** — every stowed file has a checksum; Scrub re-checks them, drive
+   fitness tests catch slow or failing drives, Mirror keeps a second copy. (The owner's own JetDrive silently lost 424
+   files and wrote at 4 MB/s; no tool warned.)
+
+Plus the memory forecast (time until the "out of application memory" freeze, which app is leaking, one-click restart).
+
+### Free vs Pro (recommendation; owner decides, see Open Questions)
+| | Free | Pro (one-time purchase) |
+|---|---|---|
+| Live monitor, cable map, drive map, eject guard | ✓ | ✓ |
+| Manual move / bring back, app recipes, crash-safe journal | ✓ unlimited | ✓ |
+| Memory forecast notification | ✓ | ✓ |
+| Storage map, cleanup preview, uninstaller (Phase 5) | ✓ | ✓ |
+| **Autopilot** (keep N GB free, rules, schedule) | — | ✓ |
+| **Travel mode** + launch guard actions | — | ✓ |
+| **Timeline** ("what grew"), history beyond 7 days | 7 days | ✓ |
+| **Scrub**, **drive fitness**, **Mirror** | fitness only | ✓ |
+| **Memory relief** (leak detection, restart app, rules) | — | ✓ |
+| **Cold storage** for stale projects, CLI + Shortcuts | — | ✓ |
+
+Manual offload stays free and unlimited: trust and word of mouth come from the free core; money comes from automation
+and protection. Pricing recommendation: **$29 once** (launch $19), 3 Macs, all 1.x updates, 14-day full trial,
+no account (licence = signed key checked offline), no subscription, no upsell nags.
 
 ## Architecture Decisions
-- **Rust, Tauri 2.** One Rust core shared by the app and a background agent; UI in TypeScript on Tauri's WebKit view.
-  Why: the user chose Rust; the playful, data-dense UI (gauges, charts, storage map) is far easier in web tech than in
-  Rust-native GUI kits; Tauri gives a small signed bundle, DMG builder, updater, tray/menu-bar, and vibrancy.
-  Rejected: egui/iced/gpui (non-native look, weak accessibility), SwiftUI + Rust FFI (two languages for a solo dev).
-- **Cargo workspace:** `crates/stowaway-core` (all logic, no UI), `crates/stowaway-agent` (launchd login agent),
-  `app/` (Tauri: `src-tauri` + `ui`). The UI never touches the filesystem directly; it calls Tauri commands that call core.
-- **No Python, no Xcode tools needed by users.** Everything ships inside the .app.
-- **Background agent with its own bundle identity** (`dev.stowaway.agent`, hidden, LSUIElement) so macOS asks once,
-  in Stowaway's name, for Removable Volumes access. Lesson from the prototype: a bare background binary is silently refused.
-- **No root helper in v1.** Everything runs as the user. (TidyMac's root helper and DB "repairs" are a trust risk we avoid.)
-- **Never read other apps' sandbox containers** (`~/Library/Containers`, `Group Containers`) or privacy-protected Apple
-  data: each read triggers a permission prompt and that data can never be moved anyway.
-- **Moves are journaled** (`~/Library/Application Support/Stowaway/journal.jsonl`): copy → verify (file count, bytes,
-  then content hash) → rename original aside → link → delete original. Recovery on start finishes or undoes any step.
-- **App recipes** (data-driven TOML in core): per app, which folders move, whether by link or by the app's own setting,
-  how to detect it running, how to quit it, and known breakages (e.g. Docker: use its setting; MobileSync: link breaks
-  since Catalina → unsupported). Unknown folders fall back to the generic rules.
-- **Distribution:** Developer ID signed + notarized DMG, Tauri updater (self-update — a TidyMac gap), Homebrew cask.
-  Until a Developer ID exists: ad-hoc builds for the owner's Mac only.
-- **Design** comes from the UI/UX session (`design/`): its tokens and screens are the spec the app implements.
+- **Rust core + Tauri 2 app + launchd agent**, as built in Phase 1 (`crates/stowaway-core`, `crates/stowaway-cli`).
+  The agent has its own bundle identity so macOS asks once for Removable Volumes access. No root helper. No Python.
+- **The agent is the product.** Autopilot, Travel mode, Scrub, forecast and guards all run in the agent; the app is a
+  window onto it. Agent ↔ app over a local Unix socket with a per-user token; one writer (the agent) owns the journal.
+- **State store:** SQLite (via `rusqlite`, bundled) at `~/Library/Application Support/Stowaway/state.db` for snapshots,
+  manifests (path, size, mtime, BLAKE3), rules and history. The move journal stays an append-only JSONL file.
+- **Every stowed folder has a manifest** written at move time. Scrub, Mirror and Travel mode all build on it.
+- **Policies are data** (TOML/SQLite rows), evaluated by one planner that outputs a dry-run plan; the same plan is
+  shown in the UI and executed by the agent. Nothing automatic runs without a plan the user could have previewed.
+- **Automatic actions are conservative:** only folders whose recipe is "verified", only when their apps are closed,
+  only to drives that pass the fitness test, never when on battery below 20%, always reversible, always logged.
+- **Never** read other apps' sandbox containers or protected Apple data; never touch ~/Documents, ~/Desktop, Photos.
+- **Licensing:** ed25519-signed licence file verified offline; trial clock in the agent; no network needed.
+- **Distribution:** Developer ID signed + notarized DMG, Tauri updater, Homebrew cask. Merchant of record
+  (Paddle or Lemon Squeezy) handles tax and refunds.
+
+## Quality bar ("solid build") — applies to every task
+- **Data safety invariants** (tested, not assumed): the original is never removed before the copy is verified by
+  content hash; every step is journaled and recoverable; a failed or interrupted action leaves data in exactly one
+  valid place.
+- **Fault injection in CI:** SIGKILL at every journal step (done in Phase 1), drive detached mid-copy, target disk
+  full, permission denied, source changed during copy, case-insensitive/sensitive targets, sparse files (Docker.raw),
+  hard links, xattrs/ACLs/resource forks, sockets and FIFOs, very long paths, Unicode names.
+- **Recipe verification:** a recipe is "verified" only after the real app was moved, launched, used and brought back
+  on a test Mac; unverified recipes are manual-only and say so.
+- **Budgets:** agent < 25 MB RAM and < 1% CPU idle; app < 150 MB; scan of home < 60 s; UI never blocks on disk.
+- **Compatibility:** macOS 14, 15, 26 and 27; Apple silicon and Intel; APFS and HFS+ targets (exFAT refused).
+- **Accessibility:** VoiceOver labels, full keyboard use, reduced motion, WCAG AA (already in the design tokens).
+- **Honest numbers:** every figure in the UI is measured; forecasts show their confidence.
+- **Definition of done per task:** tests + clippy + fmt green, acceptance criteria demonstrated, docs updated.
 
 ## Phases
-
-### Phase 0 — Design (UI/UX session, parallel with Phase 1)
-Design system, app structure, key screens, motion, empty/error states, menu-bar popover. Output in `design/`.
-
-### Phase 1 — Core engine (no UI; parallel with Phase 0)
-Scanner + rules, process/"in use" detection, move/bring-back with journal and recovery, drive map, metrics, memory
-forecast. CLI (`stowaway-cli`) to exercise everything. Port and extend the prototype's tests.
-
-### Checkpoint A — engine proven
-All core tests pass; CLI moves a real test folder to an external APFS drive and back with content-hash verification;
-killing the process mid-move and restarting recovers cleanly; design reviewed by the owner.
-
-### Phase 2 — App v0.1 "Offload" (vertical slices through the UI)
-App shell per design → Overview (live gauges) → Offload screen (move / quit / bring back) → Drives (dependency map) →
-background agent with memory forecast + drive-eject warnings → menu-bar popover → signed DMG.
-
-### Checkpoint B — v0.1 usable on the owner's Mac
-Owner moves real folders (e.g. ~/.hermes, Claude Cowork VM) with the app; eject warning fires; memory forecast
-notification fires in a forced test; DMG installs and updates itself.
-
-### Phase 3 — v0.2 "Analyze & Clean"
-Storage map (sunburst or bubbles), large/old files, rebuildable-cache cleanup to Trash with dry-run and undo log,
-developer awareness (Xcode, node_modules, Docker, Homebrew, LLM models).
-
-### Phase 4 — v0.3 "Apps" and public launch
-Uninstaller with leftovers (to Trash), login items, landing page, notarized release, Homebrew cask, GitHub repo public.
+- **Phase 0 — Design** ✅ done (D1–D3, Patch Bay).
+- **Phase 1 — Core engine** ✅ done (T1–T8, 51 tests).
+- **Checkpoint A** ✅ passed 10 Nov 2026 (see `tasks/todo.md`).
+- **Phase 2 — v0.1 "Offload"** (free core as a real app): hardening from the quality bar, agent, Tauri app
+  implementing the prototype, menu bar, DMG + updater. *Checkpoint B:* owner uses it daily on real folders for a week.
+- **Phase 3 — v0.2 "Autopilot"** (first Pro features): state store + manifests, Timeline, Autopilot planner and rules,
+  Travel mode + launch guard, Memory relief. *Checkpoint C:* two weeks on the owner's Mac with Autopilot on, zero data
+  incidents, zero "disk full" warnings.
+- **Phase 4 — v0.3 "Integrity":** drive fitness test, Scrub, Mirror. *Checkpoint D:* Scrub detects injected corruption
+  and a deleted file on a test drive; Mirror restores them.
+- **Phase 5 — v0.4 "Analyze & Clean":** storage map, developer-aware cleanup to Trash with undo, cold storage for
+  projects, uninstaller. Kept deliberately last: it is table stakes, not the reason to buy.
+- **Phase 6 — v1.0 launch:** licensing + trial, payments, Developer ID + notarization, website, docs, private beta
+  (10–20 testers), public launch.
 
 ## Risks and Mitigations
 | Risk | Impact | Mitigation |
 |---|---|---|
-| A move breaks an app (Plex, MobileSync, DerivedData cases in research) | High | App recipes with "unsupported" verdicts; post-move health check (app launches, folder readable); one-click bring back; journal |
-| Drive unplugged while an app writes (Docker corruption case) | High | Eject guard via DiskArbitration unmount approval; agent warns and names the apps; recipes prefer app-native relocation for databases |
-| macOS permission prompts confuse or loop (seen in prototype) | Med | Agent with stable bundle id; never read containers; ask for Removable Volumes up front with an explainer screen |
-| Unsigned builds scare users | Med | Developer ID + notarization before public launch; install-help page meanwhile |
-| Data loss bug in the mover | High | Content-hash verify, rename-aside before delete, crash recovery tests, refuse ~/Documents and sandbox paths, dry-run mode |
-| Scope creep toward a CleanMyMac clone | Med | Ship v0.1 around the three unique features first; cleanup/uninstall only after |
-| WebKit UI memory use (TidyMac shows ~340 MB) | Med | Budget: app < 150 MB, agent < 25 MB; measure every checkpoint |
+| Automatic move breaks an app or loses data | Critical | Autopilot only on verified recipes, apps closed, fit drives; hash verify; journal; dry-run plan shown; kill switch; Checkpoint C before any public build |
+| Drive unplugged while in use | High | Eject guard; launch guard; Travel mode; recipes prefer app-native relocation for databases |
+| Scrub/Mirror cost (I/O, battery) | Med | Incremental (changed files first), only on power, pausable, budgeted MB/s |
+| macOS permission prompts confuse | Med | Agent bundle identity; one onboarding screen that asks once; never read containers |
+| Free rivals copy offloading | Med | Depth: recipes verified per app, Autopilot, Travel mode, integrity — hard to copy quickly; ship fast |
+| Solo-developer support load after launch | Med | In-app diagnostics export, docs per recipe, refund policy via merchant of record |
+| Nobody pays | High | Free core builds audience first; trial of Pro; price test at beta; decide Pro split with real usage data |
+| No Developer ID yet | High for launch | Needed before beta ($99/yr); ad-hoc builds only for the owner until then |
 
-## Open Questions
-- Price: free forever, or free core + one-time "Pro" (scheduled offload rules, multiple drives)? Recommendation: free until v0.3.
-- Apple Developer ID ($99/yr): when? Needed for notarization and the clean first-open experience.
-- Visual identity: the UI/UX session proposes 2–3 directions; the owner picks one.
-- Licence when the repo goes public (MIT vs source-available like Pearcleaner).
+## Open Questions (owner decisions)
+1. Free vs Pro split and price above: accept, or change?
+2. Apple Developer ID: buy before Phase 2's DMG (recommended) or before beta?
+3. Merchant of record: Paddle or Lemon Squeezy (both handle tax; availability for Bangladesh payouts must be checked).
+4. Licence for the public repo: closed source for the app with an open core, or fully closed? (Affects GitHub visibility.)
+5. Which apps matter most for the first verified recipes? Proposed: Docker, Xcode, Ollama/LM Studio, Claude Cowork VM,
+   Android SDK/emulator, npm/pnpm/Gradle/Cargo caches.
 
 ## Task List
-Tasks, acceptance criteria and checks: `tasks/todo.md`.
+`tasks/todo.md`.
