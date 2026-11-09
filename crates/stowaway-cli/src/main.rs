@@ -2,9 +2,11 @@
 
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
+use stowaway_core::drives::{self, Moved};
+use stowaway_core::journal::Journal;
 use stowaway_core::mover::{Mover, Plan};
 use stowaway_core::rules::Catalog;
-use stowaway_core::{procs, scan, Fail, Result};
+use stowaway_core::{diskarb, procs, scan, Fail, Result};
 
 const USAGE: &str = "usage: stowaway-cli <command>
   scan [--min-mb N]           big folders under home with verdicts (default 200 MB)
@@ -12,7 +14,9 @@ const USAGE: &str = "usage: stowaway-cli <command>
   quit <path>                 quit them (apps normally, programs with SIGTERM)
   move <path> <drive> [--yes] move a folder to a drive and link it (dry run without --yes)
   bring-back <path> [--yes]   copy a moved folder back to this Mac (dry run without --yes)
-  recover                     finish or undo moves a crash interrupted";
+  recover                     finish or undo moves a crash interrupted
+  drives                      which drive holds which moved folders, and which apps need it
+  guard                       refuse ejecting a drive while apps that need it are open (Ctrl-C stops)";
 
 fn main() -> ExitCode {
     let args: Vec<String> = std::env::args().skip(1).collect();
@@ -24,6 +28,8 @@ fn main() -> ExitCode {
         ["move", p, drive, rest @ ..] => cmd_move(&cat, &abs(p), &drive_path(drive), rest.contains(&"--yes")),
         ["bring-back", p, rest @ ..] => cmd_bring_back(&cat, &abs(p), rest.contains(&"--yes")),
         ["recover"] => recover(&cat),
+        ["drives"] => cmd_drives(&cat),
+        ["guard"] => cmd_guard(cat.clone()),
         ["quit", p] => procs::quit_users(&cat, &abs(p)).map(|()| println!("Nothing uses it now.")),
         _ => {
             eprintln!("{USAGE}");
@@ -137,4 +143,49 @@ fn cmd_bring_back(cat: &Catalog, path: &Path, yes: bool) -> Result<()> {
     }
     show_plan(cat, &m.bring_back(path)?, "Brought back");
     Ok(())
+}
+
+fn all_moved(cat: &Catalog, table: &[procs::Proc]) -> Vec<Moved> {
+    let mut moved = drives::moved_items(cat, &Journal::for_home(&cat.home));
+    moved.extend(drives::docker_moved(table, &drives::docker_state_file(&cat.home)));
+    moved
+}
+
+fn cmd_drives(cat: &Catalog) -> Result<()> {
+    for d in drives::drives(&all_moved(cat, &procs::process_table())) {
+        let state = match (d.connected, d.free, d.total) {
+            (true, Some(f), Some(t)) => format!("{} free of {}, {}", gb(f), gb(t), d.fstype.unwrap_or_default()),
+            _ => "NOT CONNECTED".into(),
+        };
+        let hold = if d.connected && !d.can_hold { " (cannot hold app data)" } else { "" };
+        println!("{}  [{state}]{hold}", d.name);
+        if !d.needed_by.is_empty() {
+            println!("  needed by: {}", d.needed_by.join(", "));
+        }
+        for f in &d.folders {
+            println!("    {f}");
+        }
+    }
+    Ok(())
+}
+
+fn cmd_guard(cat: Catalog) -> Result<()> {
+    let _guard = diskarb::EjectGuard::start(Box::new(move |mount: &Path| {
+        let (table, apps) = (procs::process_table(), procs::open_apps());
+        let running = |m: &Moved| {
+            let users = procs::users_of(&cat, &m.path, &table, &apps);
+            if users.is_empty() {
+                vec![]
+            } else {
+                vec![m.app.clone()]
+            }
+        };
+        let why = drives::eject_objection(mount, &all_moved(&cat, &table), &running);
+        eprintln!("eject {}: {}", mount.display(), why.as_deref().unwrap_or("allowed"));
+        why
+    }));
+    eprintln!("Guarding ejects. Ctrl-C to stop.");
+    loop {
+        std::thread::park();
+    }
 }

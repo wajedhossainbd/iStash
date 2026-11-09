@@ -1,6 +1,8 @@
 //! Stowaway core: moves heavy app data to external drives while apps keep working.
 //! No UI here; the CLI and (later) the Tauri app call into this crate.
 
+pub mod diskarb;
+pub mod drives;
 pub mod fsx;
 pub mod journal;
 pub mod mover;
