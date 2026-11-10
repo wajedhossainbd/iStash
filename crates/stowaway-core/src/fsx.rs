@@ -1,7 +1,9 @@
 //! File-system primitives for the mover: volume facts, clone-aware copy, content verification.
 
 use crate::{Fail, Result};
-use std::ffi::{CStr, CString};
+use libc::{c_char, c_int, c_void};
+use std::collections::hash_map::{Entry, HashMap};
+use std::ffi::{CStr, CString, OsStr};
 use std::fs::File;
 use std::io;
 use std::os::fd::AsRawFd;
@@ -52,9 +54,12 @@ pub fn volume(path: &Path) -> Result<Volume> {
 }
 
 /// Copy a folder with everything macOS keeps on files (permissions, ACLs, extended attributes,
-/// links as links). On the same APFS volume files are cloned, so the copy takes no extra space.
-/// `dst` must not exist.
-pub fn copy_tree(src: &Path, dst: &Path) -> io::Result<()> {
+/// links as links, hard links as hard links, sparse files sparse). On the same APFS volume files are
+/// cloned, so the copy takes no extra space. `dst` must not exist.
+///
+/// Returns what was left out, relative to `src`: sockets and FIFOs, which cannot be copied (the
+/// program that uses one makes it again). Errors name the file they happened on.
+pub fn copy_tree(src: &Path, dst: &Path) -> io::Result<Vec<PathBuf>> {
     // copyfile would copy into an existing folder (as dst/<name>) rather than fail, so check first.
     if lexists(dst) {
         return Err(io::Error::new(io::ErrorKind::AlreadyExists, format!("{} exists", dst.display())));
@@ -62,15 +67,89 @@ pub fn copy_tree(src: &Path, dst: &Path) -> io::Result<()> {
     let (s, d) = (cpath(src).map_err(io::Error::other)?, cpath(dst).map_err(io::Error::other)?);
     let flags = libc::COPYFILE_METADATA
         | libc::COPYFILE_DATA
+        | libc::COPYFILE_DATA_SPARSE
         | libc::COPYFILE_RECURSIVE
         | libc::COPYFILE_CLONE
         | libc::COPYFILE_NOFOLLOW_SRC
         | libc::COPYFILE_EXCL;
-    // SAFETY: valid C strings, no state object.
-    if unsafe { libc::copyfile(s.as_ptr(), d.as_ptr(), std::ptr::null_mut(), flags) } != 0 {
-        return Err(io::Error::last_os_error());
+    let mut run = CopyRun { root: src.into(), skipped: Vec::new(), links: HashMap::new(), err: None };
+    let cb: extern "C" fn(_, _, _, _, _, _) -> _ = on_entry;
+    // SAFETY: the state is freed below; copyfile calls on_entry only during this call, while `run` lives.
+    let (r, os) = unsafe {
+        let st = libc::copyfile_state_alloc();
+        libc::copyfile_state_set(st, libc::COPYFILE_STATE_STATUS_CB as u32, cb as *const c_void);
+        libc::copyfile_state_set(st, libc::COPYFILE_STATE_STATUS_CTX as u32, &mut run as *mut CopyRun as *const c_void);
+        let r = libc::copyfile(s.as_ptr(), d.as_ptr(), st, flags);
+        let os = io::Error::last_os_error();
+        libc::copyfile_state_free(st);
+        (r, os)
+    };
+    match (r, run.err) {
+        (0, _) => Ok(run.skipped),
+        (_, Some(e)) => Err(e),
+        (_, None) => Err(os),
     }
-    Ok(())
+}
+
+struct CopyRun {
+    root: PathBuf,
+    skipped: Vec<PathBuf>,
+    /// (device, inode) of a hard-linked file → its first copy.
+    links: HashMap<(u64, u64), PathBuf>,
+    err: Option<io::Error>,
+}
+
+extern "C" fn on_entry(
+    what: c_int,
+    stage: c_int,
+    _: libc::copyfile_state_t,
+    src: *const c_char,
+    dst: *const c_char,
+    ctx: *mut c_void,
+) -> c_int {
+    // SAFETY: ctx is the CopyRun copy_tree passed in; src and dst are NUL-terminated paths or null.
+    let run = unsafe { &mut *(ctx as *mut CopyRun) };
+    let path = |p: *const c_char| {
+        (!p.is_null()).then(|| PathBuf::from(OsStr::from_bytes(unsafe { CStr::from_ptr(p) }.to_bytes())))
+    };
+    let (src, dst) = (path(src), path(dst));
+    if stage == libc::COPYFILE_ERR {
+        let e = io::Error::last_os_error();
+        // EPERM is macOS privacy control refusing the drive; keep it raw so callers can tell.
+        run.err = Some(match src {
+            Some(p) if e.raw_os_error() != Some(libc::EPERM) => {
+                io::Error::new(e.kind(), format!("{}: {e}", p.display()))
+            }
+            _ => e,
+        });
+        return libc::COPYFILE_QUIT;
+    }
+    if what != libc::COPYFILE_RECURSE_FILE || stage != libc::COPYFILE_START {
+        return libc::COPYFILE_CONTINUE;
+    }
+    crate::step("copy:file");
+    let (Some(src), Some(dst)) = (src, dst) else { return libc::COPYFILE_CONTINUE };
+    let Ok(m) = src.symlink_metadata() else { return libc::COPYFILE_CONTINUE };
+    let ft = m.file_type();
+    if ft.is_fifo() || ft.is_socket() {
+        run.skipped.push(src.strip_prefix(&run.root).unwrap_or(&src).into());
+        return libc::COPYFILE_SKIP;
+    }
+    if ft.is_file() && m.nlink() > 1 {
+        match run.links.entry((m.dev(), m.ino())) {
+            Entry::Occupied(first) => {
+                if let Err(e) = std::fs::hard_link(first.get(), &dst) {
+                    run.err = Some(io::Error::new(e.kind(), format!("{}: {e}", src.display())));
+                    return libc::COPYFILE_QUIT;
+                }
+                return libc::COPYFILE_SKIP;
+            }
+            Entry::Vacant(v) => {
+                v.insert(dst);
+            }
+        }
+    }
+    libc::COPYFILE_CONTINUE
 }
 
 /// File count, total bytes and a BLAKE3 hash over names, kinds, link targets and contents.
@@ -98,6 +177,9 @@ fn walk(root: &Path, rel: &Path, t: &mut Tree, h: &mut blake3::Hasher) -> io::Re
         let rel = rel.join(e.file_name());
         let m = e.metadata()?; // does not follow links
         let ft = m.file_type();
+        if ft.is_fifo() || ft.is_socket() {
+            continue; // never copied (see copy_tree)
+        }
         h.update(rel.as_os_str().as_bytes());
         h.update(&[0]);
         if ft.is_dir() {
@@ -115,13 +197,7 @@ fn walk(root: &Path, rel: &Path, t: &mut Tree, h: &mut blake3::Hasher) -> io::Re
             h.update(b"l");
             h.update(std::fs::read_link(root.join(&rel))?.as_os_str().as_bytes());
         } else {
-            h.update(if ft.is_fifo() {
-                b"p"
-            } else if ft.is_socket() {
-                b"s"
-            } else {
-                b"?"
-            });
+            h.update(b"?");
         }
     }
     Ok(())
@@ -148,6 +224,51 @@ pub fn verify(orig: &Path, copy: &Path) -> Result<()> {
     }
     if a.hash != b.hash {
         return Err(Fail("The copy did not match: file contents differ.".into()));
+    }
+    Ok(())
+}
+
+/// Delete a folder Stowaway holds a verified copy of. Files a deny-delete ACL or the user lock
+/// (`uchg`) protects are unprotected and deleted too; the other copy keeps that protection.
+pub fn remove_tree(p: &Path) -> io::Result<()> {
+    match std::fs::remove_dir_all(p) {
+        Err(e) if e.kind() == io::ErrorKind::PermissionDenied => {
+            unprotect(p)?;
+            std::fs::remove_dir_all(p)
+        }
+        r => r,
+    }
+}
+
+extern "C" {
+    fn acl_init(count: c_int) -> *mut c_void;
+    fn acl_set_link_np(path: *const c_char, kind: c_int, acl: *mut c_void) -> c_int;
+    fn acl_free(obj: *mut c_void) -> c_int;
+}
+const ACL_TYPE_EXTENDED: c_int = 0x100;
+
+/// Drop ACLs and the user lock from everything under `p`, never following links: `chmod -R -N`
+/// follows links inside the tree and would strip the protection of files outside it.
+fn unprotect(p: &Path) -> io::Result<()> {
+    use std::os::macos::fs::MetadataExt as _;
+    let m = p.symlink_metadata()?;
+    if m.file_type().is_symlink() {
+        return Ok(());
+    }
+    let c = cpath(p).map_err(io::Error::other)?;
+    // SAFETY: valid C string; the empty ACL is freed after use.
+    unsafe {
+        if m.st_flags() & libc::UF_IMMUTABLE != 0 {
+            libc::lchflags(c.as_ptr(), m.st_flags() & !libc::UF_IMMUTABLE);
+        }
+        let empty = acl_init(0);
+        acl_set_link_np(c.as_ptr(), ACL_TYPE_EXTENDED, empty);
+        acl_free(empty);
+    }
+    if m.is_dir() {
+        for e in std::fs::read_dir(p)? {
+            unprotect(&e?.path())?;
+        }
     }
     Ok(())
 }
@@ -193,7 +314,7 @@ mod tests {
         fs::write(src.join("sub/deeper/b"), vec![7u8; 100_000]).unwrap();
         std::os::unix::fs::symlink("../a", src.join("sub/link")).unwrap();
         std::os::unix::fs::symlink("/nonexistent", src.join("dangling")).unwrap();
-        copy_tree(&src, &d.join("dst")).unwrap();
+        assert!(copy_tree(&src, &d.join("dst")).unwrap().is_empty());
         verify(&src, &d.join("dst")).unwrap();
         assert!(d.join("dst/sub/link").is_symlink(), "links copied as links");
         let t = tree(&src).unwrap();
