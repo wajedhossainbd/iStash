@@ -130,8 +130,10 @@ export type Plan =
 
 export type ApiErrorCode = 'helper-down';
 export class ApiError extends Error {
-  constructor(public code: ApiErrorCode, message: string) {
+  code: ApiErrorCode;
+  constructor(code: ApiErrorCode, message: string) {
     super(message);
+    this.code = code;
   }
 }
 
@@ -239,7 +241,7 @@ export function createMock(scenario: Scenario = 'normal', onboarded = scenario !
   const ok = async () => { if (!helperUp) throw new ApiError('helper-down', 'Stowaway’s helper isn’t running.'); };
 
   // Jobs advance in the steps the engine reports, about once a second.
-  setInterval(() => {
+  const ticker = setInterval(() => {
     if (!s.jobs.length) return;
     for (const j of [...s.jobs]) {
       j.done = Math.min(j.total, j.done + 6 * GB);
@@ -252,7 +254,8 @@ export function createMock(scenario: Scenario = 'normal', onboarded = scenario !
       s.jobs = s.jobs.filter((x) => x !== j);
     }
     emit();
-  }, 1000);
+  }, 1000) as any;
+  ticker.unref?.(); // lets the node tests exit
 
   const planMove = (id: string, driveId: string): Plan => {
     const it = folder(id), d = drive(driveId);
@@ -277,7 +280,7 @@ export function createMock(scenario: Scenario = 'normal', onboarded = scenario !
 
   return {
     state0: s,
-    async state() { await ok(); await new Promise((r) => setTimeout(r, scenario === 'loading' ? 1e9 : 0)); return structuredClone(s); },
+    async state() { await ok(); return structuredClone(s); },
     subscribe(fn) { subs.add(fn); return () => subs.delete(fn); },
     async metrics() {
       await ok();
@@ -308,7 +311,8 @@ export function createMock(scenario: Scenario = 'normal', onboarded = scenario !
     async appIcon(path) {
       // Icons are a UI concern, read from the bundle by the app shell (never from app sandboxes).
       const tauri = (window as any).__TAURI_INTERNALS__;
-      return tauri ? tauri.invoke('app_icon', { path }).catch(() => null) : null;
+      if (!tauri) return null;
+      return tauri.invoke('app_icon', { path }).then((png: ArrayBuffer) => URL.createObjectURL(new Blob([png], { type: 'image/png' })), () => null);
     },
     setConnected(id, on) {
       const d = drive(id);
@@ -322,8 +326,10 @@ export function createMock(scenario: Scenario = 'normal', onboarded = scenario !
 
 const fmt = (n: number) => `${n >= 100 * GB ? Math.round(n / GB) : (n / GB).toFixed(1)} GB`;
 
-const scenario = (new URLSearchParams(location.search).get('mock') || 'normal') as Scenario;
+// shortcut: each window (main, menu-bar popover) runs its own mock, so their states can drift apart in a demo;
+// goes away when both read the agent.
+const scenario = (new URLSearchParams(globalThis.location?.search).get('mock') || 'normal') as Scenario;
 const mock = createMock(scenario);
 // Dev only: lets a tester plug drives in and out from the web inspector (`stowawayMock.setConnected('archive', true)`).
-(window as any).stowawayMock = mock;
+(globalThis as any).stowawayMock = mock;
 export const api: Api = mock;
