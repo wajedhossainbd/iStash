@@ -23,6 +23,8 @@ Sizes: S = 1–2 files, M = 3–5 files. Every task must meet the quality bar in
 
 ## Phase 2 — v0.1 "Offload" (free core as an app)
 
+Status 11 Nov 2026: approved and briefed, **not started**. How to split the work: `HANDOFF.md`.
+
 - [ ] **T16: Mover hardening** — fault-injection tests: drive detached mid-copy, target full, permission denied, source
   changed during copy, sparse files stay sparse (Docker.raw-style), hard links, xattrs/ACLs, sockets/FIFOs skipped with
   a report, long/Unicode paths; remove empty parent folders after undo. *Accept:* each case has a test on a temporary
