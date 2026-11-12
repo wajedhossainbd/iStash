@@ -110,14 +110,14 @@ export function forecastChart(f: Forecast, { height = 150, now = Date.now() } = 
     <g stroke="var(--line-hairline)">${grid.map((g) => `<line x1="40" x2="${W - 20}" y1="${y(g)}" y2="${y(g)}" ${g === 0 ? 'stroke="var(--line-strong)"' : ''}/>`).join('')}</g>
     <g font-size="10" fill="var(--text-tertiary)" font-family="var(--font-mono)" text-anchor="end">${grid.map((g, i) => `<text x="32" y="${y(g) + 3}">${g}${i === grid.length - 1 ? ' GB' : ''}</text>`).join('')}</g>
     <line x1="40" x2="${W - 20}" y1="${y(limit)}" y2="${y(limit)}" stroke="var(--danger-fill)" stroke-dasharray="3 3"/>
-    <text x="${W - 20}" y="${y(limit) - 5}" text-anchor="end" font-size="10" font-family="var(--font-mono)" fill="var(--danger-text)">No room left for swap (${gb(f.swapLimit)})</text>
+    <text x="${W - 20}" y="${y(limit) - 5}" text-anchor="end" font-size="10" fill="var(--danger-text)">No room left for swap (<tspan font-family="var(--font-mono)">${gb(f.swapLimit)}</tspan>)</text>
     ${band}
     <polyline points="${hist}" fill="none" stroke="var(--text-primary)" stroke-width="2"/>
     <path d="${fc}" fill="none" stroke="${calm ? 'var(--ok-fill)' : 'var(--warn-fill)'}" stroke-width="2" stroke-dasharray="5 4"/>
     <line x1="${xNow}" x2="${xNow}" y1="${top}" y2="${bottom}" stroke="var(--line-strong)"/>
     <circle cx="${xNow}" cy="${y(cur)}" r="4" fill="var(--bg-surface)" stroke="var(--text-primary)" stroke-width="2"/>
     ${calm || f.at == null ? '' : `<line x1="${x(m)}" x2="${x(m)}" y1="${y(limit)}" y2="${bottom}" stroke="var(--danger-fill)"/><circle cx="${x(m)}" cy="${y(limit)}" r="4.5" fill="var(--danger-fill)"/>
-      <text x="${x(m) - 8}" y="${bottom - 6}" text-anchor="end" font-size="11" font-family="var(--font-mono)" fill="var(--danger-text)">about ${clock(f.at)}</text>`}
+      <text x="${x(m) - 8}" y="${bottom - 6}" text-anchor="end" font-size="11" fill="var(--danger-text)">about <tspan font-family="var(--font-mono)">${clock(f.at)}</tspan></text>`}
     <g font-size="10" fill="var(--text-tertiary)" font-family="var(--font-mono)" text-anchor="middle">${ticks.map(([mm, t]) => `<text x="${x(mm)}" y="${H - 6}">${t}</text>`).join('')}
       <text x="${xNow}" y="${H - 6}" fill="var(--text-primary)" font-weight="600">now</text></g>
   </svg>`;

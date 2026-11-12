@@ -28,7 +28,7 @@ const header = (title: string, subtitle: string, right = '') =>
   `<header class="page-header" ${drag}><h1 tabindex="-1" ${drag}>${title}</h1><span class="subtitle" ${drag}>${subtitle}</span><span class="spacer" ${drag}></span>${right}</header>`;
 
 const helperDown = () => empty({ illus: icon('power', 'illus'), title: 'The background helper isn’t running',
-  body: 'Live numbers, memory forecasts and eject warnings come from Stowaway’s helper. It uses about 14 MB of memory and starts at login.',
+  body: 'Live numbers, memory forecasts and eject warnings come from Stowaway’s helper, which starts at login.',
   actions: button('Start helper', 'start-helper', { kind: 'primary' }) + button('Open Login Items…', 'open', { id: 'login-items' }) });
 
 // ---------- Sidebar ----------
@@ -62,7 +62,7 @@ export function sidebar(v: View) {
 function forecastCard(v: V, { big = false } = {}) {
   const { s, m, ui } = v, f = s.forecast;
   if (!f) return `<section class="card" style="display:grid;gap:10px" aria-busy="true"><span class="skeleton" style="height:14px;width:30%"></span><span class="skeleton" style="height:26px;width:60%"></span><span class="skeleton" style="height:${big ? 200 : 120}px"></span>
-    <p class="secondary">Collecting the first minutes of samples. The memory forecast starts after 5 minutes.</p></section>`;
+    <p class="secondary">Collecting samples. The memory forecast starts once there are enough to see a trend.</p></section>`;
   const ok = f.condition === 'fine';
   const grew = f.history.at(-1)! - f.history.at(-21)!;
   return `<section class="card" aria-labelledby="fc-title">
@@ -127,7 +127,7 @@ function itemRow(v: V, it: Folder) {
   if (job) {
     const d = drive(s, job.drive), pct = (job.done / job.total) * 100;
     return `<div class="table-row is-busy" role="row">${head}<div class="progress-cell">${steps(job.kind, job.step)}${progress(pct, false, `${job.kind === 'move' ? 'Moving' : 'Bringing back'} ${it.app} ${it.name}`)}
-      <span class="tertiary num" style="font:var(--type-caption)">${gb(job.done)} of ${gb(job.total)} · ${job.kind === 'move' ? `to ${esc(d.name)}` : 'to this Mac'} · original kept until the check passes</span></div>
+      <span class="tertiary num" style="font:var(--type-caption)">${gb(job.done)} of ${gb(job.total)} ${job.kind === 'move' ? `to ${esc(d.name)}` : 'to this Mac'}. The original is kept until the check passes.</span></div>
       <div class="act">${button('Stop', 'stop', { kind: 'plain', id: it.id, label: `Stop ${it.app} ${it.name}` })}</div></div>`;
   }
   const preview = s.settings.dryRun;
@@ -327,7 +327,7 @@ export function onboarding(v: View) {
   const aside = `<aside ${drag}><div class="traffic" ${drag}></div>
     <div style="display:flex;gap:10px;align-items:center;margin-top:20px">${icon('cable', 'brand-mark')}<strong style="font:var(--type-headline)">Stowaway</strong></div>
     <ol aria-label="Setup steps">${names.map((t, i) => `<li class="${i === ui.onboardStep ? 'is-current' : i < ui.onboardStep ? 'is-done' : ''}" ${i === ui.onboardStep ? 'aria-current="step"' : ''}><span class="n" aria-hidden="true">${i < ui.onboardStep ? '✓' : i + 1}</span>${t}</li>`).join('')}</ol>
-    <p class="tertiary" style="margin-top:auto;font:var(--type-caption)">Takes about a minute. Nothing is moved until you choose.</p></aside>`;
+    <p class="tertiary" style="margin-top:auto;font:var(--type-caption)">Nothing is moved until you choose.</p></aside>`;
   let main;
   if (v.down) main = helperDown();
   else if (!s) main = '<span class="skeleton" style="height:200px"></span>';
@@ -366,7 +366,7 @@ export function popover(v: View) {
   if (!s) return `<div class="popover" aria-busy="true"><span class="skeleton" style="height:120px"></span></div>`;
   const f = s.forecast, ok = !strained(s);
   const sentence = !f ? 'Collecting memory samples.' : ok ? 'Memory looks fine for the next few hours.' : `Memory runs out in about ${f.minutesLeft} minutes.`;
-  const advice = !f ? 'The forecast starts after 5 minutes.' : ok ? `Swap ${gb(f.swap)}${f.swapRate < 0 ? ' and falling' : ''}.` : f.suggest ? `Quitting ${esc(f.suggest.app)} frees about ${gb(f.suggest.frees)}.` : '';
+  const advice = !f ? 'The forecast starts once there are enough to see a trend.' : ok ? `Swap ${gb(f.swap)}${f.swapRate < 0 ? ' and falling' : ''}.` : f.suggest ? `Quitting ${esc(f.suggest.app)} frees about ${gb(f.suggest.frees)}.` : '';
   const mini = (label: string, value: string, frac: number, color: string) => `<div><span>${label}</span><strong class="num">${value}</strong>${capacity([{ value: frac, color, label: `${label} ${value}` }], 1)}</div>`;
   const cpu = m?.cpu.at(-1) ?? 0, net = (m?.netIn.at(-1) ?? 0) / 1e6;
   return `<div class="popover" role="dialog" aria-label="Stowaway">
@@ -420,7 +420,7 @@ export function dialogFor(v: View) {
       const dr = drive(s, d.id), on = stowedOn(s, dr.id), open = on.filter((i) => i.running), apps = appsOn(on);
       return dialog({ title: `${apps.length} app${apps.length === 1 ? '' : 's'} keep data on ${esc(dr.name)}`,
         buttons: close() + button(open.length ? `Quit ${esc(list(appsOn(open)))} and eject` : 'Eject', 'confirm-eject', { kind: 'primary', id: dr.id }),
-        body: `<ul>${on.map((i) => `<li><strong>${esc(i.app)}</strong>: ${esc(i.name)}, ${gb(i.size)}${i.running ? ' · open now' : ''}</li>`).join('')}</ul><p>After ejecting, these apps are held until ${esc(dr.name)} is back, so nothing writes to an empty folder.</p>` });
+        body: `<ul>${on.map((i) => `<li><strong>${esc(i.app)}</strong>: ${esc(i.name)}, ${gb(i.size)}${i.running ? ', open now' : ''}</li>`).join('')}</ul><p>After ejecting, these apps are held until ${esc(dr.name)} is back, so nothing writes to an empty folder.</p>` });
     }
     case 'quit-app': {
       const a = s.memApps.find((x) => x.id === d.id);
