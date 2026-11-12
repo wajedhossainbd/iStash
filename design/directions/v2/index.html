@@ -1,0 +1,191 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Stowaway · redesign directions (v2)</title>
+<!-- Three visual directions on identical content. ?d=ledger|deck|signal picks one, ?theme=light|dark forces a theme.
+     Visual layer only: same screens, same data, same components as design/prototype. System fonts only. -->
+<style>
+*{box-sizing:border-box}html,body{margin:0}
+body{font:13px/18px -apple-system,BlinkMacSystemFont,"SF Pro Text",sans-serif;-webkit-font-smoothing:antialiased;background:var(--stage);color:var(--ink);padding:24px;display:grid;gap:24px;justify-content:center}
+.num{font-family:var(--num);font-variant-numeric:tabular-nums}
+.window{width:1200px;height:760px;display:grid;grid-template-columns:220px 1fr;background:var(--bg);border-radius:12px;overflow:hidden;box-shadow:0 24px 60px rgba(0,0,0,.28),0 0 0 .5px rgba(0,0,0,.3)}
+.sheet{width:1200px;background:var(--bg);border-radius:12px;padding:24px;display:grid;grid-template-columns:1.25fr 1fr;gap:20px;box-shadow:0 24px 60px rgba(0,0,0,.28),0 0 0 .5px rgba(0,0,0,.3)}
+aside{background:var(--side);padding:14px 10px;display:flex;flex-direction:column;border-right:1px solid var(--line)}
+.lights{display:flex;gap:8px;padding:6px 8px 22px}.lights i{width:12px;height:12px;border-radius:50%;background:#ff5f57}.lights i:nth-child(2){background:#febc2e}.lights i:nth-child(3){background:#28c840}
+nav a{display:flex;align-items:center;gap:9px;padding:6px 9px;border-radius:var(--r-s);color:var(--ink);text-decoration:none}
+nav a svg{width:16px;height:16px;color:var(--accent);flex:none}
+nav a.on{background:var(--nav-on);color:var(--nav-on-ink);font-weight:600}nav a.on svg{color:var(--nav-on-ink)}
+nav .badge{margin-left:auto;font:11px var(--num);color:var(--ink2)}nav .bad{color:var(--danger)}
+nav h6{margin:16px 9px 4px;font:600 11px/14px inherit;color:var(--ink2)}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--ok);flex:none}.dot.off{background:none;box-shadow:inset 0 0 0 1.5px var(--danger)}.dot.warn{background:var(--warn)}
+.foot{margin-top:auto;display:grid;gap:7px;padding:10px 9px 2px;border-top:1px solid var(--line);font-size:11px;color:var(--ink2)}
+.foot div{display:grid;grid-template-columns:48px 1fr 40px;gap:8px;align-items:center}.foot b{font:500 11px var(--num);color:var(--ink);text-align:right}
+.bar{height:var(--bar);border-radius:var(--bar);background:var(--track);overflow:hidden;display:flex;gap:1.5px}.bar i{display:block;height:100%}
+main{padding:20px 26px 24px;display:flex;flex-direction:column;gap:16px;min-width:0}
+header{display:flex;align-items:baseline;gap:12px}header h1{margin:0;font:var(--h1);letter-spacing:var(--h1-track)}header span{color:var(--ink2)}
+.card{background:var(--surface);border:var(--card-border);border-radius:var(--r);padding:16px 18px}
+h2{margin:0;font:600 15px/20px inherit}.label{font:600 11px/14px inherit;color:var(--ink2)}
+.pill{display:inline-block;font:600 11px/16px inherit;padding:1px 8px;border-radius:var(--r-pill)}
+.pill.warn{background:var(--warn-bg);color:var(--warn-ink)}.pill.ok{background:var(--ok-bg);color:var(--ok-ink)}.pill.bad{background:var(--danger-bg);color:var(--danger)}.pill.acc{background:var(--accent-bg);color:var(--accent-ink)}
+.btn{display:inline-flex;align-items:center;font:500 12px/16px inherit;padding:5px 13px;border-radius:var(--r-btn);border:var(--btn-border);background:var(--btn);color:var(--ink)}
+.btn.primary{background:var(--accent);color:var(--on-accent);border-color:transparent;font-weight:600}
+.forecast{display:grid;grid-template-columns:1fr auto;gap:6px 28px}
+.forecast .sentence{font:var(--sentence);letter-spacing:var(--sentence-track);margin:6px 0 4px}
+.forecast .why{color:var(--ink2);max-width:600px;margin:0}
+.forecast .acts{display:flex;gap:8px;align-items:center;margin-top:10px}.forecast .acts small{color:var(--ink2);font-size:11px}
+.forecast dl{margin:0;text-align:right}.forecast dt{font-size:11px;color:var(--ink2)}.forecast dd{margin:0 0 8px}.forecast dd.big{font:var(--figure-xl)}
+.chart{grid-column:1/-1;margin-top:8px}.chart svg{display:block;width:100%;height:auto}
+.chart text{font:10px var(--num);fill:var(--ink2)}
+.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.metric{background:var(--surface);border:var(--card-border);border-radius:var(--r);padding:12px 14px;display:grid;gap:2px}
+.metric .figure{font:var(--figure);letter-spacing:-.02em}.metric .figure small{font:400 12px/16px -apple-system,sans-serif;color:var(--ink2);margin-left:5px;letter-spacing:0}
+.metric .detail{font-size:11px;color:var(--ink2)}.metric svg{width:100%;height:26px;margin-top:6px}.metric .bar{margin-top:14px}
+.metric.low .figure{color:var(--danger)}
+.split{display:grid;grid-template-columns:1.4fr 1fr;gap:12px}
+.head{display:flex;align-items:baseline;gap:10px;margin-bottom:12px}.head .btn{margin-left:auto}
+.legend{display:flex;gap:16px;font-size:11px;color:var(--ink2);margin-top:9px}.legend i{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:6px}
+.drv{display:flex;gap:8px;align-items:center;padding:4px 0}.drv span:last-child{margin-left:auto;color:var(--ink2);font-size:12px}
+.table{border:var(--card-border);border-radius:var(--r);overflow:hidden;background:var(--surface);align-self:start}
+.row{display:grid;grid-template-columns:30px 1.1fr 78px 1.5fr auto;gap:12px;align-items:center;padding:10px 14px;border-top:1px solid var(--line)}
+.row:first-child{border:0;font-size:11px;color:var(--ink2);padding-block:7px;background:var(--thead)}
+.row b{display:block}.row small{color:var(--ink2);font-size:11px;display:block}.row .size{font:500 13px var(--num);text-align:right}
+.tile{width:28px;height:28px;border-radius:7px;background:var(--track)}
+.bay{background:var(--surface);border:var(--card-border);border-radius:var(--r);padding:12px 16px}
+.bay text{font:12px -apple-system,sans-serif;fill:var(--ink)}.bay text.sub{font:11px var(--num);fill:var(--ink2)}.bay text.bad{fill:var(--danger)}
+.caption{grid-column:1/-1;font:600 11px/14px inherit;color:var(--ink2)}
+
+/* ============ 1 · LEDGER: warm paper, ink, big serif figures, rules instead of boxes ============ */
+[data-d=ledger]{--stage:#d9d3c7;--bg:#f6f1e7;--side:#ece5d6;--surface:transparent;--thead:transparent;--ink:#1d2433;--ink2:#6a6a62;--line:#d8cfbc;--track:#e3dac8;
+ --accent:#c8401f;--accent-ink:#a5300f;--accent-bg:#f6dfd3;--on-accent:#fff8ef;--nav-on:#1d2433;--nav-on-ink:#f6f1e7;
+ --warn:#b86a00;--warn-bg:#f4e2c3;--warn-ink:#8a4d00;--ok:#2f7a4f;--ok-bg:#dcebdc;--ok-ink:#23603c;--danger:#b3261e;--danger-bg:#f5d9d4;
+ --c1:#1f5fa8;--c2:#c8401f;--sys:#8b8676;--apps:#b9b19d;--other:#d6cdb9;
+ --num:ui-serif,"New York",Georgia,serif;--h1:700 28px/32px ui-serif,"New York",Georgia,serif;--h1-track:-.01em;
+ --sentence:600 30px/36px ui-serif,"New York",Georgia,serif;--sentence-track:-.015em;--figure:500 30px/34px ui-serif,"New York",Georgia,serif;--figure-xl:500 44px/46px ui-serif,"New York",Georgia,serif;
+ --r:0px;--r-s:6px;--r-pill:3px;--r-btn:5px;--bar:6px;--card-border:0 solid;--btn:#fffaf0;--btn-border:1px solid #cfc5b0}
+[data-d=ledger] .card,[data-d=ledger] .metric,[data-d=ledger] .bay{padding-inline:0;border-top:2px solid var(--ink);padding-top:12px}
+[data-d=ledger] .metric{border-top-width:1px}[data-d=ledger] .table{border-top:2px solid var(--ink)}
+[data-d=ledger] .row{padding-inline:0}[data-d=ledger] .bay{padding-inline:0}
+[data-d=ledger] .label{text-transform:none;font-style:italic;font-family:var(--num);font-weight:400;font-size:13px}
+[data-d=ledger] aside{border-right:1px solid var(--line)}
+[data-d=ledger][data-theme=dark]{--stage:#0b0e14;--bg:#141923;--side:#0f131b;--ink:#efe8d8;--ink2:#9a9585;--line:#2b3140;--track:#252b38;--accent:#ff7a52;--accent-ink:#ff9a7a;--accent-bg:#3a2019;--on-accent:#1a0d08;
+ --nav-on:#efe8d8;--nav-on-ink:#141923;--warn:#f0a63a;--warn-bg:#3a2c12;--warn-ink:#f6c16e;--ok:#5cc58a;--ok-bg:#173524;--ok-ink:#7fdca6;--danger:#ff8478;--danger-bg:#3d1c19;--c1:#6fb1ff;--c2:#ff7a52;--sys:#6d6a5f;--apps:#4a4a45;--other:#33363d;--btn:#1d2330;--btn-border:1px solid #343b4b}
+
+/* ============ 2 · DECK: confident colour blocks, rounded figures, thick bars ============ */
+[data-d=deck]{--stage:#cfd3ea;--bg:#f3f4fb;--side:#e7e9f6;--surface:#fff;--thead:#fafaff;--ink:#14162b;--ink2:#63668a;--line:#e3e5f3;--track:#e6e8f5;
+ --accent:#4b3bff;--accent-ink:#3a2ce0;--accent-bg:#e4e1ff;--on-accent:#fff;--nav-on:#4b3bff;--nav-on-ink:#fff;
+ --warn:#ff9f1a;--warn-bg:#fff0d2;--warn-ink:#8a4b00;--ok:#12b76a;--ok-bg:#d6f6e6;--ok-ink:#087443;--danger:#e5484d;--danger-bg:#ffe1e2;
+ --c1:#4b3bff;--c2:#ff6b3d;--sys:#9a9dc0;--apps:#c3c5de;--other:#dcdeee;
+ --num:ui-rounded,"SF Pro Rounded",-apple-system,sans-serif;--h1:800 26px/30px ui-rounded,"SF Pro Rounded",-apple-system,sans-serif;--h1-track:-.02em;
+ --sentence:800 30px/34px ui-rounded,"SF Pro Rounded",-apple-system,sans-serif;--sentence-track:-.02em;--figure:700 30px/34px ui-rounded,"SF Pro Rounded",sans-serif;--figure-xl:800 46px/46px ui-rounded,"SF Pro Rounded",sans-serif;
+ --r:18px;--r-s:10px;--r-pill:99px;--r-btn:99px;--bar:10px;--card-border:0 solid;--btn:#eef0fb;--btn-border:0 solid}
+[data-d=deck] .card.fc{background:#ffb938;color:#2b1a00;--ink:#2b1a00;--ink2:#6b4a08;--line:rgba(43,26,0,.18);--warn:#2b1a00;--danger:#a01212;--surface:#ffb938;--btn:rgba(255,255,255,.55);--accent:#2b1a00;--on-accent:#ffdf9a;--warn-bg:#2b1a00;--warn-ink:#ffd27a;--band:rgba(43,26,0,.12)}
+[data-d=deck] .metric,[data-d=deck] .card,[data-d=deck] .table,[data-d=deck] .bay{box-shadow:0 1px 0 rgba(20,22,43,.04),0 8px 24px -12px rgba(40,40,120,.25)}
+[data-d=deck] nav a{padding:8px 11px}[data-d=deck] aside{border:0}
+[data-d=deck][data-theme=dark]{--stage:#06060d;--bg:#0e0f1c;--side:#0a0b15;--surface:#181a2e;--thead:#1c1e34;--ink:#f1f1ff;--ink2:#9a9cc2;--line:#262948;--track:#262948;--accent:#7c70ff;--accent-ink:#b1a9ff;--accent-bg:#26235a;
+ --nav-on:#7c70ff;--warn-bg:#40300f;--warn-ink:#ffc766;--ok-bg:#0f3a28;--ok-ink:#57e3a1;--danger:#ff6b70;--danger-bg:#431a1c;--c1:#8f85ff;--c2:#ff8a63;--sys:#5d6088;--apps:#3f4266;--other:#2c2f4d;--btn:#24274a}
+
+/* ============ 3 · SIGNAL: graphite, one electric accent, instrument numerals, fine grid ============ */
+[data-d=signal]{--stage:#000;--bg:#0c0d0f;--side:#111316;--surface:#15171b;--thead:#181b1f;--ink:#f2f4f5;--ink2:#8b9299;--line:#24282d;--track:#24282d;
+ --accent:#c8ff3d;--accent-ink:#c8ff3d;--accent-bg:#27330a;--on-accent:#0c0d0f;--nav-on:#1d2126;--nav-on-ink:#f2f4f5;
+ --warn:#ffb020;--warn-bg:#3a2a07;--warn-ink:#ffc965;--ok:#c8ff3d;--ok-bg:#27330a;--ok-ink:#c8ff3d;--danger:#ff5c5c;--danger-bg:#3b1414;
+ --c1:#3dd6ff;--c2:#ff8a3d;--sys:#5a6068;--apps:#3d4248;--other:#2c3035;
+ --num:ui-monospace,"SF Mono",Menlo,monospace;--h1:600 20px/24px -apple-system,sans-serif;--h1-track:-.01em;
+ --sentence:600 28px/34px -apple-system,"SF Pro Display",sans-serif;--sentence-track:-.02em;--figure:500 28px/32px ui-monospace,"SF Mono",monospace;--figure-xl:500 44px/46px ui-monospace,"SF Mono",monospace;
+ --r:10px;--r-s:6px;--r-pill:4px;--r-btn:6px;--bar:4px;--card-border:1px solid var(--line);--btn:#1d2126;--btn-border:1px solid #2e3339}
+[data-d=signal] nav a.on{box-shadow:inset 2px 0 0 var(--accent)}[data-d=signal] nav a.on svg{color:var(--accent)}
+[data-d=signal] .card.fc{background:linear-gradient(var(--surface),var(--surface)) padding-box;border-color:#3a2f12;box-shadow:inset 0 2px 0 var(--warn)}
+[data-d=signal] .metric .figure,[data-d=signal] .forecast dd.big{letter-spacing:-.04em}
+[data-d=signal][data-theme=light]{--stage:#c9ccd1;--bg:#f4f5f6;--side:#e9ebed;--surface:#fff;--thead:#f7f8f9;--ink:#0f1113;--ink2:#5d646b;--line:#dfe2e5;--track:#e4e7ea;--accent:#3a6b00;--accent-ink:#2f5800;--accent-bg:#e3f2c4;--on-accent:#fff;
+ --nav-on:#dfe2e5;--nav-on-ink:#0f1113;--warn:#b86a00;--warn-bg:#fbe9c8;--warn-ink:#7d4700;--ok:#3a6b00;--ok-bg:#e3f2c4;--ok-ink:#2f5800;--danger:#c62828;--danger-bg:#fbdcdc;--c1:#0077a8;--c2:#c25a00;--sys:#8e9198;--apps:#b4b6bc;--other:#d3d4d8;--btn:#fff;--btn-border:1px solid #cfd3d8}
+[data-d=signal][data-theme=light] .card.fc{border-color:#ecd6a8}
+</style>
+</head>
+<body>
+<div class="window">
+  <aside>
+    <div class="lights"><i></i><i></i><i></i></div>
+    <nav>
+      <a class="on"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M2.5 11.5a5.5 5.5 0 0 1 11 0M8 11.5l2.6-3.4"/></svg>Overview<span class="dot warn" style="margin-left:auto"></span></a>
+      <a><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2.5v7M5 6.8 8 9.8l3-3M3 13h10"/></svg>Offload<span class="badge">3</span></a>
+      <a><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="4.5" width="12" height="7" rx="2"/></svg>Drives<span class="badge bad">1 missing</span></a>
+      <a><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><rect x="2.5" y="4" width="11" height="8" rx="1.5"/><path d="M5 4V2.5M8 4V2.5M11 4V2.5M5 13.5V12M8 13.5V12M11 13.5V12"/></svg>Memory</a>
+      <h6>Drives</h6>
+      <a><span class="dot"></span>Samsung T7</a>
+      <a><span class="dot off"></span>Archive<span class="badge bad">missing</span></a>
+    </nav>
+    <div class="foot">
+      <div>CPU<span class="bar"><i style="width:38%;background:var(--ink2)"></i></span><b>38%</b></div>
+      <div>Memory<span class="bar"><i style="width:72%;background:var(--warn)"></i></span><b>72%</b></div>
+      <div>Disk<span class="bar"><i style="width:94%;background:var(--danger)"></i></span><b>31 GB</b></div>
+    </div>
+  </aside>
+  <main>
+    <header><h1>Overview</h1><span>MacBook Pro · updates every 2 seconds</span></header>
+    <section class="card fc">
+      <div class="forecast">
+        <div>
+          <span class="label">Memory forecast</span> <span class="pill warn">Strained</span>
+          <p class="sentence">Memory runs out in about 36 minutes.</p>
+          <p class="why">Swap grew <span class="num">4.0 GB</span> in the last 20 minutes and is speeding up. It has room for <span class="num">12.6 GB</span> more. When swap can’t grow, macOS pauses apps.</p>
+          <div class="acts"><span class="btn primary">Quit Docker Desktop…</span><span class="btn">What’s using memory</span><small>Frees about 6.2 GB</small></div>
+        </div>
+        <dl><dt>Memory pressure</dt><dd class="big num">72%</dd><dt>Swap</dt><dd class="num">9.4 GB, +11.9 GB/h</dd></dl>
+        <div class="chart"><svg viewBox="0 0 880 120">
+          <g stroke="var(--line)"><line x1="40" x2="860" y1="98" y2="98"/><line x1="40" x2="860" y1="64" y2="64"/><line x1="40" x2="860" y1="30" y2="30"/></g>
+          <text x="32" y="101" text-anchor="end">0</text><text x="32" y="67" text-anchor="end">10</text><text x="32" y="33" text-anchor="end">20 GB</text>
+          <line x1="40" x2="860" y1="23" y2="23" stroke="var(--danger)" stroke-dasharray="3 3"/>
+          <path d="M491 66 C580 44 680 30 786 23 L860 23 L860 52 C740 58 600 62 491 66Z" fill="var(--band,var(--warn-bg))"/>
+          <path d="M40 87 C200 86 360 80 491 66" fill="none" stroke="var(--ink)" stroke-width="2.2"/>
+          <path d="M491 66 C600 55 700 38 786 23" fill="none" stroke="var(--warn)" stroke-width="2.2" stroke-dasharray="5 4"/>
+          <circle cx="491" cy="66" r="4" fill="var(--surface)" stroke="var(--ink)" stroke-width="2"/><circle cx="786" cy="23" r="4.5" fill="var(--danger)"/>
+          <text x="491" y="114" text-anchor="middle" style="fill:var(--ink);font-weight:600">now</text><text x="780" y="114" text-anchor="end" style="fill:var(--danger)">about 14:52</text>
+        </svg></div>
+      </div>
+    </section>
+    <div class="metrics">
+      <div class="metric"><span class="label">CPU</span><span class="figure num">38<small>%</small></span><span class="detail">8 performance, 4 efficiency cores</span><svg viewBox="0 0 200 26" preserveAspectRatio="none"><polyline fill="none" stroke="var(--accent)" stroke-width="1.6" vector-effect="non-scaling-stroke" points="0,18 22,16 44,12 66,14 88,9 110,13 132,8 154,11 176,15 200,10"/></svg></div>
+      <div class="metric"><span class="label">Memory</span><span class="figure num">13.8<small>of 16 GB</small></span><span class="detail">Swap 9.4 GB · compressed 3.2 GB</span><span class="bar"><i style="width:86%;background:var(--warn)"></i></span></div>
+      <div class="metric low"><span class="label">Disk</span><span class="figure num">31.2<small>GB free</small></span><span class="detail">of 494 GB on Macintosh HD</span><span class="bar"><i style="width:94%;background:var(--danger)"></i></span></div>
+      <div class="metric"><span class="label">Network</span><span class="figure num">2.9<small>MB/s in</small></span><span class="detail">310 KB/s out · Wi-Fi</span><svg viewBox="0 0 200 26" preserveAspectRatio="none"><polyline fill="none" stroke="var(--ok)" stroke-width="1.6" vector-effect="non-scaling-stroke" points="0,20 22,14 44,22 66,8 88,6 110,15 132,21 154,4 176,10 200,7"/></svg></div>
+    </div>
+    <div class="split">
+      <section class="card"><div class="head"><h2>This Mac</h2><span style="color:var(--ink2)"><span class="num">31.2 GB</span> free of <span class="num">494 GB</span></span><span class="btn">Review 3 folders</span></div>
+        <span class="bar" style="height:calc(var(--bar) + 6px)"><i style="width:21%;background:var(--sys)"></i><i style="width:31%;background:var(--apps)"></i><i style="width:15.6%;background:var(--accent)"></i><i style="width:26%;background:var(--other)"></i></span>
+        <div class="legend"><span><i style="background:var(--sys)"></i>macOS 104 GB</span><span><i style="background:var(--apps)"></i>Apps 153 GB</span><span><i style="background:var(--accent)"></i>Can move to a drive 77.2 GB</span><span><i style="background:var(--other)"></i>Other</span></div></section>
+      <section class="card"><div class="head"><h2>Drives</h2></div>
+        <div class="drv"><span class="dot"></span><b>Samsung T7</b><span>4 folders · 67.9 GB</span></div>
+        <div class="drv"><span class="dot off"></span><b>Archive</b><span><span style="color:var(--danger)">Missing</span> · LM Studio held</span></div></section>
+    </div>
+  </main>
+</div>
+
+<div class="sheet">
+  <span class="caption">The same direction on the Offload table and the cable map</span>
+  <div class="table">
+    <div class="row"><span></span><span>Folder</span><span style="text-align:right">Size</span><span>Verdict</span><span></span></div>
+    <div class="row"><span class="tile"></span><span><b>Models</b><small>Ollama</small></span><span class="size">48.2 GB</span><span><span class="pill acc">Can move</span><small>Ollama is open and will be asked to quit</small></span><span class="btn primary">Quit &amp; move…</span></div>
+    <div class="row"><span class="tile"></span><span><b>Derived data</b><small>Xcode</small></span><span class="size">21.7 GB</span><span><span class="pill acc">Can move</span><small>Rebuilt if the drive is away</small></span><span class="btn">Move…</span></div>
+    <div class="row"><span class="tile"></span><span><b>Cache</b><small>Hugging Face</small></span><span class="size">33.1 GB</span><span><span class="pill ok">On Samsung T7</span><small>Since 3 Nov, checked file by file</small></span><span class="btn">Bring back…</span></div>
+    <div class="row"><span class="tile"></span><span><b>Models</b><small>LM Studio</small></span><span class="size">61.0 GB</span><span><span class="pill bad">Archive is missing</span><small>LM Studio is held until it’s back</small></span><span class="btn" style="opacity:.45">Bring back…</span></div>
+  </div>
+  <div class="bay"><svg viewBox="0 0 520 250">
+    <g><rect x="0" y="20" width="26" height="26" rx="7" fill="var(--track)"/><text x="36" y="31">Hugging Face</text><text x="36" y="45" class="sub">33.1 GB</text></g>
+    <g><rect x="0" y="74" width="26" height="26" rx="7" fill="var(--track)"/><text x="36" y="85">Xcode</text><text x="36" y="99" class="sub">18.6 GB</text></g>
+    <g><rect x="0" y="128" width="26" height="26" rx="7" fill="var(--track)"/><text x="36" y="139">Claude</text><text x="36" y="153" class="sub">12.4 GB</text></g>
+    <g><rect x="0" y="182" width="26" height="26" rx="7" fill="var(--track)"/><text x="36" y="193">LM Studio</text><text x="36" y="207" class="sub bad">held, drive missing</text></g>
+    <rect x="352" y="12" width="166" height="136" rx="10" fill="var(--track)" opacity=".55"/><text x="506" y="34" text-anchor="end" style="font-weight:600">Samsung T7</text><text x="506" y="50" text-anchor="end" class="sub">412 GB free</text>
+    <rect x="352" y="164" width="166" height="62" rx="10" fill="none" stroke="var(--danger)" stroke-dasharray="4 4"/><text x="506" y="188" text-anchor="end" style="font-weight:600">Archive</text><text x="506" y="204" text-anchor="end" class="sub bad">seen 2 days ago</text>
+    <g fill="none" stroke-linecap="round" stroke-width="5"><path d="M170 33 C250 78 300 74 372 40" stroke="var(--c1)"/><path d="M170 87 C250 132 300 118 372 78" stroke="var(--c1)"/><path d="M170 141 C250 186 300 156 372 116" stroke="var(--c1)"/><path d="M170 195 C196 236 230 240 262 240" stroke="var(--c2)"/></g>
+    <g fill="var(--bg)" stroke="var(--ink2)" stroke-width="2"><circle cx="170" cy="33" r="7"/><circle cx="170" cy="87" r="7"/><circle cx="170" cy="141" r="7"/><circle cx="372" cy="40" r="7"/><circle cx="372" cy="78" r="7"/><circle cx="372" cy="116" r="7"/></g>
+    <circle cx="170" cy="195" r="7" fill="var(--bg)" stroke="var(--danger)" stroke-width="2"/><circle cx="372" cy="195" r="7" fill="var(--bg)" stroke="var(--danger)" stroke-width="2"/>
+    <rect x="256" y="235" width="16" height="10" rx="3" fill="var(--c2)"/>
+  </svg></div>
+</div>
+<script>
+const q = new URLSearchParams(location.search), d = q.get('d') || 'ledger';
+document.documentElement.dataset.d = d;
+document.documentElement.dataset.theme = q.get('theme') || (d === 'signal' ? 'dark' : 'light');
+</script>
+</body>
+</html>
