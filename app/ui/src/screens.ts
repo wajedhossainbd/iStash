@@ -71,7 +71,7 @@ function forecastCard(v: V, { big = false } = {}) {
         <div style="display:flex;gap:8px;align-items:center"><h2 class="secondary" style="font:var(--type-group)">Memory forecast</h2>${ok ? pill('ok', 'Fine') : pill(f.condition === 'critical' ? 'danger' : 'warn', f.condition === 'critical' ? 'Critical' : 'Strained')}</div>
         <p class="sentence" id="fc-title">${ok ? 'Memory looks fine for the next few hours.' : `Memory runs out in about ${f.minutesLeft} minutes.`}</p>
         <p class="why">${ok ? `Swap is ${gb(f.swap)} and shrinking. Stowaway keeps watching and will warn you well before it matters.`
-          : `Swap grew ${gb(grew)} in the last 20 minutes and only ${gb(s.mac.free)} of disk is left for it. When swap can’t grow, macOS shows “Your system has run out of application memory” and pauses apps.`}</p>
+          : `Swap grew ${gb(grew)} in the last 20 minutes and is speeding up. It has room for ${gb(f.swapLimit - f.swap)} more. When swap can’t grow, macOS shows “Your system has run out of application memory” and pauses apps.`}</p>
         ${ok || !f.suggest ? '' : `<div class="actions">${button(`Quit ${esc(f.suggest.app)}…`, 'quit-app', { kind: 'primary', id: f.suggest.appId })}${ui.route === 'memory' ? '' : button('What’s using memory', 'go', { id: 'memory' })}<span class="tertiary" style="font:var(--type-caption)">Frees about ${gb(f.suggest.frees)}</span></div>`}
       </div>
       <dl style="margin:0;display:grid;gap:2px;text-align:right">
@@ -109,7 +109,7 @@ export function overview(v: View) {
   const drives = usable(s);
   return h + `<div class="page-body">${forecastCard(v as V)}${metrics(v as V)}
     <div class="split">
-      <section class="card"><div class="card-head"><h2>This Mac</h2><span class="num secondary">${gb(s.mac.free)} free of ${Math.round(s.mac.total / GB)} GB</span><span class="spacer"></span>${suggested(s).length ? button(`Review ${suggested(s).length} folders`, 'go', { id: 'offload' }) : ''}</div>
+      <section class="card"><div class="card-head"><h2>This Mac</h2><span class="secondary"><span class="num">${gb(s.mac.free)}</span> free of <span class="num">${Math.round(s.mac.total / GB)} GB</span></span><span class="spacer"></span>${suggested(s).length ? button(`Review ${suggested(s).length} folders`, 'go', { id: 'offload' }) : ''}</div>
         ${capacity([{ value: s.mac.system, color: 'var(--storage-system)', label: `macOS ${gb(s.mac.system)}` }, { value: s.mac.apps, color: 'var(--storage-apps)', label: `Apps ${gb(s.mac.apps)}` }, { value: stowable, color: 'var(--accent-fill)', label: `Can move ${gb(stowable)}` }, { value: other, color: 'var(--storage-other)', label: 'Other' }], s.mac.total, true)}
         <div class="legend" aria-hidden="true"><span><i style="background:var(--storage-system)"></i>macOS ${gb(s.mac.system)}</span><span><i style="background:var(--storage-apps)"></i>Apps ${gb(s.mac.apps)}</span><span><i style="background:var(--accent-fill)"></i>Can move to a drive ${gb(stowable)}</span><span><i style="background:var(--storage-other)"></i>Other</span></div></section>
       <section class="card"><div class="card-head"><h2>Drives</h2></div>${drives.length ? `<div style="display:grid;gap:8px">${drives.map((d) => {
@@ -242,10 +242,10 @@ function cableMap(v: V) {
 }
 
 function driveModule(s: State, d: Drive) {
-  const on = d.connected, st = stowedOn(s, d.id), stowed = sum(st);
+  const on = d.connected, st = stowedOn(s, d.id), stowed = sum(st), busy = s.jobs.some((j) => j.drive === d.id);
   return `<article class="module ${on ? '' : 'is-missing'}" style="--c:${cableVar(d)}" data-hot="drive:${d.id}" aria-label="${esc(d.name)}">
     <header><span class="swatch"></span><strong>${esc(d.name)}</strong><span class="kind">${esc(d.format)} · ${esc(d.bus)}</span><span class="spacer"></span>
-      ${on ? button(icon('eject'), 'eject', { id: d.id, title: `Eject ${d.name}`, label: `Eject ${d.name}` }) : pill('danger', 'Missing')}</header>
+      ${on ? button(icon('eject'), 'eject', { id: d.id, disabled: busy, title: busy ? `A folder is being copied. Stop it or wait before ejecting ${d.name}.` : `Eject ${d.name}`, label: `Eject ${d.name}` }) : pill('danger', 'Missing')}</header>
     ${capacity(on ? [{ value: d.total - d.free - stowed, color: 'var(--storage-apps)', label: 'Other files' }, { value: stowed, color: cableVar(d), label: `App data ${gb(stowed)}` }] : [], d.total)}
     <div class="stats"><span>${on ? `<span class="num">${gb(d.free)}</span> free of ${tb(d.total)}` : `Last seen ${ago(d.lastSeen)}`}</span><span><span class="num">${st.length}</span> folder${st.length === 1 ? '' : 's'} · <span class="num">${gb(stowed)}</span></span></div>
   </article>`;
@@ -254,7 +254,7 @@ function driveModule(s: State, d: Drive) {
 export function drives(v: View) {
   const s = v.s;
   const holders = s ? usable(s).filter((d) => d.connected && stowedOn(s, d.id).length) : [];
-  const h = header('Drives', 'Which app needs which drive.', holders.length === 1 && !v.down ? button(`${icon('eject')} Eject ${esc(holders[0].name)}…`, 'eject', { id: holders[0].id }) : '');
+  const h = header('Drives', 'Which app needs which drive.', holders.length === 1 && !v.down && !s!.jobs.some((j) => j.drive === holders[0].id) ? button(`${icon('eject')} Eject ${esc(holders[0].name)}…`, 'eject', { id: holders[0].id }) : '');
   if (v.down) return h + `<div class="page-body">${helperDown()}</div>`;
   if (!s) return h + `<div class="page-body" aria-busy="true"><div class="modules">${'<div class="module"><span class="skeleton" style="height:14px;width:50%"></span><span class="skeleton" style="height:8px"></span><span class="skeleton" style="height:10px;width:70%"></span></div>'.repeat(3)}</div><div class="bay"><span class="skeleton" style="display:block;height:260px"></span></div></div>`;
   if (!s.folders.some((i) => i.verdict === 'stowed')) return h + `<div class="page-body">${empty({ illus: ILLUS_PORT, title: 'No app data on drives yet', body: 'When you move a folder to a drive, it shows up here with the app that needs it, so you know what breaks before you unplug.', actions: button('Go to Offload', 'go', { id: 'offload', kind: 'primary' }) })}</div>`;

@@ -28,3 +28,13 @@ test('quitting the suggested app clears the forecast', async () => {
   await api.quitApp('docker');
   assert.equal((await api.state()).forecast?.condition, 'fine');
 });
+
+test('mock forecast agrees with its own swap curve', async () => {
+  const api = createMock('normal', true);
+  const f = (await api.state()).forecast!;
+  assert.equal(f.swap, f.history.at(-1));
+  assert.equal(f.minutesLeft, 36);
+  assert.ok(f.swapRate > 0 && f.swap < f.swapLimit);
+  await api.move('gradle', 't7');
+  await assert.rejects(api.eject('t7'), /in use/);
+});

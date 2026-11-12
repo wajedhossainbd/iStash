@@ -9,6 +9,7 @@ use std::process::Command;
 use tauri::image::Image;
 use tauri::menu::{CheckMenuItem, Menu, MenuItem, MenuItemKind, PredefinedMenuItem, Submenu};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
+use tauri_plugin_window_state::StateFlags;
 use tauri::{AppHandle, Emitter, Manager, PhysicalPosition, RunEvent, WindowEvent, Wry};
 
 const THEMES: [(&str, &str); 3] = [("system", "System"), ("light", "Light"), ("dark", "Dark")];
@@ -82,7 +83,13 @@ fn show_main(app: &AppHandle) {
 
 fn main() {
     tauri::Builder::default()
-        .plugin(tauri_plugin_window_state::Builder::default().with_denylist(&["popover"]).build())
+        // Size and position only: closing hides the window, and a remembered "hidden" would launch with no window.
+        .plugin(
+            tauri_plugin_window_state::Builder::default()
+                .with_denylist(&["popover"])
+                .with_state_flags(StateFlags::SIZE | StateFlags::POSITION | StateFlags::MAXIMIZED | StateFlags::FULLSCREEN)
+                .build(),
+        )
         .invoke_handler(tauri::generate_handler![app_icon, open_target, appearance_checked])
         .setup(|app| {
             let handle = app.handle();

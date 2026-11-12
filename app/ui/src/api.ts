@@ -64,7 +64,7 @@ export interface Forecast {
   at: number | null; // predicted time swap runs out of room
   swap: number;
   swapRate: number; // bytes per hour, negative when falling
-  swapLimit: number; // swap can't grow past this (free disk)
+  swapLimit: number; // swap can't grow past this (what macOS will give it from free disk)
   history: number[]; // swap, one sample per minute, oldest first, last hour
   suggest?: { appId: string; app: string; frees: number };
 }
@@ -214,11 +214,22 @@ export function mockState(now = Date.now()): State {
 }
 
 const history = (from: number, to: number) => Array.from({ length: 56 }, (_, i) => (from + (to - from) * (i / 55) ** 2.2) * GB);
-const strained = (now: number): Forecast => ({
-  condition: 'strained', minutesLeft: 38, at: now + 38 * 60e3, swap: 9.4 * GB, swapRate: 6.3 * GB, swapLimit: 22 * GB,
-  history: history(3.1, 9.4), suggest: { appId: 'docker', app: 'Docker Desktop', frees: 6.2 * GB },
-});
-const fine = (prev: Forecast): Forecast => ({ ...prev, condition: 'fine', minutesLeft: null, at: null, swap: 8.1 * GB, swapRate: -1.3 * GB, suggest: undefined });
+// The mock forecast is derived from its own swap curve, so the sentence, the rate and the chart always agree.
+const LIMIT = 22, FROM = 3.1, TO = 9.4, EXP = 2.2;
+const strained = (now: number): Forecast => {
+  const h = history(FROM, TO);
+  // Same curve, continued until it meets the limit.
+  const minutesLeft = Math.round(55 * ((LIMIT - FROM) / (TO - FROM)) ** (1 / EXP) - 55);
+  return {
+    condition: 'strained', minutesLeft, at: now + minutesLeft * 60e3, swap: h.at(-1)!, swapRate: (h.at(-1)! - h.at(-21)!) * 3, swapLimit: LIMIT * GB,
+    history: h, suggest: { appId: 'docker', app: 'Docker Desktop', frees: 6.2 * GB },
+  };
+};
+// After the suggested app quits: swap falls over the last five samples.
+const fine = (prev: Forecast): Forecast => {
+  const h = [...prev.history.slice(5), ...[9.1, 8.8, 8.5, 8.3, 8.1].map((x) => x * GB)];
+  return { ...prev, condition: 'fine', minutesLeft: null, at: null, history: h, swap: h.at(-1)!, swapRate: (h.at(-1)! - h.at(-6)!) * 12, suggest: undefined };
+};
 
 export function createMock(scenario: Scenario = 'normal', onboarded = scenario !== 'normal'): Api & { setConnected(id: string, on: boolean): void; state0: State } {
   const s = mockState();
@@ -296,7 +307,12 @@ export function createMock(scenario: Scenario = 'normal', onboarded = scenario !
     async planBack(id) { await ok(); return planBack(id); },
     async bringBack(id) { await ok(); start(id, 'back', folder(id).drive!); },
     async stop(id) { await ok(); s.jobs = s.jobs.filter((j) => j.folder !== id); emit(); },
-    async eject(id) { await ok(); this.setConnected(id, false); },
+    async eject(id) {
+      await ok();
+      const j = s.jobs.find((x) => x.drive === id);
+      if (j) throw new Error(`${drive(id).name} is in use: ${folder(j.folder).app} ${folder(j.folder).name.toLowerCase()} is being ${j.kind === 'move' ? 'moved to' : 'brought back from'} it. Nothing was changed.`);
+      this.setConnected(id, false);
+    },
     async quitApp(appId) {
       await ok();
       s.memApps = s.memApps.filter((a) => a.id !== appId);

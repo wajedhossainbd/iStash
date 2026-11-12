@@ -166,8 +166,9 @@ p { margin: 0; }
 .dialog .buttons { display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px; }
 .dialog .field { display: grid; grid-template-columns: 90px 1fr; align-items: center; gap: 8px; font: var(--type-callout); }
 .dialog select { background: var(--bg-inset); border: 0; border-radius: var(--radius-sm); padding: 4px 8px; }
-@keyframes fade { from { opacity: 0; } }
-@keyframes drop { from { transform: translateY(-16px); opacity: 0; } }
+/* No opacity in these: WebKit pauses animations in a background window, and a sheet must never be stuck invisible. */
+@keyframes fade { from { background: transparent; } }
+@keyframes drop { from { transform: translateY(-16px); } }
 
 /* Switch */
 .switch { appearance: none; -webkit-appearance: none; width: 32px; height: 18px; border-radius: 9px; background: var(--bg-inset); position: relative; margin: 0;
@@ -265,3 +266,4 @@ p { margin: 0; }
 /* Menu-bar popover window: transparent, the card is the whole window. */
 :root.popover-window, :root.popover-window body { background: transparent; min-height: 0; overflow: hidden; }
 :root.popover-window .popover { border-radius: var(--radius-xl); box-shadow: none; border: 0.5px solid var(--line-strong); }
+h1:focus { outline: none; } /* focused on navigation so VoiceOver announces the page; no ring needed */
