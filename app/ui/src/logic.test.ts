@@ -2,7 +2,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { gb, list, ago } from './ui.ts';
-import { createMock, toDrives, type Volume } from './api.ts';
+import { createMock, toDrives, toForecast, type Reading, type Volume } from './api.ts';
 
 test('formatting', () => {
   assert.equal(gb(31.2e9), '31.2 GB');
@@ -45,4 +45,16 @@ test('real volumes become drives: exFAT refused, cables kept, unplugged drives d
   assert.deepEqual(a.map((d) => [d.name, d.cable, !!d.refused]), [['Jetdrive', 'blue', false], ['Mac 500 SSD', 'orange', false], ['Storejet', 'violet', true]]);
   const b = toDrives([v('b', 'Mac 500 SSD')], a, (id) => id === 'a', 2);
   assert.deepEqual(b.map((d) => [d.name, d.cable, d.connected, d.lastSeen]), [['Mac 500 SSD', 'orange', true, 1], ['Jetdrive', 'blue', false, 2]]);
+});
+
+test('a real reading becomes a forecast only with a trend, and suggests the biggest real app', () => {
+  const r: Reading = { t: 0, cpu: [], cores: '', netIn: [], netOut: 0, memTotal: 16e9, memUsed: 9e9, compressed: 1e9, freePct: 30, swap: 4e9,
+    diskFree: 30e9, swapLimit: 31e9, history: [3e9, 4e9], level: 'ok', minutesLeft: null, reason: '',
+    apps: [{ name: 'hermes', mem: 3e9, cpu: 1, path: null }, { name: 'Docker', mem: 1e9, cpu: 2, path: '/Applications/Docker.app' }] };
+  assert.equal(toForecast({ ...r, history: [4e9] }), null);
+  const fine = toForecast(r, 0)!;
+  assert.deepEqual([fine.condition, fine.minutesLeft, fine.suggest, fine.swapRate], ['fine', null, undefined, 60e9]);
+  assert.equal(toForecast({ ...r, level: 'watch' })!.condition, 'fine'); // low memory but no trend is not a countdown
+  const warn = toForecast({ ...r, level: 'warn', minutesLeft: 24.4 }, 0)!;
+  assert.deepEqual([warn.condition, warn.minutesLeft, warn.at, warn.suggest?.app], ['strained', 24, 24 * 60e3, 'Docker']);
 });

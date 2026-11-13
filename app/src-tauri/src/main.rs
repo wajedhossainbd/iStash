@@ -3,6 +3,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod icon;
+mod mem;
 
 use std::path::Path;
 use std::process::Command;
@@ -115,8 +116,9 @@ fn main() {
                 .with_state_flags(StateFlags::SIZE | StateFlags::POSITION | StateFlags::MAXIMIZED | StateFlags::FULLSCREEN)
                 .build(),
         )
-        .invoke_handler(tauri::generate_handler![app_icon, open_target, appearance_checked, volumes])
+        .invoke_handler(tauri::generate_handler![app_icon, open_target, appearance_checked, volumes, mem::memory, mem::quit_app])
         .setup(|app| {
+            mem::start();
             let handle = app.handle();
             app.set_menu(menu(handle)?)?;
             app.on_menu_event(|app, e| {

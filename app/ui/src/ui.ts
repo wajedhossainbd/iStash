@@ -99,12 +99,12 @@ export function forecastChart(f: Forecast, { height = 150, now = Date.now() } = 
   const cur = h.at(-1)!;
   const m = Math.min(45, f.minutesLeft ?? 45);
   const fc = calm
-    ? `M${xNow} ${y(cur)} C ${x(15)} ${y(cur - 1.2)} ${x(30)} ${y(cur - 2.4)} ${x(45)} ${y(Math.max(0, cur - 2.8))}`
+    ? `M${xNow} ${y(cur)} L ${x(45)} ${y(cur)}` // no shortage: the forecast is "about where it is", not an invented curve
     : `M${xNow} ${y(cur)} C ${x(m * 0.37)} ${y(cur + (limit - cur) * 0.28)} ${x(m * 0.74)} ${y(cur + (limit - cur) * 0.53)} ${x(m)} ${y(limit)}`;
   const band = calm ? '' : `<path d="M${xNow} ${y(cur)} C ${x(m * 0.26)} ${y(cur + (limit - cur) * 0.4)} ${x(m * 0.58)} ${y(cur + (limit - cur) * 0.6)} ${x(m * 0.79)} ${y(limit)} L${x(45)} ${y(limit)} L${x(45)} ${y(cur + (limit - cur) * 0.45)} C ${x(30)} ${y(cur + (limit - cur) * 0.29)} ${x(15)} ${y(cur + (limit - cur) * 0.13)} ${xNow} ${y(cur)}Z" fill="var(--warn-tint)"/>`;
   const grid = Array.from({ length: max / 10 + 1 }, (_, i) => i * 10).filter((g) => g <= max);
   const ticks = [-54, -34, -14, 16, 36].map((mm) => [mm, clock(now + mm * 60e3)] as const);
-  const label = calm ? `Swap is ${gb(f.swap)} and falling; no shortage expected`
+  const label = calm ? `Swap is ${gb(f.swap)}; no shortage expected`
     : `Swap rose from ${gb(f.history[0])} to ${gb(f.swap)} in the last hour and is forecast to reach the ${gb(f.swapLimit)} limit around ${clock(f.at!)}`;
   return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(label)}">
     <g stroke="var(--line-hairline)">${grid.map((g) => `<line x1="40" x2="${W - 20}" y1="${y(g)}" y2="${y(g)}" ${g === 0 ? 'stroke="var(--line-strong)"' : ''}/>`).join('')}</g>

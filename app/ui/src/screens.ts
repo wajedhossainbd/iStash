@@ -1,5 +1,5 @@
 // Screens, ported from design/prototype/screens.js. Each takes the view and returns HTML; data comes only from api.ts.
-import type { Drive, Folder, Metrics, Plan, State } from './api';
+import type { Drive, Folder, Forecast, Metrics, Plan, State } from './api';
 import { esc, gb, tb, day, ago, list, icon, appIcon, button, pill, seg, capacity, sparkline, banner, empty, skeletonRows, progress, steps, toggle, forecastChart, dialog } from './ui';
 
 export type Route = 'overview' | 'offload' | 'drives' | 'memory' | 'settings' | 'onboarding' | 'popover';
@@ -59,19 +59,21 @@ export function sidebar(v: View) {
 }
 
 // ---------- Overview ----------
+const runsOut = (f: Forecast) => f.minutesLeft == null ? 'Memory is running short.' : f.minutesLeft < 1 ? 'Memory is about to run out.' : `Memory runs out in about ${f.minutesLeft} minute${f.minutesLeft === 1 ? '' : 's'}.`;
+
 function forecastCard(v: V, { big = false } = {}) {
   const { s, m, ui } = v, f = s.forecast;
   if (!f) return `<section class="card" style="display:grid;gap:10px" aria-busy="true"><span class="skeleton" style="height:14px;width:30%"></span><span class="skeleton" style="height:26px;width:60%"></span><span class="skeleton" style="height:${big ? 200 : 120}px"></span>
     <p class="secondary">Collecting samples. The memory forecast starts once there are enough to see a trend.</p></section>`;
   const ok = f.condition === 'fine';
-  const grew = f.history.at(-1)! - f.history.at(-21)!;
+  const back = Math.min(20, f.history.length - 1), grew = f.history.at(-1)! - f.history.at(-1 - back)!;
   return `<section class="card${ok ? '' : ' is-alert'}" aria-labelledby="fc-title">
     <div class="forecast">
       <div style="display:grid;gap:6px">
         <div style="display:flex;gap:8px;align-items:center"><h2 class="secondary" style="font:var(--type-group)">Memory forecast</h2>${ok ? pill('ok', 'Fine') : pill(f.condition === 'critical' ? 'danger' : 'warn', f.condition === 'critical' ? 'Critical' : 'Strained')}</div>
-        <p class="sentence" id="fc-title">${ok ? 'Memory looks fine for the next few hours.' : `Memory runs out in about ${f.minutesLeft} minutes.`}</p>
-        <p class="why">${ok ? `Swap is ${gb(f.swap)} and shrinking. Stowaway keeps watching and will warn you well before it matters.`
-          : `Swap grew ${gb(grew)} in the last 20 minutes and is speeding up. It has room for ${gb(f.swapLimit - f.swap)} more. When swap can’t grow, macOS shows “Your system has run out of application memory” and pauses apps.`}</p>
+        <p class="sentence" id="fc-title">${ok ? 'Memory looks fine for the next few hours.' : runsOut(f)}</p>
+        <p class="why">${ok ? `Swap is ${gb(f.swap)}${f.swapRate < 0 ? ' and shrinking' : ''}. Stowaway keeps watching and will warn you well before it matters.`
+          : `Swap grew ${gb(grew)} in the last ${back} minute${back === 1 ? '' : 's'}. It has room for ${gb(f.swapLimit - f.swap)} more. When swap can’t grow, macOS shows “Your system has run out of application memory” and pauses apps.`}</p>
         ${ok || !f.suggest ? '' : `<div class="actions">${button(`Quit ${esc(f.suggest.app)}…`, 'quit-app', { kind: 'primary', id: f.suggest.appId })}${ui.route === 'memory' ? '' : button('What’s using memory', 'go', { id: 'memory' })}<span class="tertiary" style="font:var(--type-caption)">Frees about ${gb(f.suggest.frees)}</span></div>`}
       </div>
       <dl style="margin:0;display:grid;gap:2px;text-align:right">
@@ -93,7 +95,7 @@ function metrics(v: V) {
     <div class="metric"><span class="label">CPU</span><span class="figure num">${cpu.at(-1)}<small>%</small></span><span class="detail">${esc(m.cores)}</span>${sparkline(cpu, 'var(--accent-text)', 100)}</div>
     <div class="metric"><span class="label">Memory</span><span class="figure num">${(m.memUsed / GB).toFixed(1)}<small>of ${Math.round(m.memTotal / GB)} GB</small></span><span class="detail">Swap ${gb(m.swap)} · compressed ${gb(m.compressed)}</span>${capacity([{ value: m.memUsed, color: strained(s) ? 'var(--warn-fill)' : 'var(--ok-fill)', label: `${gb(m.memUsed)} used` }], m.memTotal)}</div>
     <div class="metric ${low ? 'is-danger' : ''}"><span class="label">Disk</span><span class="figure num">${(s.mac.free / GB).toFixed(1)}<small>GB free</small></span><span class="detail">of ${Math.round(s.mac.total / GB)} GB on Macintosh HD</span>${capacity([{ value: s.mac.total - s.mac.free, color: 'var(--text-secondary)', label: `${gb(s.mac.total - s.mac.free)} used` }], s.mac.total)}</div>
-    <div class="metric"><span class="label">Network</span><span class="figure num">${(net.at(-1)! / 1e6).toFixed(1)}<small>MB/s in</small></span><span class="detail">${Math.round(m.netOut / 1e3)} KB/s out · ${esc(m.netName)}</span>${sparkline(net, 'var(--ok-fill)', 6e6)}</div>
+    <div class="metric"><span class="label">Network</span><span class="figure num">${(net.at(-1)! / 1e6).toFixed(1)}<small>MB/s in</small></span><span class="detail">${Math.round(m.netOut / 1e3)} KB/s out${m.netName ? ` · ${esc(m.netName)}` : ''}</span>${sparkline(net, 'var(--ok-fill)', 6e6)}</div>
   </div>`;
 }
 
@@ -290,7 +292,7 @@ export function memory(v: View) {
   return h + `<div class="page-body">${forecastCard(v as V, { big: true })}
     <section class="table" role="table" aria-label="Apps using memory"><div class="table-head" role="row" ${cols}><span></span><span>App</span><span>Memory</span><span style="text-align:right">Size</span><span></span></div>
     ${s.memApps.map((a) => `<div class="table-row" role="row" ${cols}>${appIcon(v.icon(a.appPath), a.app)}<div class="name"><strong>${esc(a.app)}</strong><span>${esc(a.detail)}</span></div>
-      ${capacity([{ value: a.mem, color: 'var(--accent-fill)', label: gb(a.mem) }], max)}<div class="size">${gb(a.mem)}</div><div class="act">${button('Quit…', 'quit-app', { id: a.id, label: `Quit ${a.app}` })}</div></div>`).join('')}</section></div>`;
+      ${capacity([{ value: a.mem, color: 'var(--accent-fill)', label: gb(a.mem) }], max)}<div class="size">${gb(a.mem)}</div><div class="act">${a.appPath ? button('Quit…', 'quit-app', { id: a.id, label: `Quit ${a.app}` }) : ''}</div></div>`).join('')}</section></div>`;
 }
 
 // ---------- Settings ----------
@@ -368,7 +370,7 @@ export function popover(v: View) {
   if (v.down) return `<div class="popover">${helperDown()}</div>`;
   if (!s) return `<div class="popover" aria-busy="true"><span class="skeleton" style="height:120px"></span></div>`;
   const f = s.forecast, ok = !strained(s);
-  const sentence = !f ? 'Collecting memory samples.' : ok ? 'Memory looks fine for the next few hours.' : `Memory runs out in about ${f.minutesLeft} minutes.`;
+  const sentence = !f ? 'Collecting memory samples.' : ok ? 'Memory looks fine for the next few hours.' : runsOut(f);
   const advice = !f ? 'The forecast starts once there are enough to see a trend.' : ok ? `Swap ${gb(f.swap)}${f.swapRate < 0 ? ' and falling' : ''}.` : f.suggest ? `Quitting ${esc(f.suggest.app)} frees about ${gb(f.suggest.frees)}.` : '';
   const mini = (label: string, value: string, frac: number, color: string) => `<div><span>${label}</span><strong class="num">${value}</strong>${capacity([{ value: frac, color, label: `${label} ${value}` }], 1)}</div>`;
   const cpu = m?.cpu.at(-1) ?? 0, net = (m?.netIn.at(-1) ?? 0) / 1e6;

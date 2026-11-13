@@ -182,6 +182,35 @@ export function toDrives(vols: Volume[], prev: Drive[], holds: (id: string) => b
   return [...here, ...gone];
 }
 
+/** What the app shell's read-only `memory` command returns (stowaway-core's Sampler and forecast). */
+export interface Reading {
+  t: number; cpu: number[]; cores: string; netIn: number[]; netOut: number;
+  memTotal: number; memUsed: number; compressed: number; freePct: number; swap: number; diskFree: number; swapLimit: number;
+  history: number[]; level: 'ok' | 'watch' | 'warn' | 'critical'; minutesLeft: number | null; reason: string;
+  apps: { name: string; mem: number; cpu: number; path: string | null }[];
+}
+
+/** The core's forecast in the UI's shape; null until there is at least a minute of swap history to draw. */
+export function toForecast(r: Reading, now = Date.now()): Forecast | null {
+  const h = r.history;
+  if (h.length < 2) return null;
+  const k = Math.min(11, h.length);
+  const swapRate = ((h.at(-1)! - h.at(-k)!) / (k - 1)) * 60;
+  const minutes = r.minutesLeft == null ? null : Math.round(r.minutesLeft);
+  // The core says "watch" both for a slow trend and for low free memory with no trend; only a trend is a forecast.
+  const condition = r.level === 'critical' ? 'critical' : r.level === 'warn' || (r.level === 'watch' && minutes != null) ? 'strained' : 'fine';
+  const top = r.apps.find((a) => a.path);
+  return {
+    condition, minutesLeft: condition === 'fine' ? null : minutes, at: condition === 'fine' || minutes == null ? null : now + minutes * 60e3,
+    swap: r.swap, swapRate, swapLimit: r.swapLimit, history: h,
+    ...(top && condition !== 'fine' && { suggest: { appId: top.name, app: top.name, frees: top.mem } }),
+  };
+}
+
+export const toMemApps = (r: Reading): MemApp[] => r.apps.map((a) => ({
+  id: a.name, app: a.name, ...(a.path && { appPath: a.path }), mem: a.mem, detail: `${Math.round(a.cpu)}% CPU`,
+}));
+
 // ---------------------------------------------------------------------------------------------------------------
 // Mock, from design/prototype/data.js. `?mock=loading|empty|error|noaccess|unreadable` picks a designed state.
 
@@ -279,7 +308,17 @@ export function createMock(scenario: Scenario = 'normal', onboarded = scenario !
     }, () => { /* keep the last list */ });
     poll();
     setInterval(poll, 5000); // catches plug and unplug
+    const pollMem = () => shell.invoke('memory').then((r: Reading | null) => {
+      if (!r) return;
+      reading = r;
+      s.forecast = toForecast(r);
+      s.memApps = toMemApps(r);
+      emit();
+    }, () => { /* keep the last reading */ });
+    pollMem();
+    setInterval(pollMem, 2000);
   }
+  let reading: Reading | null = null;
   const subs = new Set<(s: State) => void>();
   const emit = () => subs.forEach((fn) => fn(structuredClone(s)));
   const folder = (id: string) => s.folders.find((x) => x.id === id)!;
@@ -334,6 +373,12 @@ export function createMock(scenario: Scenario = 'normal', onboarded = scenario !
       await ok();
       const walk = (a: number[], lo: number, hi: number, step: number) => { a.push(Math.max(lo, Math.min(hi, a.at(-1)! + (Math.random() - 0.5) * step))); a.shift(); };
       walk(live.cpu, 8, 92, 12); live.cpu[live.cpu.length - 1] = Math.round(live.cpu.at(-1)!);
+      if (real) {
+        if (!reading) throw new Error('No reading yet');
+        const r = reading;
+        return { at: r.t * 1000, cpu: r.cpu.map(Math.round), cores: r.cores, memUsed: r.memUsed, memTotal: r.memTotal, pressure: Math.round(100 - r.freePct),
+          swap: r.swap, compressed: r.compressed, netIn: r.netIn, netOut: r.netOut, netName: '' };
+      }
       walk(live.net, 0.2e6, 6e6, 2.4e6);
       const calm = s.forecast?.condition === 'fine';
       return { at: Date.now(), cpu: [...live.cpu], cores: '8 performance, 4 efficiency cores', memUsed: (calm ? 7.6 : 13.8) * GB, memTotal: 16 * GB,
@@ -353,6 +398,11 @@ export function createMock(scenario: Scenario = 'normal', onboarded = scenario !
     },
     async quitApp(appId) {
       await ok();
+      if (real) {
+        const a = s.memApps.find((x) => x.id === appId);
+        if (!a?.appPath) throw new Error('Stowaway can only quit apps, not background programs. Nothing was changed.');
+        return shell.invoke('quit_app', { path: a.appPath });
+      }
       s.memApps = s.memApps.filter((a) => a.id !== appId);
       s.folders.forEach((x) => { if (x.appPath && s.memApps.every((a) => a.appPath !== x.appPath)) x.running = false; });
       if (s.forecast?.suggest?.appId === appId) s.forecast = fine(s.forecast);
