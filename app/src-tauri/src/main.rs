@@ -6,6 +6,7 @@ mod away;
 mod engine;
 mod icon;
 mod mem;
+mod tune;
 
 use std::path::Path;
 use std::process::Command;
@@ -133,7 +134,7 @@ fn main() {
                 .with_state_flags(StateFlags::SIZE | StateFlags::POSITION | StateFlags::MAXIMIZED | StateFlags::FULLSCREEN)
                 .build(),
         )
-        .invoke_handler(tauri::generate_handler![app_icon, open_target, notify, appearance_checked, volumes, mem::memory, mem::quit_app, engine::scan_home, engine::plan, engine::start_job, engine::jobs, engine::stop_job, engine::eject, engine::quit_drive_users, engine::set_guard])
+        .invoke_handler(tauri::generate_handler![tune::focus, tune::clean_scan, tune::clean_run, app_icon, open_target, notify, appearance_checked, volumes, mem::memory, mem::quit_app, engine::scan_home, engine::plan, engine::start_job, engine::jobs, engine::stop_job, engine::eject, engine::quit_drive_users, engine::set_guard])
         .setup(|app| {
             mem::start();
             engine::start();
@@ -147,6 +148,7 @@ fn main() {
                 } else if id == "tray:open" {
                     show_main(app);
                 } else if id == "tray:quit" {
+                    tune::restore();
                     app.exit(0);
                 }
             });

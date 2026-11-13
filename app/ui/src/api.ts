@@ -103,12 +103,16 @@ export interface Settings {
   ejectGuard: boolean;
   updates: boolean;
   defaultDrive: string | null;
+  cleanEvery: 'off' | 'daily' | 'weekly' | 'monthly';
+  cleanKinds: string[]; // which kinds the Clean screen has ticked; the schedule cleans the same ones
 }
 
 export interface Permissions {
   volumes: boolean;
   notify: boolean;
 }
+
+export interface CleanItem { id: string; name: string; note: string; count: number; size: number }
 
 export interface State {
   version: string;
@@ -123,6 +127,9 @@ export interface State {
   permissions: Permissions;
   scan: { running: boolean; checked: number };
   journalPath: string;
+  /** App bundle path Focus is on, or null. */
+  focus: string | null;
+  clean: { items: CleanItem[] | null; busy: boolean; freed: number | null; last: number | null };
   unsupported?: (keyof Settings)[]; // settings this build cannot act on; shown as such instead of a dead switch
 }
 
@@ -159,6 +166,12 @@ export interface Api {
   set<K extends keyof Settings>(key: K, value: Settings[K]): Promise<void>;
   requestPermission(p: keyof Permissions): Promise<void>;
   startHelper(): Promise<void>;
+  /** Measures what the cleaner could remove. Changes nothing. */
+  cleanScan(): Promise<void>;
+  /** Removes the given kinds of temporary files for good. */
+  clean(kinds: string[]): Promise<void>;
+  /** Runs every other app in the background so this one gets the processor and disk first; null turns it off. */
+  focus(appPath: string | null): Promise<void>;
   /** Data URL of an app's real icon, or null (CLI tools, missing apps, not running in the app). */
   appIcon(appPath: string): Promise<string | null>;
 }
@@ -260,10 +273,11 @@ export function mockState(now = Date.now()): State {
     mac: { model: 'MacBook Pro', total: 494 * GB, free: 31.2 * GB, system: 104 * GB, apps: 153 * GB, reserve: 10 * GB },
     drives, folders, jobs: [], memApps,
     forecast: strained(now),
-    settings: { onboarded: false, theme: 'dark', login: true, menubar: true, dryRun: true, warnAt: 30, ejectGuard: true, updates: true, defaultDrive: null },
+    settings: { onboarded: false, theme: 'dark', login: true, menubar: true, dryRun: true, warnAt: 30, ejectGuard: true, updates: true, defaultDrive: null, cleanEvery: 'off', cleanKinds: ['caches', 'logs', 'temp'] },
     permissions: { volumes: false, notify: false },
     scan: { running: false, checked: 0 },
     journalPath: '~/Library/Application Support/Stowaway/journal.jsonl',
+    focus: null, clean: { items: null, busy: false, freed: null, last: null },
   };
 }
 
@@ -378,6 +392,21 @@ export function createMock(scenario: Scenario = 'normal', onboarded = scenario !
     async set(key, value) { await ok(); s.settings[key] = value; save(); emit(); },
     async requestPermission(p) { await ok(); s.permissions[p] = true; save(); emit(); },
     async startHelper() { helperUp = true; emit(); },
+    async cleanScan() {
+      await ok();
+      s.clean.items = [['caches', 'App caches', 'Files apps keep to start faster. They rebuild them when needed.', 41, 6.4], ['logs', 'Logs', 'Old diagnostic logs from apps.', 18, 0.3],
+        ['derived', 'Xcode build files', 'Xcode rebuilds these the next time a project is built.', 7, 11.2], ['temp', 'Old temporary files', 'Temporary files untouched for more than three days.', 96, 0.8]]
+        .map(([id, name, note, count, size]) => ({ id, name, note, count, size: (size as number) * GB }) as CleanItem);
+      emit();
+    },
+    async clean(kinds) {
+      await ok();
+      const hit = (s.clean.items ?? []).filter((i) => kinds.includes(i.id));
+      s.clean.freed = hit.reduce((n, i) => n + i.size, 0); s.clean.last = Date.now(); s.mac.free += s.clean.freed;
+      hit.forEach((i) => { i.size = 0; i.count = 0; });
+      emit();
+    },
+    async focus(appPath) { await ok(); s.focus = appPath; emit(); },
     async appIcon(path) {
       // Icons are a UI concern, read from the bundle by the app shell (never from app sandboxes).
       const tauri = (window as any).__TAURI_INTERNALS__;

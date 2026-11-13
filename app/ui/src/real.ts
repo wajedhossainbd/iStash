@@ -2,7 +2,7 @@
 // Same `Api` as the mock, so screens don't know the difference.
 // shortcut: polls the shell (drives 5 s, memory 2 s, jobs 1 s); becomes pushes from the agent socket later.
 import { ApiError, toDrives, toForecast, toMemApps } from './api.ts';
-import type { Api, Drive, Folder, Job, Plan, Reading, Settings, State, Verdict, Volume } from './api.ts';
+import type { Api, CleanItem, Drive, Folder, Job, Plan, Reading, Settings, State, Verdict, Volume } from './api.ts';
 
 type Invoke = <T>(cmd: string, args?: Record<string, unknown>) => Promise<T>;
 interface Scanned { path: string; show: string; app: string; appPath: string | null; verdict: Verdict; note: string; size: number; drive: string | null; since: number | null; running: boolean; users: string[] }
@@ -29,11 +29,12 @@ export function createReal(invoke: Invoke): Api {
     version: '0.1.0',
     mac: { model: 'This Mac', total: 1, free: 0, system: 0, apps: 0, reserve: 10 * 2 ** 30 },
     drives: [], folders: [], jobs: [], forecast: null, memApps: [],
-    settings: { onboarded: false, theme: 'dark', login: false, menubar: true, dryRun: true, warnAt: 30, ejectGuard: true, updates: false, defaultDrive: null, ...saved.settings },
+    settings: { onboarded: false, theme: 'dark', login: false, menubar: true, dryRun: true, warnAt: 30, ejectGuard: true, updates: false, defaultDrive: null, cleanEvery: 'off', cleanKinds: ['caches', 'logs', 'temp'], ...saved.settings },
     // macOS asks for these itself the first time they are needed; there is nothing to pre-grant.
     permissions: { volumes: true, notify: false, ...saved.permissions },
     scan: { running: true, checked: 0 },
     journalPath: '~/Library/Application Support/Stowaway/journal.jsonl',
+    focus: null, clean: { items: null, busy: false, freed: null, last: read<{ last: number | null }>('stowaway.clean', { last: null }).last },
     unsupported: ['login', 'updates'], // no login helper and no update feed in this build
   };
   const subs = new Set<(s: State) => void>();
@@ -129,6 +130,23 @@ export function createReal(invoke: Invoke): Api {
   pollJobs().then(() => { if (s.jobs.length) jobTimer ??= setInterval(() => pollJobs().catch(() => {}), 1000); }, () => {});
   invoke('set_guard', { on: s.settings.ejectGuard }).catch(() => {});
 
+  const cleanScan = async () => { s.clean.items = await invoke<CleanItem[]>('clean_scan'); emit(); };
+  const clean = async (kinds: string[]) => {
+    if (s.clean.busy || !kinds.length) return;
+    s.clean.busy = true; emit();
+    try {
+      s.clean.freed = await invoke<number>('clean_run', { kinds });
+      s.clean.last = Date.now();
+      write('stowaway.clean', { last: s.clean.last });
+    } finally { s.clean.busy = false; emit(); }
+    await cleanScan();
+  };
+  // Schedule: checked at launch and every hour while Stowaway is open; a missed run happens at the next check.
+  const DAY = 864e5, EVERY = { off: Infinity, daily: DAY, weekly: 7 * DAY, monthly: 30 * DAY };
+  const cleanIfDue = () => { if (Date.now() - (s.clean.last ?? 0) >= EVERY[s.settings.cleanEvery]) clean(s.settings.cleanKinds).catch(() => {}); };
+  setTimeout(cleanIfDue, 60e3);
+  setInterval(cleanIfDue, 36e5);
+
   return {
     async state() { return structuredClone(s); },
     subscribe(fn) { subs.add(fn); return () => subs.delete(fn); },
@@ -159,10 +177,14 @@ export function createReal(invoke: Invoke): Api {
       s.settings[key] = value;
       save();
       if (key === 'ejectGuard') await invoke('set_guard', { on: value });
+      // Turning a schedule on starts the clock now, so the first cleaning is one interval away, not at once.
+      if (key === 'cleanEvery' && value !== 'off' && s.clean.last == null) { s.clean.last = Date.now(); write('stowaway.clean', { last: s.clean.last }); }
       emit();
     },
     async requestPermission(p) { s.permissions[p] = true; save(); emit(); },
     async startHelper() { /* the engine runs inside the app in this build */ },
+    cleanScan, clean,
+    async focus(appPath) { await invoke('focus', { path: appPath }); s.focus = appPath; emit(); },
     appIcon: (path) => invoke<ArrayBuffer>('app_icon', { path }).then((png) => URL.createObjectURL(new Blob([png], { type: 'image/png' })), () => null),
   };
 }

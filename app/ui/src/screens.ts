@@ -2,8 +2,8 @@
 import type { Drive, Folder, Forecast, Metrics, Plan, State } from './api';
 import { esc, gb, tb, day, ago, list, icon, appIcon, button, pill, seg, capacity, sparkline, banner, empty, skeletonRows, progress, steps, toggle, forecastChart, dialog } from './ui';
 
-export type Route = 'overview' | 'offload' | 'drives' | 'memory' | 'settings' | 'onboarding' | 'popover';
-export type Dialog = { type: 'move' | 'back' | 'how' | 'why' | 'apfs' | 'eject' | 'quit-app'; id?: string; drive?: string; plan?: Plan };
+export type Route = 'overview' | 'offload' | 'drives' | 'memory' | 'clean' | 'settings' | 'onboarding' | 'popover';
+export type Dialog = { type: 'move' | 'back' | 'how' | 'why' | 'apfs' | 'eject' | 'quit-app' | 'clean'; id?: string; drive?: string; plan?: Plan };
 export interface Ui { route: Route; dialog: Dialog | null; offloadTab: 'suggested' | 'stowed' | 'all'; onboardStep: number; onboardDrive: string | null; busy: boolean; drive: string | null }
 /** s is null while the first state is loading; down when the helper can't be reached. */
 export interface View { s: State | null; m: Metrics | null; ui: Ui; down: boolean; icon: (path?: string) => string | null }
@@ -16,7 +16,7 @@ const isHeld = (s: State, it: Folder) => it.verdict === 'stowed' && !drive(s, it
 const stowedOn = (s: State, id: string) => s.folders.filter((i) => i.verdict === 'stowed' && i.drive === id);
 const suggested = (s: State) => s.folders.filter((i) => i.verdict === 'move');
 const strained = (s: State) => !!s.forecast && s.forecast.condition !== 'fine';
-const sum = (xs: Folder[]) => xs.reduce((a, i) => a + i.size, 0);
+const sum = (xs: { size: number }[]) => xs.reduce((a, i) => a + i.size, 0);
 const cableVar = (d: Drive) => `var(--cable-${d.cable})`;
 const appsOn = (xs: Folder[]) => [...new Set(xs.map((i) => i.app))];
 
@@ -41,6 +41,7 @@ export function sidebar(v: View) {
     ['offload', 'Offload', s ? `<span class="badge">${suggested(s).length}</span>` : '', s ? `, ${suggested(s).length} folders can move` : ''],
     ['drives', 'Drives', missing ? `<span class="badge is-danger">${missing} missing</span>` : '', missing ? `, ${missing} missing` : ''],
     ['memory', 'Memory', '', ''],
+    ['clean', 'Clean', '', ''],
   ];
   const item = ([r, label, extra, spoken]: [Route, string, string, string]) =>
     { const on = ui.route === r && !(r === 'drives' && ui.drive); return `<a class="nav-item ${on ? 'is-active' : ''}" href="#/${r}" aria-label="${label}${spoken}" ${on ? 'aria-current="page"' : ''}>${icon(r)}${label}${extra}</a>`; };
@@ -303,11 +304,36 @@ export function memory(v: View) {
   if (v.down) return h + `<div class="page-body">${helperDown()}</div>`;
   if (!v.s) return h + loadingPage();
   const s = v.s, max = Math.max(...s.memApps.map((a) => a.mem));
-  const cols = 'style="grid-template-columns:32px minmax(0,1.3fr) minmax(0,1.6fr) 84px 140px"';
+  const cols = 'style="grid-template-columns:32px minmax(0,1.3fr) minmax(0,1.4fr) 84px 190px"';
   return h + `<div class="page-body">${forecastCard(v as V, { big: true })}
     <section class="table" role="table" aria-label="Apps using memory"><div class="table-head" role="row" ${cols}><span></span><span>App</span><span>Memory</span><span style="text-align:right">Size</span><span></span></div>
-    ${s.memApps.map((a) => `<div class="table-row" role="row" ${cols}>${appIcon(v.icon(a.appPath), a.app)}<div class="name"><strong>${esc(a.app)}</strong><span>${esc(a.detail)}</span></div>
-      ${capacity([{ value: a.mem, color: 'var(--accent-fill)', label: gb(a.mem) }], max)}<div class="size">${gb(a.mem)}</div><div class="act">${a.appPath ? button('Quit…', 'quit-app', { id: a.id, label: `Quit ${a.app}` }) : ''}</div></div>`).join('')}</section></div>`;
+    ${s.memApps.map((a) => `<div class="table-row" role="row" ${cols}>${appIcon(v.icon(a.appPath), a.app)}<div class="name"><strong>${esc(a.app)}${s.focus && s.focus === a.appPath ? ' ' + pill('accent', 'In focus') : ''}</strong><span>${esc(a.detail)}</span></div>
+      ${capacity([{ value: a.mem, color: 'var(--accent-fill)', label: gb(a.mem) }], max)}<div class="size">${gb(a.mem)}</div><div class="act">${a.appPath ? (s.focus === a.appPath ? button('Stop focus', 'focus', { id: '', kind: 'primary', label: `Stop focusing on ${a.app}` }) : button('Focus', 'focus', { id: a.appPath, label: `Focus on ${a.app}` })) + button('Quit…', 'quit-app', { id: a.id, label: `Quit ${a.app}` }) : ''}</div></div>`).join('')}</section>
+    <p class="tertiary" style="font:var(--type-caption)">${s.focus ? `Focus is on. The other apps run in the background, with less processor and disk time, until you choose Stop focus or quit Stowaway.` : `macOS has no way to cap how much memory an app may use. Focus does what it allows: the app you choose gets the processor and disk first, and the other apps run in the background until you stop it.`}</p></div>`;
+}
+
+// ---------- Clean ----------
+export function clean(v: View) {
+  const s = v.s;
+  const h = header('Clean', 'Remove temporary files that apps can rebuild.', s && !v.down ? button('Measure again', 'clean-scan', { disabled: s.clean.busy }) : '');
+  if (v.down) return h + `<div class="page-body">${helperDown()}</div>`;
+  if (!s) return h + loadingPage();
+  const c = s.clean, st = s.settings, cols = 'style="grid-template-columns:32px minmax(0,1.2fr) minmax(0,2fr) 100px"';
+  const picked = (c.items ?? []).filter((i) => st.cleanKinds.includes(i.id)), total = sum(picked);
+  const when = { off: 'Only when I choose', daily: 'Every day', weekly: 'Every week', monthly: 'Every month' };
+  return h + `<div class="page-body">
+    <section class="card" style="display:grid;grid-template-columns:1fr auto auto;gap:8px 32px;align-items:end">
+      <div><h2 class="secondary" style="font:var(--type-group)">Ticked below</h2><span class="num" style="font:var(--type-figure)">${c.items ? gb(total) : '…'}</span> <span class="secondary">can be removed</span></div>
+      <div class="move-to"><label class="secondary" for="clean-every" style="font:var(--type-group)">Clean automatically</label>
+        <select class="select" id="clean-every" data-action="clean-every">${Object.entries(when).map(([k, label]) => `<option value="${k}" ${st.cleanEvery === k ? 'selected' : ''}>${label}</option>`).join('')}</select></div>
+      <div>${button(c.busy ? 'Cleaning…' : 'Clean now…', 'clean-ask', { kind: 'primary', large: true, disabled: c.busy || !total })}</div>
+    </section>
+    ${c.freed != null && c.last ? banner({ kind: 'info', ic: 'check', title: `Freed ${gb(c.freed)}`, body: `Last cleaned ${ago(c.last)}.` }) : ''}
+    <div class="table" role="table" aria-label="What can be cleaned"><div class="table-head" role="row" ${cols}><span></span><span>Kind</span><span>What it is</span><span style="text-align:right">Size</span></div>
+      ${c.items ? c.items.map((i) => `<label class="table-row" role="row" ${cols}><input type="checkbox" data-action="clean-kind" data-id="${i.id}" ${st.cleanKinds.includes(i.id) ? 'checked' : ''} aria-label="${esc(i.name)}" style="accent-color:var(--accent-fill)">
+        <div class="name"><strong>${esc(i.name)}</strong><span>${i.count} item${i.count === 1 ? '' : 's'}</span></div><div class="secondary" style="font:var(--type-callout)">${esc(i.note)}</div><div class="size">${gb(i.size)}</div></label>`).join('') : skeletonRows(4)}</div>
+    <p class="tertiary" style="font:var(--type-caption)">Folders you moved to a drive, macOS's own caches, Documents, Desktop and app sandboxes are never cleaned. ${st.cleanEvery === 'off' ? '' : 'Automatic cleaning runs while Stowaway is open and removes the kinds ticked above.'}</p>
+  </div>`;
 }
 
 // ---------- Settings ----------
@@ -443,6 +469,11 @@ export function dialogFor(v: View) {
       return dialog({ title: `${apps.length} app${apps.length === 1 ? '' : 's'} keep data on ${esc(dr.name)}`,
         buttons: close() + button(open.length ? `Quit ${esc(list(appsOn(open)))} and eject` : 'Eject', 'confirm-eject', { kind: 'primary', id: dr.id }),
         body: `<ul>${on.map((i) => `<li><strong>${esc(i.app)}</strong>: ${esc(i.name)}, ${gb(i.size)}${i.running ? ', open now' : ''}</li>`).join('')}</ul><p>After ejecting, these apps are held until ${esc(dr.name)} is back, so nothing writes to an empty folder.</p>` });
+    }
+    case 'clean': {
+      const picked = (s.clean.items ?? []).filter((i) => s.settings.cleanKinds.includes(i.id) && i.size);
+      return dialog({ title: `Remove ${gb(sum(picked))} of temporary files?`, buttons: close() + button('Remove', 'confirm-clean', { kind: 'primary' }),
+        body: `<ul>${picked.map((i) => `<li>${esc(i.name)}: ${gb(i.size)}</li>`).join('')}</ul><p>They are deleted for good, not moved to the Trash. Apps rebuild what they need, so the first launch afterwards can be slower.</p>` });
     }
     case 'quit-app': {
       const a = s.memApps.find((x) => x.id === d.id);

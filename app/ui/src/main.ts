@@ -9,7 +9,7 @@ import * as screens from './screens';
 import type { Route, Ui, View } from './screens';
 
 const native = '__TAURI_INTERNALS__' in window;
-const ROUTES: Route[] = ['overview', 'offload', 'drives', 'memory', 'settings', 'onboarding', 'popover'];
+const ROUTES: Route[] = ['overview', 'offload', 'drives', 'memory', 'clean', 'settings', 'onboarding', 'popover'];
 const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const root = document.getElementById('root')!;
 const tauri = () => import('./native');
@@ -167,6 +167,10 @@ const actions: Record<string, (id: string) => unknown> = {
   'confirm-quit': (id) => { ui.dialog = null; return api.quitApp(id); },
   'quit-now': (id) => api.quitApp(id),
   stop: (id) => api.stop(id),
+  focus: (id) => api.focus(id || null),
+  'clean-scan': () => api.cleanScan(),
+  'clean-ask': () => { ui.dialog = { type: 'clean' }; },
+  'confirm-clean': () => { ui.dialog = null; return api.clean(s!.settings.cleanKinds); },
   grant: (id) => api.requestPermission(id as 'volumes' | 'notify'),
   'open-main': () => tauri().then((n) => n.showMain()),
   'onboard-next': () => { ui.onboardStep++; },
@@ -199,6 +203,8 @@ document.addEventListener('change', async (e) => {
   if (a === 'setting') await api.set(id as 'login', el.checked);
   else if (a === 'setting-select') await api.set('warnAt', +el.value);
   else if (a === 'pick-drive') ui.onboardDrive = id;
+  else if (a === 'clean-every') await api.set('cleanEvery', el.value as 'off');
+  else if (a === 'clean-kind') await api.set('cleanKinds', el.checked ? [...s!.settings.cleanKinds, id] : s!.settings.cleanKinds.filter((k) => k !== id));
   else if (a === 'default-drive') await api.set('defaultDrive', el.value);
   else if (a === 'move-drive' && ui.dialog) ui.dialog = { ...ui.dialog, drive: el.value, plan: await api.planMove(ui.dialog.id!, el.value) };
   else return;
@@ -217,6 +223,7 @@ document.addEventListener('keydown', (e) => {
 function route() {
   const [r, sub] = location.hash.replace('#/', '').split('/') as [Route, string?];
   ui.drive = r === 'drives' && sub ? decodeURIComponent(sub) : null;
+  if (r === 'clean') api.cleanScan().catch(() => {});
   ui.route = isPopover ? 'popover' : s && !s.settings.onboarded ? 'onboarding' : ROUTES.includes(r) && r !== 'popover' && r !== 'onboarding' ? r : 'overview';
   ui.dialog = null;
   const show = () => { render(); root.querySelector<HTMLElement>('.page-header h1')?.focus({ preventScroll: true }); };
