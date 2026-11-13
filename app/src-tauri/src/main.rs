@@ -25,6 +25,17 @@ fn app_icon(path: String) -> Result<tauri::ipc::Response, String> {
     icon::png(&path, 56).map(tauri::ipc::Response::new).ok_or_else(|| "no icon".into())
 }
 
+/// Posts a macOS notification. The text goes in as arguments, never into the script itself.
+#[tauri::command]
+fn notify(title: String, body: String) -> Result<(), String> {
+    let ok = Command::new("/usr/bin/osascript")
+        .args(["-e", "on run argv", "-e", "display notification (item 2 of argv) with title (item 1 of argv)", "-e", "end run", &title, &body])
+        .status()
+        .map_err(|e| e.to_string())?
+        .success();
+    ok.then_some(()).ok_or_else(|| "macOS didn’t show the notification.".into())
+}
+
 /// Opens one of a fixed set of places, so a "fix" button in an error state does something real.
 #[tauri::command]
 fn open_target(target: &str) -> Result<(), String> {
@@ -121,7 +132,7 @@ fn main() {
                 .with_state_flags(StateFlags::SIZE | StateFlags::POSITION | StateFlags::MAXIMIZED | StateFlags::FULLSCREEN)
                 .build(),
         )
-        .invoke_handler(tauri::generate_handler![app_icon, open_target, appearance_checked, volumes, mem::memory, mem::quit_app, engine::scan_home, engine::plan, engine::start_job, engine::jobs, engine::stop_job, engine::eject, engine::quit_drive_users, engine::set_guard])
+        .invoke_handler(tauri::generate_handler![app_icon, open_target, notify, appearance_checked, volumes, mem::memory, mem::quit_app, engine::scan_home, engine::plan, engine::start_job, engine::jobs, engine::stop_job, engine::eject, engine::quit_drive_users, engine::set_guard])
         .setup(|app| {
             mem::start();
             engine::start();

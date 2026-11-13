@@ -34,12 +34,14 @@ export function createReal(invoke: Invoke): Api {
     permissions: { volumes: true, notify: false, ...saved.permissions },
     scan: { running: true, checked: 0 },
     journalPath: '~/Library/Application Support/Stowaway/journal.jsonl',
+    unsupported: ['login', 'updates'], // no login helper and no update feed in this build
   };
   const subs = new Set<(s: State) => void>();
   const emit = () => subs.forEach((fn) => fn(structuredClone(s)));
   const save = () => write(KEY, { settings: s.settings, permissions: s.permissions });
   const folder = (id: string) => s.folders.find((x) => x.id === id);
   let reading: Reading | null = null;
+  let warned = false;
   let vols: Volume[] = [];
   const seen = read<Record<string, number>>('stowaway.seen', {});
 
@@ -112,6 +114,11 @@ export function createReal(invoke: Invoke): Api {
     if (!r) return;
     reading = r;
     s.forecast = toForecast(r);
+    // One notification per episode: when the forecast first drops inside the chosen window.
+    const left = s.forecast?.minutesLeft;
+    const due = left != null && left <= s.settings.warnAt;
+    if (due && !warned && s.permissions.notify) invoke('notify', { title: `Memory may run out in about ${left} minutes`, body: s.forecast?.suggest ? `Quitting ${s.forecast.suggest.app} frees the most.` : 'Open Stowaway to see what is using memory.' }).catch(() => {});
+    warned = due;
     s.memApps = toMemApps(r);
     s.mac.free = r.diskFree || s.mac.free;
     s.mac.total = r.diskTotal || s.mac.total;

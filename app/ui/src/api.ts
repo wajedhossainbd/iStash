@@ -123,6 +123,7 @@ export interface State {
   permissions: Permissions;
   scan: { running: boolean; checked: number };
   journalPath: string;
+  unsupported?: (keyof Settings)[]; // settings this build cannot act on; shown as such instead of a dead switch
 }
 
 /** A dry run: what an action would do, or why it is refused. Nothing is changed by asking. */

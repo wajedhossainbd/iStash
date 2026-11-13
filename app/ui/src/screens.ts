@@ -316,13 +316,14 @@ export function settings(v: View) {
   if (v.down) return h + `<div class="page-body">${helperDown()}</div>`;
   if (!v.s) return h + `<div class="page-body" aria-busy="true"><span class="skeleton" style="height:200px;max-width:680px"></span></div>`;
   const s = v.s, st = s.settings;
+  const sw = (key: 'login' | 'updates', label: string) => s.unsupported?.includes(key) ? '<span class="secondary">Not in this build</span>' : toggle(key, st[key], label);
   const row = (title: string, note: string, control: string) => `<div class="row"><div>${title}${note ? `<small>${note}</small>` : ''}</div>${control}</div>`;
   return h + `<div class="page-body"><div class="form">
     <section><h2>General</h2><div class="group">
       ${row('Appearance', 'System follows the light or dark setting of this Mac.', seg('theme', [['light', 'Light'], ['dark', 'Dark'], ['system', 'System']], st.theme))}
-      ${row('Open at login', 'Starts the small helper that watches memory and drives.', toggle('login', st.login, 'Open at login'))}
+      ${row('Open at login', 'Starts the small helper that watches memory and drives.', sw('login', 'Open at login'))}
       ${row('Show in menu bar', '', toggle('menubar', st.menubar, 'Show in menu bar'))}
-      ${row('Check for updates automatically', `Version ${esc(s.version)}`, toggle('updates', st.updates, 'Check for updates automatically'))}
+      ${row('Check for updates automatically', `Version ${esc(s.version)}`, sw('updates', 'Check for updates automatically'))}
     </div></section>
     <section><h2>Moving</h2><div class="group">
       ${row('Show what will happen before every move', 'Lists each step and the space it needs. Recommended.', toggle('dryRun', st.dryRun, 'Show what will happen before every move'))}
@@ -331,7 +332,7 @@ export function settings(v: View) {
     </div></section>
     <section><h2>Memory</h2><div class="group">
       ${row('<label for="warnAt">Warn me when memory may run out within</label>', '', `<select id="warnAt" data-action="setting-select" data-id="warnAt">${[15, 30, 60].map((m) => `<option value="${m}" ${st.warnAt === m ? 'selected' : ''}>${m} minutes</option>`).join('')}</select>`)}
-      ${row('Notifications', s.permissions.notify ? 'Allowed in System Settings.' : 'Used only for memory warnings and eject warnings.', s.permissions.notify ? pill('ok', 'Allowed') : button('Allow…', 'grant', { id: 'notify' }))}
+      ${row('Notifications', s.permissions.notify ? 'On. Used only for memory warnings.' : 'Used only for memory warnings.', s.permissions.notify ? pill('ok', 'On') : button('Allow…', 'grant', { id: 'notify' }))}
     </div></section>
     <section><h2>Drives</h2><div class="group">
       ${row('Warn before I eject a drive that apps still need', 'Names the apps and offers to quit them first.', toggle('ejectGuard', st.ejectGuard, 'Warn before I eject a drive that apps still need'))}
