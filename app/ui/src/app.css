@@ -321,3 +321,9 @@ h1:focus { outline: none; } /* focused on navigation so VoiceOver announces the 
   .content, :root.native .content { background: var(--bg-content); }
   .card, .metric, .module, .bay, .table, .form .group, .perm, .choice, .dialog, .popover { background: var(--bg-surface); border-color: var(--line-hairline); backdrop-filter: none; -webkit-backdrop-filter: none; }
 }
+/* Page sections keep their full height so the page scrolls; a shrinking table would clip its rows instead. */
+.page-body > * { flex-shrink: 0; }
+/* The segmented control sits in a darker well so the chosen segment stands out in both themes. */
+.seg { background: var(--bg-inset); box-shadow: inset 0 0 0 1px var(--glass-line); }
+.seg button[aria-pressed="true"] { background: var(--bg-raised); font-weight: 600; }
+.form .row > .seg { flex: none; }

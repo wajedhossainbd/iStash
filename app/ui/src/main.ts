@@ -147,6 +147,7 @@ const failed = (e: unknown): Plan => ({ ok: false, title: 'That didn’t work', 
 const actions: Record<string, (id: string) => unknown> = {
   go: (id) => { location.hash = `#/${id}`; },
   tab: (id) => { ui.offloadTab = id as Ui['offloadTab']; },
+  theme: (id) => api.set('theme', id as Theme),
   scan: () => api.scan(),
   close: () => { ui.dialog = null; },
   'start-helper': async () => { await api.startHelper(); await load(); },

@@ -310,6 +310,7 @@ export function settings(v: View) {
   const row = (title: string, note: string, control: string) => `<div class="row"><div>${title}${note ? `<small>${note}</small>` : ''}</div>${control}</div>`;
   return h + `<div class="page-body"><div class="form">
     <section><h2>General</h2><div class="group">
+      ${row('Appearance', 'System follows the light or dark setting of this Mac.', seg('theme', [['light', 'Light'], ['dark', 'Dark'], ['system', 'System']], st.theme))}
       ${row('Open at login', 'Starts the small helper that watches memory and drives.', toggle('login', st.login, 'Open at login'))}
       ${row('Show in menu bar', '', toggle('menubar', st.menubar, 'Show in menu bar'))}
       ${row('Check for updates automatically', `Version ${esc(s.version)}`, toggle('updates', st.updates, 'Check for updates automatically'))}
