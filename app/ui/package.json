@@ -11,6 +11,7 @@
     "app:build": "cd .. && ./ui/node_modules/.bin/tauri build"
   },
   "dependencies": {
+    "@fontsource/jetbrains-mono": "^5.3.0",
     "@tauri-apps/api": "^2.12.4",
     "morphdom": "^2.7.8"
   },

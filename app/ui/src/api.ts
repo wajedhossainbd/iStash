@@ -206,7 +206,7 @@ export function mockState(now = Date.now()): State {
     mac: { model: 'MacBook Pro', total: 494 * GB, free: 31.2 * GB, system: 104 * GB, apps: 153 * GB, reserve: 10 * GB },
     drives, folders, jobs: [], memApps,
     forecast: strained(now),
-    settings: { onboarded: false, theme: 'system', login: true, menubar: true, dryRun: true, warnAt: 30, ejectGuard: true, updates: true, defaultDrive: null },
+    settings: { onboarded: false, theme: 'dark', login: true, menubar: true, dryRun: true, warnAt: 30, ejectGuard: true, updates: true, defaultDrive: null },
     permissions: { volumes: false, notify: false },
     scan: { running: false, checked: 0 },
     journalPath: '~/Library/Application Support/Stowaway/journal.jsonl',
