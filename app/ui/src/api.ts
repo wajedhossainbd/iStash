@@ -1,7 +1,9 @@
 // The one door between the UI and the data. Screens never fetch, read files or call Tauri for data themselves;
-// they go through `api`. Today `api` is the mock below (built from design/prototype/data.js); integration swaps it
-// for a client of the agent socket (docs/agent-api.md) with the same interface.
+// they go through `api`. In the app that is real.ts (the shell's commands, which run stowaway-core); in a browser
+// and in tests it is the mock below (built from design/prototype/data.js). Both have the same interface.
 // Units: bytes for sizes, bytes/s for rates, unix milliseconds for times.
+
+import { createReal } from './real.ts';
 
 export type Verdict = 'move' | 'setting' | 'refused' | 'stowed';
 export type Cable = 'blue' | 'orange' | 'violet' | 'green' | 'pink' | 'teal';
@@ -185,7 +187,7 @@ export function toDrives(vols: Volume[], prev: Drive[], holds: (id: string) => b
 /** What the app shell's read-only `memory` command returns (stowaway-core's Sampler and forecast). */
 export interface Reading {
   t: number; cpu: number[]; cores: string; netIn: number[]; netOut: number;
-  memTotal: number; memUsed: number; compressed: number; freePct: number; swap: number; diskFree: number; swapLimit: number;
+  memTotal: number; memUsed: number; compressed: number; freePct: number; swap: number; diskFree: number; diskTotal?: number; swapLimit: number;
   history: number[]; level: 'ok' | 'watch' | 'warn' | 'critical'; minutesLeft: number | null; reason: string;
   apps: { name: string; mem: number; cpu: number; path: string | null }[];
 }
@@ -295,30 +297,6 @@ export function createMock(scenario: Scenario = 'normal', onboarded = scenario !
   if (scenario === 'unreadable') s.drives[0].problem = 'macOS reports the disk needs First Aid.';
   if (scenario === 'loading') { s.scan = { running: true, checked: 1284 }; s.forecast = null; }
   let helperUp = scenario !== 'error';
-  // In the app the drives are the real mounted volumes, read only. Nothing has been moved onto them, so the sample
-  // drives and the sample folders "on" them go, and moving is refused until the helper does real copies.
-  const shell = (globalThis as any).__TAURI_INTERNALS__;
-  const real = !!shell && scenario === 'normal';
-  if (real) {
-    s.drives = [];
-    s.folders = s.folders.filter((x) => x.verdict !== 'stowed');
-    const poll = () => shell.invoke('volumes').then((v: Volume[]) => {
-      const next = toDrives(v, s.drives, (id) => s.folders.some((x) => x.drive === id));
-      if (JSON.stringify(next) !== JSON.stringify(s.drives)) { s.drives = next; emit(); }
-    }, () => { /* keep the last list */ });
-    poll();
-    setInterval(poll, 5000); // catches plug and unplug
-    const pollMem = () => shell.invoke('memory').then((r: Reading | null) => {
-      if (!r) return;
-      reading = r;
-      s.forecast = toForecast(r);
-      s.memApps = toMemApps(r);
-      emit();
-    }, () => { /* keep the last reading */ });
-    pollMem();
-    setInterval(pollMem, 2000);
-  }
-  let reading: Reading | null = null;
   const subs = new Set<(s: State) => void>();
   const emit = () => subs.forEach((fn) => fn(structuredClone(s)));
   const folder = (id: string) => s.folders.find((x) => x.id === id)!;
@@ -344,7 +322,6 @@ export function createMock(scenario: Scenario = 'normal', onboarded = scenario !
   ticker.unref?.(); // lets the node tests exit
 
   const planMove = (id: string, driveId: string): Plan => {
-    if (real) return { ok: false, title: 'Moving isn’t connected yet', reason: 'This build shows your real drives, but the helper that copies folders is still being built. Nothing was changed.' };
     const it = folder(id), d = drive(driveId);
     if (!d || !d.connected || d.refused || d.problem) return { ok: false, title: 'No drive connected', reason: 'Plug in an APFS drive to move this folder. Nothing was changed.' };
     if (it.size > d.free) return { ok: false, title: `Not enough room on ${d.name}`, reason: `${d.name} has ${fmt(d.free)} free and this folder needs ${fmt(it.size)}. Nothing was changed.` };
@@ -373,12 +350,6 @@ export function createMock(scenario: Scenario = 'normal', onboarded = scenario !
       await ok();
       const walk = (a: number[], lo: number, hi: number, step: number) => { a.push(Math.max(lo, Math.min(hi, a.at(-1)! + (Math.random() - 0.5) * step))); a.shift(); };
       walk(live.cpu, 8, 92, 12); live.cpu[live.cpu.length - 1] = Math.round(live.cpu.at(-1)!);
-      if (real) {
-        if (!reading) throw new Error('No reading yet');
-        const r = reading;
-        return { at: r.t * 1000, cpu: r.cpu.map(Math.round), cores: r.cores, memUsed: r.memUsed, memTotal: r.memTotal, pressure: Math.round(100 - r.freePct),
-          swap: r.swap, compressed: r.compressed, netIn: r.netIn, netOut: r.netOut, netName: '' };
-      }
       walk(live.net, 0.2e6, 6e6, 2.4e6);
       const calm = s.forecast?.condition === 'fine';
       return { at: Date.now(), cpu: [...live.cpu], cores: '8 performance, 4 efficiency cores', memUsed: (calm ? 7.6 : 13.8) * GB, memTotal: 16 * GB,
@@ -392,17 +363,11 @@ export function createMock(scenario: Scenario = 'normal', onboarded = scenario !
     async eject(id) {
       await ok();
       const j = s.jobs.find((x) => x.drive === id);
-      if (real) throw new Error('Ejecting from Stowaway isn’t connected yet in this build. Nothing was changed. Eject it from Finder.');
       if (j) throw new Error(`${drive(id).name} is in use: ${folder(j.folder).app} ${folder(j.folder).name.toLowerCase()} is being ${j.kind === 'move' ? 'moved to' : 'brought back from'} it. Nothing was changed.`);
       this.setConnected(id, false);
     },
     async quitApp(appId) {
       await ok();
-      if (real) {
-        const a = s.memApps.find((x) => x.id === appId);
-        if (!a?.appPath) throw new Error('Stowaway can only quit apps, not background programs. Nothing was changed.');
-        return shell.invoke('quit_app', { path: a.appPath });
-      }
       s.memApps = s.memApps.filter((a) => a.id !== appId);
       s.folders.forEach((x) => { if (x.appPath && s.memApps.every((a) => a.appPath !== x.appPath)) x.running = false; });
       if (s.forecast?.suggest?.appId === appId) s.forecast = fine(s.forecast);
@@ -433,7 +398,8 @@ const fmt = (n: number) => `${n >= 100 * GB ? Math.round(n / GB) : (n / GB).toFi
 // shortcut: each window (main, menu-bar popover) runs its own mock, so their states can drift apart in a demo;
 // goes away when both read the agent.
 const scenario = (new URLSearchParams(globalThis.location?.search).get('mock') || 'normal') as Scenario;
-const mock = createMock(scenario);
+const shell = (globalThis as any).__TAURI_INTERNALS__;
+// In the app: the real engine. In a browser, in tests and for the designed states (?mock=…): the mock.
+export const api: Api = shell && scenario === 'normal' ? createReal(shell.invoke) : createMock(scenario);
 // Dev only: lets a tester plug drives in and out from the web inspector (`stowawayMock.setConnected('archive', true)`).
-(globalThis as any).stowawayMock = mock;
-export const api: Api = mock;
+(globalThis as any).stowawayMock = api;

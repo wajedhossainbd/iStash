@@ -216,8 +216,10 @@ function route() {
   const r = location.hash.replace('#/', '') as Route;
   ui.route = isPopover ? 'popover' : s && !s.settings.onboarded ? 'onboarding' : ROUTES.includes(r) && r !== 'popover' && r !== 'onboarding' ? r : 'overview';
   ui.dialog = null;
-  render();
-  root.querySelector<HTMLElement>('.page-header h1')?.focus({ preventScroll: true });
+  const show = () => { render(); root.querySelector<HTMLElement>('.page-header h1')?.focus({ preventScroll: true }); };
+  // A short cross-fade between pages where the webview supports it.
+  const vt = (document as any).startViewTransition;
+  if (vt && !reduced && root.firstChild) vt.call(document, show); else show();
 }
 window.addEventListener('hashchange', route);
 if (native) tauri().then((n) => n.onAppearance((t) => api.set('theme', t)));

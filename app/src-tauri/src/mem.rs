@@ -81,7 +81,7 @@ fn cores() -> String {
 }
 
 /// The app bundle for a process-group name, so the UI can show its real icon and offer Quit.
-fn bundle(name: &str) -> Option<String> {
+pub fn bundle(name: &str) -> Option<String> {
     let home = std::env::var("HOME").unwrap_or_default();
     [format!("/Applications/{name}.app"), format!("/System/Applications/{name}.app"), format!("/System/Applications/Utilities/{name}.app"), format!("{home}/Applications/{name}.app")]
         .into_iter()
@@ -103,7 +103,7 @@ pub fn memory() -> Value {
     json!({
         "t": s.t, "cpu": l.cpu, "cores": cores(), "netIn": l.net_in, "netOut": s.net_out_bps,
         "memTotal": s.mem_total, "memUsed": l.used.0, "compressed": l.used.1, "freePct": s.mem_free_pct,
-        "swap": s.swap_used, "diskFree": s.disk_free, "swapLimit": s.swap_used + s.disk_free.saturating_sub(DISK_FLOOR as u64),
+        "swap": s.swap_used, "diskFree": s.disk_free, "diskTotal": stowaway_core::fsx::volume(Path::new("/")).map_or(0, |v| v.total), "swapLimit": s.swap_used + s.disk_free.saturating_sub(DISK_FLOOR as u64),
         "history": history,
         "level": match f.level { Level::Ok => "ok", Level::Watch => "watch", Level::Warn => "warn", Level::Critical => "critical" },
         "minutesLeft": f.minutes_left, "reason": f.reason,

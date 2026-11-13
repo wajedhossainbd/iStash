@@ -268,3 +268,19 @@ p { margin: 0; }
 :root.popover-window, :root.popover-window body { background: transparent; min-height: 0; overflow: hidden; }
 :root.popover-window .popover { border-radius: var(--radius-xl); box-shadow: none; border: 1px solid var(--line-strong); }
 h1:focus { outline: none; } /* focused on navigation so VoiceOver announces the page; no ring needed */
+
+/* ---------- Motion: state changes ease instead of jumping ---------- */
+::view-transition-old(root), ::view-transition-new(root) { animation-duration: var(--duration-base); animation-timing-function: var(--easing-standard); }
+.capacity i { transition: width var(--duration-slow) var(--easing-standard), background-color var(--duration-base) var(--easing-standard); }
+.nav-item, .table-row, .module, .choice, .seg button { transition: background-color var(--duration-fast) var(--easing-standard), box-shadow var(--duration-fast) var(--easing-standard), border-color var(--duration-base) var(--easing-standard); }
+.nav-item:hover:not(.is-active) { background: color-mix(in srgb, var(--bg-inset) 55%, transparent); }
+.table-row:hover:not(.is-busy) { background: color-mix(in srgb, var(--bg-inset) 35%, transparent); }
+.btn:hover:not(:disabled) { filter: brightness(1.1); }
+.btn:active:not(:disabled) { transform: scale(0.97); }
+.btn { transition: filter var(--duration-fast) var(--easing-standard), transform var(--duration-fast) var(--easing-standard); }
+.pill, .dot { transition: background-color var(--duration-base) var(--easing-standard), color var(--duration-base) var(--easing-standard); }
+/* New rows and cards settle in. Transform only: WebKit pauses animations in a background window, and nothing may be stuck invisible. */
+.table-row, .module, .banner { animation: settle var(--duration-slow) var(--easing-standard) backwards; }
+.table-row:nth-child(3) { animation-delay: 30ms; } .table-row:nth-child(4) { animation-delay: 60ms; } .table-row:nth-child(5) { animation-delay: 90ms; } .table-row:nth-child(n+6) { animation-delay: 120ms; }
+@keyframes settle { from { transform: translateY(6px); } }
+@media (prefers-reduced-motion: reduce) { ::view-transition-group(*), ::view-transition-old(*), ::view-transition-new(*) { animation: none !important; } }

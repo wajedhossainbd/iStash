@@ -112,8 +112,8 @@ export function overview(v: View) {
   return h + `<div class="page-body">${forecastCard(v as V)}${metrics(v as V)}
     <div class="split">
       <section class="card"><div class="card-head"><h2>This Mac</h2><span class="secondary"><span class="num">${gb(s.mac.free)}</span> free of <span class="num">${Math.round(s.mac.total / GB)} GB</span></span><span class="spacer"></span>${suggested(s).length ? button(`Review ${suggested(s).length} folders`, 'go', { id: 'offload' }) : ''}</div>
-        ${capacity([{ value: s.mac.system, color: 'var(--storage-system)', label: `macOS ${gb(s.mac.system)}` }, { value: s.mac.apps, color: 'var(--storage-apps)', label: `Apps ${gb(s.mac.apps)}` }, { value: stowable, color: 'var(--accent-fill)', label: `Can move ${gb(stowable)}` }, { value: other, color: 'var(--storage-other)', label: 'Other' }], s.mac.total, true)}
-        <div class="legend" aria-hidden="true"><span><i style="background:var(--storage-system)"></i>macOS ${gb(s.mac.system)}</span><span><i style="background:var(--storage-apps)"></i>Apps ${gb(s.mac.apps)}</span><span><i style="background:var(--accent-fill)"></i>Can move to a drive ${gb(stowable)}</span><span><i style="background:var(--storage-other)"></i>Other</span></div></section>
+        ${s.mac.system + s.mac.apps ? `${capacity([{ value: s.mac.system, color: 'var(--storage-system)', label: `macOS ${gb(s.mac.system)}` }, { value: s.mac.apps, color: 'var(--storage-apps)', label: `Apps ${gb(s.mac.apps)}` }, { value: stowable, color: 'var(--accent-fill)', label: `Can move ${gb(stowable)}` }, { value: other, color: 'var(--storage-other)', label: 'Other' }], s.mac.total, true)} <div class="legend" aria-hidden="true"><span><i style="background:var(--storage-system)"></i>macOS ${gb(s.mac.system)}</span><span><i style="background:var(--storage-apps)"></i>Apps ${gb(s.mac.apps)}</span><span><i style="background:var(--accent-fill)"></i>Can move to a drive ${gb(stowable)}</span><span><i style="background:var(--storage-other)"></i>Other</span></div>` : `${capacity([{ value: s.mac.total - s.mac.free - stowable, color: 'var(--storage-system)', label: 'Used' }, { value: stowable, color: 'var(--accent-fill)', label: `Can move to a drive ${gb(stowable)}` }], s.mac.total, true)}
+        <div class="legend" aria-hidden="true"><span><i style="background:var(--storage-system)"></i>Used ${gb(s.mac.total - s.mac.free - stowable)}</span><span><i style="background:var(--accent-fill)"></i>Can move to a drive ${gb(stowable)}</span></div>`}</section>
       <section class="card"><div class="card-head"><h2>Drives</h2></div>${drives.length ? `<div style="display:grid;gap:8px">${drives.map((d) => {
         const on = stowedOn(s, d.id);
         return `<div style="display:flex;gap:8px;align-items:center"><span class="dot ${d.connected ? 'ok' : 'hollow'}"></span><strong style="font:var(--type-emphasis)">${esc(d.name)}</strong>
@@ -274,7 +274,7 @@ export function drives(v: View) {
   const missing = usable(s).filter((d) => !d.connected && stowedOn(s, d.id).length).map((d) => {
     const st = stowedOn(s, d.id), appList = appsOn(st), apps = esc(list(appList)), many = appList.length > 1;
     return banner({ kind: 'danger', ic: 'plug', title: `${esc(d.name)} is missing, so ${apps} ${many ? 'are' : 'is'} held.`,
-      body: `${apps} would otherwise write to an empty folder. Plug ${esc(d.name)} in and ${many ? 'they open' : 'it opens'} normally. To keep the data (${gb(sum(st))}) on this Mac instead, plug it in and choose Bring back.` });
+      body: `The data is safe on the drive, and the link Stowaway left stops ${apps} from starting over with an empty folder. Plug ${esc(d.name)} in and ${many ? 'they open' : 'it opens'} normally. To keep the data (${gb(sum(st))}) on this Mac instead, plug it in and choose Bring back.` });
   });
   return h + `<div class="page-body">${broken.join('')}
     <div class="modules">${shown.map((d) => driveModule(s, d)).join('')}${mac}</div>

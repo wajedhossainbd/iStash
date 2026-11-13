@@ -2,6 +2,7 @@
 // app/ui/src/api.ts (the agent socket after integration); this process only hosts the UI.
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod engine;
 mod icon;
 mod mem;
 
@@ -108,6 +109,10 @@ fn show_main(app: &AppHandle) {
 }
 
 fn main() {
+    // A move runs as this binary with --engine, so Stop can end it and recovery can undo it.
+    if let Some(code) = engine::child(&std::env::args().collect::<Vec<_>>()) {
+        std::process::exit(code);
+    }
     tauri::Builder::default()
         // Size and position only: closing hides the window, and a remembered "hidden" would launch with no window.
         .plugin(
@@ -116,9 +121,10 @@ fn main() {
                 .with_state_flags(StateFlags::SIZE | StateFlags::POSITION | StateFlags::MAXIMIZED | StateFlags::FULLSCREEN)
                 .build(),
         )
-        .invoke_handler(tauri::generate_handler![app_icon, open_target, appearance_checked, volumes, mem::memory, mem::quit_app])
+        .invoke_handler(tauri::generate_handler![app_icon, open_target, appearance_checked, volumes, mem::memory, mem::quit_app, engine::scan_home, engine::plan, engine::start_job, engine::jobs, engine::stop_job, engine::eject, engine::quit_drive_users, engine::set_guard])
         .setup(|app| {
             mem::start();
+            engine::start();
             let handle = app.handle();
             app.set_menu(menu(handle)?)?;
             app.on_menu_event(|app, e| {
