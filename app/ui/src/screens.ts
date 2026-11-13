@@ -4,7 +4,7 @@ import { esc, gb, tb, day, ago, list, icon, appIcon, button, pill, seg, capacity
 
 export type Route = 'overview' | 'offload' | 'drives' | 'memory' | 'settings' | 'onboarding' | 'popover';
 export type Dialog = { type: 'move' | 'back' | 'how' | 'why' | 'apfs' | 'eject' | 'quit-app'; id?: string; drive?: string; plan?: Plan };
-export interface Ui { route: Route; dialog: Dialog | null; offloadTab: 'suggested' | 'stowed' | 'all'; onboardStep: number; onboardDrive: string | null; busy: boolean }
+export interface Ui { route: Route; dialog: Dialog | null; offloadTab: 'suggested' | 'stowed' | 'all'; onboardStep: number; onboardDrive: string | null; busy: boolean; drive: string | null }
 /** s is null while the first state is loading; down when the helper can't be reached. */
 export interface View { s: State | null; m: Metrics | null; ui: Ui; down: boolean; icon: (path?: string) => string | null }
 type V = View & { s: State };
@@ -43,7 +43,7 @@ export function sidebar(v: View) {
     ['memory', 'Memory', '', ''],
   ];
   const item = ([r, label, extra, spoken]: [Route, string, string, string]) =>
-    `<a class="nav-item ${ui.route === r ? 'is-active' : ''}" href="#/${r}" aria-label="${label}${spoken}" ${ui.route === r ? 'aria-current="page"' : ''}>${icon(r)}${label}${extra}</a>`;
+    { const on = ui.route === r && !(r === 'drives' && ui.drive); return `<a class="nav-item ${on ? 'is-active' : ''}" href="#/${r}" aria-label="${label}${spoken}" ${on ? 'aria-current="page"' : ''}>${icon(r)}${label}${extra}</a>`; };
   const cpu = m?.cpu.at(-1) ?? 0;
   const foot = s && m ? `<div class="sidebar-foot" aria-label="This Mac now">
       <div class="mini"><span>CPU</span>${capacity([{ value: cpu, color: 'var(--text-secondary)', label: `CPU ${cpu}%` }], 100)}<span class="num">${cpu}%</span></div>
@@ -53,7 +53,7 @@ export function sidebar(v: View) {
   return `<aside class="sidebar"><div class="traffic" ${drag}></div>
     <nav aria-label="Sections">${nav.map(item).join('')}
       ${s && usable(s).length ? `<div class="nav-group" id="nav-drives">Drives</div><div role="group" aria-labelledby="nav-drives">
-      ${usable(s).map((d) => `<a class="nav-item" href="#/drives" aria-label="${esc(d.name)}, ${d.connected ? 'connected' : 'missing'}"><span class="dot ${d.connected ? 'ok' : 'hollow'}"></span>${esc(d.name)}${d.connected ? '' : '<span class="badge is-danger">missing</span>'}</a>`).join('')}</div>` : ''}
+      ${usable(s).map((d) => { const on = ui.route === 'drives' && ui.drive === d.id, n = stowedOn(s, d.id).length; return `<a class="nav-item nav-drive ${on ? 'is-active' : ''} ${d.connected ? '' : 'is-missing'}" href="#/drives/${encodeURIComponent(d.id)}" ${on ? 'aria-current="page"' : ''} aria-label="${esc(d.name)}, ${d.connected ? `${gb(d.free)} free` : 'missing'}, ${n} folder${n === 1 ? '' : 's'}">${icon('drives')}<span class="name">${esc(d.name)}</span>${d.connected ? `<span class="badge">${gb(d.free)}</span>` : '<span class="badge is-danger">missing</span>'}</a>`; }).join('')}</div>` : ''}
       <div class="nav-group"></div>${item(['settings', 'Settings', '', ''])}
     </nav>${foot}</aside>`;
 }
@@ -267,6 +267,15 @@ export function drives(v: View) {
   if (v.down) return h + `<div class="page-body">${helperDown()}</div>`;
   if (!s) return h + `<div class="page-body" aria-busy="true"><div class="modules">${'<div class="module"><span class="skeleton" style="height:14px;width:50%"></span><span class="skeleton" style="height:8px"></span><span class="skeleton" style="height:10px;width:70%"></span></div>'.repeat(3)}</div><div class="bay"><span class="skeleton" style="display:block;height:260px"></span></div></div>`;
   const none = !s.folders.some((i) => i.verdict === 'stowed');
+  const one = s.drives.find((d) => d.id === v.ui.drive);
+  if (one) {
+    const st = stowedOn(s, one.id);
+    return header(esc(one.name), `${st.length ? `${st.length} folder${st.length === 1 ? '' : 's'} linked here · ${gb(sum(st))}` : 'No folders linked here yet'}`, button('All drives', 'go', { id: 'drives' })) + `<div class="page-body">
+      <div class="modules" style="grid-template-columns:minmax(0,1fr)">${driveModule(s, one)}</div>
+      ${st.length ? `<div class="table" role="table" aria-label="Folders on ${esc(one.name)}"><div class="table-head" role="row"><span></span><span>Folder</span><span>Where the link is</span><span style="text-align:right">Size</span><span>State</span><span></span></div>${st.map((it) => itemRow(v as V, it)).join('')}</div>`
+        : empty({ illus: ILLUS_PORT, title: 'Nothing is linked to this drive', body: one.refused ? esc(one.problem ?? '') : `Choose ${esc(one.name)} under Move to on the Offload screen and the folders you move show up here.`, actions: one.refused ? '' : button('Open Offload', 'go', { id: 'offload', kind: 'primary' }) })}
+    </div>`;
+  }
   const shown = s.drives.filter((d) => d.connected || stowedOn(s, d.id).length);
   if (none && !shown.length) return h + `<div class="page-body">${empty({ illus: ILLUS_PORT, title: 'No drives connected', body: 'Plug in an external drive. It shows up here with its free space, and later with the apps that keep data on it.' })}</div>`;
   const low = s.mac.free < 40 * GB;

@@ -17,7 +17,7 @@ const tauri = () => import('./native');
 let s: State | null = null;
 let m: Metrics | null = null;
 let down = false;
-const ui: Ui = { route: 'overview', dialog: null, offloadTab: 'suggested', onboardStep: 0, onboardDrive: null, busy: false };
+const ui: Ui = { route: 'overview', dialog: null, offloadTab: 'suggested', onboardStep: 0, onboardDrive: null, busy: false, drive: null };
 const isPopover = location.hash === '#/popover';
 document.documentElement.classList.toggle('native', native);
 document.documentElement.classList.toggle('popover-window', isPopover);
@@ -215,7 +215,8 @@ document.addEventListener('keydown', (e) => {
 });
 
 function route() {
-  const r = location.hash.replace('#/', '') as Route;
+  const [r, sub] = location.hash.replace('#/', '').split('/') as [Route, string?];
+  ui.drive = r === 'drives' && sub ? decodeURIComponent(sub) : null;
   ui.route = isPopover ? 'popover' : s && !s.settings.onboarded ? 'onboarding' : ROUTES.includes(r) && r !== 'popover' && r !== 'onboarding' ? r : 'overview';
   ui.dialog = null;
   const show = () => { render(); root.querySelector<HTMLElement>('.page-header h1')?.focus({ preventScroll: true }); };
