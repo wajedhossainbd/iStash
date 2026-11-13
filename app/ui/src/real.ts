@@ -160,7 +160,8 @@ export function createReal(invoke: Invoke): Api {
     s.update.busy = true; emit();
     try {
       const was = s.update.available;
-      s.update.available = await (await native()).checkUpdate();
+      try { s.update.available = await (await native()).checkUpdate(); }
+      catch { throw new Error('Stowaway couldn’t reach its update page. Check your connection and try again. Nothing was changed.'); }
       s.update.checked = Date.now();
       if (s.update.available && s.update.available !== was && s.permissions.notify) invoke('notify', { title: `Stowaway ${s.update.available} is ready`, body: 'Open Settings to install it.' }).catch(() => {});
     } finally { s.update.busy = false; emit(); }
