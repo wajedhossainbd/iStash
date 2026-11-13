@@ -62,7 +62,7 @@ pub fn child(args: &[String]) -> Option<i32> {
     })
 }
 
-fn all_moved(cat: &Catalog, table: &[procs::Proc]) -> Vec<Moved> {
+pub fn all_moved(cat: &Catalog, table: &[procs::Proc]) -> Vec<Moved> {
     let mut moved = drives::moved_items(cat, &Journal::for_home(&cat.home));
     moved.extend(drives::docker_moved(table, &drives::docker_state_file(&cat.home)));
     moved

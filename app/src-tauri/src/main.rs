@@ -2,6 +2,7 @@
 // app/ui/src/api.ts (the agent socket after integration); this process only hosts the UI.
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod away;
 mod engine;
 mod icon;
 mod mem;
@@ -136,6 +137,7 @@ fn main() {
         .setup(|app| {
             mem::start();
             engine::start();
+            away::start();
             let handle = app.handle();
             app.set_menu(menu(handle)?)?;
             app.on_menu_event(|app, e| {
