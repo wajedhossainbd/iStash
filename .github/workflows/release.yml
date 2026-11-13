@@ -1,0 +1,70 @@
+# Every push to main builds Stowaway and publishes it as the latest release: a DMG to download, the signed
+# update package the app installs by itself, and the install script. Pull requests only build and test.
+name: Release
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: macos-latest # Apple Silicon
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: app/ui/package-lock.json
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: app/src-tauri
+
+      - name: Install and test the UI
+        working-directory: app/ui
+        run: |
+          npm ci
+          npm run build
+          npm test
+
+      - name: Test the shell
+        working-directory: app/src-tauri
+        run: cargo test
+
+      # The version counts up with every release, so installed copies see each one as newer.
+      - name: Set the version
+        if: github.event_name == 'push'
+        run: |
+          VERSION="0.1.${{ github.run_number }}"
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+          node -e "const f='app/src-tauri/tauri.conf.json',c=require('./'+f);c.version=process.argv[1];require('fs').writeFileSync(f,JSON.stringify(c,null,2)+'\n')" "$VERSION"
+
+      - name: Build the app, DMG and update package
+        if: github.event_name == 'push'
+        working-directory: app/ui
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ""
+        run: npm run app:build
+
+      - name: Publish the release
+        if: github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          B=app/src-tauri/target/release/bundle
+          mkdir out
+          cp "$B"/dmg/*.dmg out/Stowaway.dmg
+          cp "$B/macos/Stowaway.app.tar.gz" out/
+          cp install.sh out/
+          node app/latest-json.mjs "$VERSION" "$B/macos/Stowaway.app.tar.gz.sig" "$GITHUB_REPOSITORY" > out/latest.json
+          gh release create "v$VERSION" out/* --latest --title "Stowaway $VERSION" --generate-notes

@@ -1,9 +1,11 @@
 # Stowaway app (Tauri 2)
 
 `ui/` is the web UI (TypeScript, Vite, no framework), ported from `design/prototype/`. `src-tauri/` is the native
-shell: window with sidebar vibrancy and a merged title bar, menu-bar item with a popover, View > Appearance, and
-two small commands (`app_icon` reads an app's real icon from its bundle; `open_target` opens a fixed set of places such
-as Disk Utility). All data goes through `ui/src/api.ts`; today that is a mock built from `design/prototype/data.js`.
+shell: the window, the menu-bar popover, and the commands that run `stowaway-core` (scan, move, bring back, eject
+guard, memory readings, the missing-drive watcher, Focus and the cleaner). All data goes through `ui/src/api.ts`:
+inside the app that is `real.ts`, and in a browser or in tests it is the sample data in `api.ts`.
+
+Updates use `tauri-plugin-updater` against the GitHub releases; see "Releases" in the root README.
 
 ```sh
 cd app/ui && npm install

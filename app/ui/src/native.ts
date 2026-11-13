@@ -5,6 +5,9 @@ import { setTheme as setAppTheme } from '@tauri-apps/api/app';
 import { TrayIcon } from '@tauri-apps/api/tray';
 import { Window, getCurrentWindow } from '@tauri-apps/api/window';
 import { LogicalSize } from '@tauri-apps/api/dpi';
+import { getVersion } from '@tauri-apps/api/app';
+import { check, type Update } from '@tauri-apps/plugin-updater';
+import { relaunch } from '@tauri-apps/plugin-process';
 import type { Theme } from './api';
 
 export const setTheme = (t: Theme) => Promise.all([setAppTheme(t === 'system' ? null : t), invoke('appearance_checked', { theme: t })]);
@@ -32,3 +35,10 @@ export async function fitPopover(el: HTMLElement | null) {
   height = h;
   await getCurrentWindow().setSize(new LogicalSize(340, h));
 }
+
+// Updates: signed releases on GitHub. The plugin verifies the signature against the key in tauri.conf.json.
+let found: Update | null = null;
+export const appVersion = () => getVersion();
+/** The newer version's number, or null when this is the latest. */
+export async function checkUpdate() { found = await check(); return found?.version ?? null; }
+export async function installUpdate() { if (!found) throw new Error('No update was found. Nothing was changed.'); await found.downloadAndInstall(); await relaunch(); }

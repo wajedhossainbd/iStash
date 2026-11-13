@@ -170,6 +170,8 @@ const actions: Record<string, (id: string) => unknown> = {
   focus: (id) => api.focus(id || null),
   'clean-scan': () => api.cleanScan(),
   'free-memory': () => api.freeMemory(),
+  'check-update': () => api.checkUpdate(),
+  'install-update': () => api.installUpdate(),
   'clean-ask': () => { ui.dialog = { type: 'clean' }; },
   'confirm-clean': () => { ui.dialog = null; return api.clean(s!.settings.cleanKinds); },
   grant: (id) => api.requestPermission(id as 'volumes' | 'notify'),

@@ -22,9 +22,17 @@
         "center": true,
         "titleBarStyle": "Overlay",
         "hiddenTitle": true,
-        "trafficLightPosition": { "x": 18, "y": 30 },
+        "trafficLightPosition": {
+          "x": 18,
+          "y": 30
+        },
         "transparent": true,
-        "windowEffects": { "effects": ["sidebar"], "state": "followsWindowActiveState" }
+        "windowEffects": {
+          "effects": [
+            "sidebar"
+          ],
+          "state": "followsWindowActiveState"
+        }
       },
       {
         "label": "popover",
@@ -43,14 +51,37 @@
     ],
     "security": {
       "csp": "default-src 'self'; img-src 'self' blob: data:; style-src 'self' 'unsafe-inline'; font-src 'self'; connect-src ipc: http://ipc.localhost",
-      "dangerousDisableAssetCspModification": ["style-src"]
+      "dangerousDisableAssetCspModification": [
+        "style-src"
+      ]
     }
   },
   "bundle": {
     "active": true,
-    "targets": ["app"],
+    "targets": [
+      "app",
+      "dmg"
+    ],
     "category": "public.app-category.utilities",
-    "icon": ["icons/32x32.png", "icons/128x128.png", "icons/128x128@2x.png", "icons/icon.icns", "icons/icon.png"],
-    "macOS": { "minimumSystemVersion": "14.0" }
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.png"
+    ],
+    "macOS": {
+      "minimumSystemVersion": "14.0",
+      "signingIdentity": "-"
+    },
+    "createUpdaterArtifacts": true
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDMyNzJEM0MwQjlGNkQwNjkKUldScDBQYTV3Tk55TWpWOEFJRUQ4K1dKOFdlYjRPdWk1aGwyRVhLTmprdWR1Z284eWppODB4eGwK",
+      "endpoints": [
+        "https://github.com/wajedhossainbd/stowaway/releases/latest/download/latest.json"
+      ]
+    }
   }
 }

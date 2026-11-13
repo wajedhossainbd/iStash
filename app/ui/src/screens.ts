@@ -55,7 +55,7 @@ export function sidebar(v: View) {
     <nav aria-label="Sections">${nav.map(item).join('')}
       ${s && usable(s).length ? `<div class="nav-group" id="nav-drives">Drives</div><div role="group" aria-labelledby="nav-drives">
       ${usable(s).map((d) => { const on = ui.route === 'drives' && ui.drive === d.id, n = stowedOn(s, d.id).length; return `<a class="nav-item nav-drive ${on ? 'is-active' : ''} ${d.connected ? '' : 'is-missing'}" href="#/drives/${encodeURIComponent(d.id)}" ${on ? 'aria-current="page"' : ''} aria-label="${esc(d.name)}, ${d.connected ? `${gb(d.free)} free` : 'missing'}, ${n} folder${n === 1 ? '' : 's'}">${icon('drives')}<span class="name">${esc(d.name)}</span>${d.connected ? `<span class="badge">${gb(d.free)}</span>` : '<span class="badge is-danger">missing</span>'}</a>`; }).join('')}</div>` : ''}
-      <div class="nav-group"></div>${item(['settings', 'Settings', '', ''])}
+      <div class="nav-group"></div>${item(['settings', 'Settings', s?.update.available ? '<span class="badge" style="color:var(--accent-text)">Update</span>' : '', s?.update.available ? ', update available' : ''])}
     </nav>${foot}</aside>`;
 }
 
@@ -358,7 +358,9 @@ export function settings(v: View) {
       ${row('Appearance', 'System follows the light or dark setting of this Mac.', seg('theme', [['light', 'Light'], ['dark', 'Dark'], ['system', 'System']], st.theme))}
       ${row('Open at login', 'Starts the small helper that watches memory and drives.', sw('login', 'Open at login'))}
       ${row('Show in menu bar', '', toggle('menubar', st.menubar, 'Show in menu bar'))}
-      ${row('Check for updates automatically', `Version ${esc(s.version)}`, sw('updates', 'Check for updates automatically'))}
+      ${row('Check for updates automatically', 'Looks for a new version at launch and every six hours.', sw('updates', 'Check for updates automatically'))}
+      ${row(`Version ${esc(s.version)}`, s.update.available ? `Version ${esc(s.update.available)} is available. Stowaway restarts to finish.` : s.update.checked ? `This is the latest version. Checked ${ago(s.update.checked)}.` : 'Updates come from the releases on GitHub and are checked against Stowaway’s signature.',
+        s.update.available ? button(s.update.busy ? 'Updating…' : `Update to ${esc(s.update.available)}`, 'install-update', { kind: 'primary', disabled: s.update.busy }) : button(s.update.busy ? 'Checking…' : 'Check now', 'check-update', { disabled: s.update.busy }))}
     </div></section>
     <section><h2>Moving</h2><div class="group">
       ${row('Show what will happen before every move', 'Lists each step and the space it needs. Recommended.', toggle('dryRun', st.dryRun, 'Show what will happen before every move'))}

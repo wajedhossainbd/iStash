@@ -34,8 +34,9 @@ export function createReal(invoke: Invoke): Api {
     permissions: { volumes: true, notify: false, ...saved.permissions },
     scan: { running: true, checked: 0 },
     journalPath: '~/Library/Application Support/Stowaway/journal.jsonl',
+    update: { available: null, busy: false, checked: null },
     focus: null, clean: { items: null, busy: false, freed: null, memBusy: false, memFreed: null, last: read<{ last: number | null }>('stowaway.clean', { last: null }).last },
-    unsupported: ['login', 'updates'], // no login helper and no update feed in this build
+    unsupported: ['login'], // no login helper in this build
   };
   const subs = new Set<(s: State) => void>();
   const emit = () => subs.forEach((fn) => fn(structuredClone(s)));
@@ -153,6 +154,22 @@ export function createReal(invoke: Invoke): Api {
   setTimeout(() => cleanIfDue().catch(() => {}), 60e3);
   setInterval(() => cleanIfDue().catch(() => {}), 36e5);
 
+  const native = () => import('./native.ts');
+  native().then((n) => n.appVersion()).then((v) => { s.version = v; emit(); }, () => {});
+  const checkUpdate = async () => {
+    s.update.busy = true; emit();
+    try {
+      const was = s.update.available;
+      s.update.available = await (await native()).checkUpdate();
+      s.update.checked = Date.now();
+      if (s.update.available && s.update.available !== was && s.permissions.notify) invoke('notify', { title: `Stowaway ${s.update.available} is ready`, body: 'Open Settings to install it.' }).catch(() => {});
+    } finally { s.update.busy = false; emit(); }
+  };
+  // Automatic checks: shortly after launch, then every six hours, when the setting is on. Offline is not an error.
+  const autoCheck = () => { if (s.settings.updates) checkUpdate().catch(() => {}); };
+  setTimeout(autoCheck, 20e3);
+  setInterval(autoCheck, 6 * 36e5);
+
   return {
     async state() { return structuredClone(s); },
     subscribe(fn) { subs.add(fn); return () => subs.delete(fn); },
@@ -190,7 +207,12 @@ export function createReal(invoke: Invoke): Api {
     },
     async requestPermission(p) { s.permissions[p] = true; save(); emit(); },
     async startHelper() { /* the engine runs inside the app in this build */ },
-    cleanScan, clean,
+    cleanScan, clean, checkUpdate,
+    async installUpdate() {
+      if (s.jobs.length) throw new Error('A folder is being moved. Wait for it to finish, then update. Nothing was changed.');
+      s.update.busy = true; emit();
+      try { await (await native()).installUpdate(); } finally { s.update.busy = false; emit(); }
+    },
     async freeMemory() {
       s.clean.memBusy = true; emit();
       try { s.clean.memFreed = await invoke<number>('free_memory'); }
