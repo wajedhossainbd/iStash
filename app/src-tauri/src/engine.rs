@@ -280,3 +280,15 @@ pub fn quit_drive_users(name: String) -> Result<(), String> {
 pub fn set_guard(on: bool) {
     GUARD_ON.store(on, Ordering::Relaxed);
 }
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    #[ignore = "reads the real home folder; run by hand"]
+    fn scans_this_mac() {
+        let r = super::scan_home();
+        eprintln!("{} folders, mac {}", r["folders"].as_array().map_or(0, Vec::len), r["mac"]);
+        eprintln!("{}", serde_json::to_string(&r["folders"][0]).unwrap());
+        assert!(r["mac"]["total"].as_u64().unwrap_or(0) > 0);
+    }
+}

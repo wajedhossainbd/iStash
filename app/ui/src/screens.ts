@@ -161,7 +161,7 @@ export function offload(v: View) {
   const head = '<div class="table-head" role="row"><span></span><span>Folder</span><span>Where it lives</span><span style="text-align:right">Size</span><span>Verdict</span><span></span></div>';
   if (v.down) return h + `<div class="page-body">${helperDown()}</div>`;
   if (!s || s.scan.running) return h + `<div class="page-body"><section class="card" style="display:grid;gap:8px"><div style="display:flex;justify-content:space-between"><h2>Looking for big app folders…</h2>${s ? `<span class="num secondary">${s.scan.checked.toLocaleString('en-GB')} checked</span>` : ''}</div>${progress(0, true, 'Scanning')}
-    <p class="secondary" style="font:var(--type-caption)">Skipping app sandboxes, Documents and Desktop. Nothing is changed while scanning.</p></section><div class="table" aria-hidden="true">${head}${skeletonRows(5)}</div></div>`;
+    <p class="secondary" style="font:var(--type-caption)">Skipping app sandboxes, Documents and Desktop. Nothing is changed while scanning. If macOS asks whether Stowaway may read a drive or folder, choose Allow; the scan waits for your answer.</p></section><div class="table" aria-hidden="true">${head}${skeletonRows(5)}</div></div>`;
   if (!s.permissions.volumes) return h + `<div class="page-body">${empty({ illus: icon('lock', 'illus'), title: 'Stowaway can’t see your drives',
     body: 'macOS hasn’t allowed access to removable volumes, so nothing can be moved. Nothing was changed.', actions: button('Allow access…', 'grant', { kind: 'primary', id: 'volumes' }) + button('Open System Settings…', 'open', { id: 'privacy' }) })}</div>`;
   if (!usable(s).length) return h + `<div class="page-body">${empty({ illus: ILLUS_PORT, title: 'Connect a drive to start',
