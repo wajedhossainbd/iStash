@@ -146,8 +146,9 @@ function itemRow(v: V, it: Folder) {
   } else {
     const d = drive(s, it.drive), held = isHeld(s, it);
     verdict = held ? pill('danger', `${d.name} is missing`) + `<span>${esc(it.app)} is held until it’s back</span>`
-      : pill('ok', `On ${d.name}`) + `<span>Since ${day(it.since!)}, checked file by file</span>`;
-    act = button('Bring back…', 'back', { id: it.id, disabled: held, title: held ? `Connect ${d.name} first` : '', label: `Bring back ${it.app} ${it.name}` });
+      : pill('ok', `On ${d.name}`) + `<span>${it.since ? `Since ${day(it.since)}, checked file by file` : 'Linked by hand, before Stowaway'}</span>`;
+    // The engine only undoes moves it made itself (its journal has them), so a hand-made link gets no button.
+    act = !it.since ? '' : button('Bring back…', 'back', { id: it.id, disabled: held, title: held ? `Connect ${d.name} first` : '', label: `Bring back ${it.app} ${it.name}` });
   }
   return `<div class="table-row" role="row">${head}<div class="path" title="${esc(it.path)}">${esc(it.path)}</div><div class="size">${gb(it.size)}</div><div class="verdict">${verdict}</div><div class="act">${act}</div></div>`;
 }
