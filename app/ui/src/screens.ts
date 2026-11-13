@@ -139,7 +139,7 @@ function itemRow(v: V, it: Folder) {
     verdict = pill('neutral', `Use ${it.app}’s setting`) + `<span>${esc(it.reason)}</span>`;
     act = button('Show how', 'how', { id: it.id, label: `Show how to move ${it.app} ${it.name}` });
   } else if (it.verdict === 'refused') {
-    verdict = pill('danger', 'Can’t move') + `<span>${esc(it.reason)}</span>`;
+    verdict = pill('neutral', 'Can’t move') + `<span>${esc(it.reason)}</span>`;
     act = button('Why?', 'why', { kind: 'plain', id: it.id, label: `Why ${it.name} can’t move` });
   } else {
     const d = drive(s, it.drive), held = isHeld(s, it);

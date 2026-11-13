@@ -1,27 +1,27 @@
 # Stowaway design system
 
-Direction **B · Patch Bay**, chosen by the owner on 9 Nov 2026, after a de-AI pass (below). Tokens live in
+Direction **Ledger**, chosen by the owner on 13 Nov 2026 from [`directions/v2/`](directions/v2/). It replaces the
+look of Patch Bay (9 Nov) and keeps its screens, flows, components and de-AI rules (below). Tokens live in
 [`tokens.json`](tokens.json); `node design/tokens.mjs` regenerates `prototype/tokens.css` and fails if any listed
-colour pair misses WCAG AA. The clickable prototype in [`prototype/`](prototype/) is the reference implementation:
-every component here has a function of the same name in `prototype/ui.js` or `prototype/screens.js`.
+colour pair misses WCAG AA. The app (`app/ui/src/app.css`, `ui.ts`, `screens.ts`) is the reference implementation.
+The prototype in [`prototype/`](prototype/) keeps the Patch Bay stylesheet and is a reference for structure only.
 
 ## The idea in one line
 
-Stowaway is a quiet, native Mac utility with **one** signature element: the **cable map**, where apps are patched to
-the drives that hold their data. Everything else looks like a well-made Apple app, so the cables carry the identity.
+Stowaway reads like a well-kept ledger: warm paper, ink, serif figures, and ruled lines instead of boxes. It keeps
+**one** signature element, the **cable map**, where apps are patched to the drives that hold their data.
 
 ## De-AI rules (what was removed from the first draft, and stays out)
 
 The D1 draft of Patch Bay had the usual tells of generated UI. These rules keep them out:
 
-1. **No decorative uppercase mono labels.** Group titles are SF Pro 11 semibold, sentence case. Mono is only for
-   numbers, sizes, times and paths, never for labels or headings.
+1. **No decorative uppercase labels.** Group titles are serif italic 13, sentence case. Mono is only for file
+   paths.
 2. **No hint lines** ("▸ drag a row…"). If something is interactive it looks interactive; extra help goes in a tooltip
    or the empty state.
 3. **No glow, no fake hardware.** No LED glow shadows, screws, brushed faceplates or segmented VU meters. Status is a
    flat 8 px dot; capacity is a plain bar.
-4. **One accent.** Blue for actions (follows the macOS accent when its contrast passes, see Colour). Status colours
-   mean status only. Drive colours appear only on that drive's cable, swatch and capacity bar.
+4. **One accent.** Vermilion for actions. Status colours mean status only. Drive colours appear only on that drive's cable, swatch and capacity bar.
 5. **Real icons or nothing.** App rows use the app's real icon from its bundle (`NSWorkspace.icon(forFile:)`). No
    coloured letter tiles. If there is no icon (a CLI tool such as hermes), show a neutral grey tile.
 6. **Write sentences, not stat strings.** "Archive is missing, so LM Studio is held." beats
@@ -40,8 +40,9 @@ The D1 draft of Patch Bay had the usual tells of generated UI. These rules keep 
   (primary, secondary, tertiary, disabled, onFill), `accent.*`, `ok.*`, `warn.*`, `danger.*`, each with `fill`
   (bars, buttons, dots), `text` (words) and `tint` (backgrounds). Never put `*.fill` colours behind body text and never
   use `*.text` for large fills.
-- **System accent:** read `NSColor.controlAccentColor`; use it for `accent.fill` only if white text on it is ≥ 4.5:1,
-  otherwise keep the token. `accent.text` stays the token (the system colour is often too light as text).
+- **Paper and ink:** `bg.content` is warm paper, `text.primary` is ink (navy in light, cream in dark). Ink is also
+  the colour of section rules and of the active sidebar row. The accent is fixed vermilion and does not follow the
+  macOS accent. `danger` is crimson, so it is not mistaken for the accent; it is still always paired with a word.
 - **Drive colours** (`cable.blue`, `orange`, `violet`, `green`, `pink`, `teal`): assigned in the order drives are
   first used, stored with the drive, never reused while that drive is known. `cable.loose` is the hanging cable.
 - **Contrast:** every text pair in `tokens.json → contrast.text` is ≥ 4.5:1 and every graphic pair ≥ 3:1, in both
@@ -51,24 +52,27 @@ The D1 draft of Patch Bay had the usual tells of generated UI. These rules keep 
 ### Type
 | Token | Use |
 |---|---|
-| `title` 20/24 bold | page titles |
-| `headline` 15/20 semibold | card titles, empty-state titles |
+| `title` serif 28/32 bold | page titles |
+| `display` serif 30/36 semibold | the forecast sentence |
+| `headline` 15/20 semibold | section titles, empty-state titles |
 | `body` 13/18, `emphasis` 13/18 semibold | everything else; row names |
 | `callout` 12/16 | buttons, secondary text |
-| `caption` 11/14, `group` 11/14 semibold | captions, sidebar groups, column headers |
-| `figure` mono 24/28 | the one big number of a card |
-| `number` mono 13/18, `path` mono 11/14 | sizes, percentages, paths |
+| `caption` 11/14 | captions, column headers |
+| `group` serif italic 13/16 | sidebar groups, metric labels, settings groups |
+| `figure` serif 30/34 | the one big number of a section |
+| `number` serif 14/18 | sizes, percentages, times |
+| `path` mono 11/14 | file paths |
 
-SF Pro comes from the system. JetBrains Mono (OFL) is bundled with the app; the prototype loads it from Google Fonts.
-Numbers always use tabular figures. The forecast sentence is SF Pro 22/28 semibold, the only text above 20 pt
-except onboarding headings (26/32).
+Three system families, nothing bundled: SF Pro for text, New York (`ui-serif`) for titles and every figure, SF Mono
+for paths. Numbers always use tabular lining figures. Onboarding headings are serif 34/40.
 
 ### Space, radius, elevation
-- Spacing on a 4 px grid (`space.1`..`space.10` = 2…40 px). Page padding 24, card padding 16, gaps 12–16.
-- Radius: `xs 4` pills · `sm 6` buttons and nav rows · `md 8` drive modules · `lg 10` cards, tables, banners ·
-  `xl 12` window, dialogs, popover.
-- Elevation: `1` buttons and selected segments, `2` raised cards, `3` popover, `4` window and sheets. Cards on the
-  content background use a hairline, not a shadow.
+- Spacing on a 4 px grid (`space.1`..`space.10` = 2…40 px). Page padding 24, gaps 16–20.
+- **Rules, not boxes.** A section (card, table, cable map, drive module) has no fill, no side borders and no radius:
+  it starts with a 2 px ink rule. Metric tiles and settings groups start with a 1 px ink rule. Rows are separated by
+  `line.hairline`. Only things that float or are pressed are boxes: buttons, the sheet, the popover, onboarding choices.
+- Radius: `xs 3` pills · `sm 5` buttons and nav rows · `md 6` onboarding choices · `xl 10` dialogs, popover.
+- Elevation: `1` is a 1 px ruled edge (buttons, selected segment), not a shadow. `3` popover, `4` sheets.
 
 ### Motion
 - Durations: `fast 120` (hover, toggles), `base 200` (fades, highlights), `slow 320` (sheets, progress),
@@ -98,26 +102,26 @@ Window 1200 × 760 default, minimum 960 × 640. Merged title bar, traffic lights
 Each entry: what it is, its states, and its rules. Names match the prototype functions.
 
 ### `sidebar` / nav item
-Row 28 px, icon 16 px in `accent.text`, label `body`. Active: `line.strong` background, `aria-current="page"`.
-Badge on the right: a count in mono `caption`, or a status (`1 missing` in `danger.text`, a warn dot for strained
+Row 28 px, icon 16 px in `accent.text`, label `body`. Active: ink background with paper text, `aria-current="page"`.
+Badge on the right: a count in serif `caption`, or a status (`1 missing` in `danger.text`, a warn dot for strained
 memory). No badges for things that need no action.
 
 ### `button`
-Variants: default (raised, `elevation.1`), `primary` (accent fill, white semibold), `danger` (only for actions that
+Variants: default (raised paper with a ruled edge), `primary` (accent fill, `text.onFill` semibold), `danger` (only for actions that
 lose data, which v1 has none of), `plain` (accent text, for "Why?" and "Stop"). Sizes: regular 24 px, `large` 30 px
 for onboarding. One primary button per view or dialog. Labels are verbs; an ellipsis means a dialog follows
 ("Move…"). Disabled buttons keep a `title` saying why, and the reason is also shown as text next to them.
 
 ### `seg` (segmented control)
-Inset track, raised selected segment, `aria-pressed`. Optional mono count per segment. Only when every segment
+Inset track, raised selected segment, `aria-pressed`. Optional count per segment. Only when every segment
 filters the same list.
 
 ### `pill`
-State words only: `accent` "Can move", `neutral` "Use Docker Desktop's setting", `danger` "Can't move" / "Missing",
+State words only: `accent` "Can move", `neutral` "Use Docker Desktop's setting" / "Can't move", `danger` "Missing",
 `ok` "On Samsung T7" / "Allowed", `warn` "Strained". Always followed by a caption with the reason.
 
 ### `capacity` (bar)
-Plain bar, 8 px (14 px large), parts in a fixed order: system, apps, movable (accent) or app data (drive colour),
+Plain bar, 6 px (12 px large), parts in a fixed order: system, apps, movable (accent) or app data (drive colour),
 other, free (track). Always paired with numbers in text; has an `aria-label`.
 
 ### `metric` tile and `sparkline`
@@ -131,11 +135,11 @@ dashed (`warn.fill`, or `ok.fill` when calm) with an uncertainty band, a dashed 
 more room, and the predicted time. Calm state says so plainly and offers no button.
 
 ### Table row (`itemRow`)
-Grid: icon · folder + app · path (mono, ellipsis, full path in `title`) · size (mono, right) · verdict (pill +
+Grid: icon · folder + app · path (mono, ellipsis, full path in `title`) · size (serif, right) · verdict (pill +
 reason) · actions. Rows by verdict:
 - **Can move:** "Move…"; if the app is open, primary "Quit & move…".
 - **Use the app's setting:** "Show how" opens steps (Docker).
-- **Can't move:** red pill, reason, "Why?" (MobileSync).
+- **Can't move:** neutral pill, reason, "Why?" (MobileSync). A refusal is by design, not an error.
 - **On a drive:** green pill "On Samsung T7", "Since 3 Nov, checked file by file", "Bring back…".
 - **Held** (drive missing): red pill "Archive is missing", "Bring back…" disabled with the reason.
 - **Busy:** accent tint, the path/size/verdict cells become a progress cell: four steps (Copy, Check every file,
@@ -144,8 +148,8 @@ reason) · actions. Rows by verdict:
 
 ### Drive `module`
 Swatch in the drive colour, name, format and bus, eject button (connected) or "Missing" pill. Capacity bar with
-app data in the drive colour. Footer: free space, and folder count + size. Missing: dashed `danger` outline, last
-seen time.
+app data in the drive colour. Footer: free space, and folder count + size. Missing: dashed `danger` top rule, last
+seen time. Hovered: the top rule takes the drive colour.
 
 ### Cable map (`cableMap`)
 Left: apps that keep data on a drive (real icon, name, size, or "held, drive missing" in `danger.text`) with a jack.
@@ -155,7 +159,7 @@ to the floor with the plug lying loose. The SVG has an `aria-label` listing ever
 in the sidebar and the banners carry the same facts as text.
 
 ### `banner`
-Full-width, tinted (`danger`, `warn`, `info`), icon, bold sentence, one supporting sentence, actions on the right
+Full-width, tinted (`danger`, `warn`, `info`) with a 3 px rule on the left in the same colour, icon, bold sentence, one supporting sentence, actions on the right
 with an optional reason under them. `role="alert"` for danger. One banner per problem, never stacked
 for the same cause.
 
