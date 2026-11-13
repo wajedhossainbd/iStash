@@ -73,6 +73,19 @@ fn vm_used() -> (u64, u64) {
     ((app + info.wire_count as u64) * page + compressed, compressed)
 }
 
+/// Memory nothing is using right now (free pages), for measuring what a purge gave back.
+#[allow(deprecated)]
+pub fn free_bytes() -> u64 {
+    let mut info: libc::vm_statistics64 = unsafe { std::mem::zeroed() };
+    let mut count = libc::HOST_VM_INFO64_COUNT;
+    // SAFETY: as in vm_used.
+    let r = unsafe { libc::host_statistics64(libc::mach_host_self(), libc::HOST_VM_INFO64, &mut info as *mut _ as *mut i32, &mut count) };
+    if r != 0 {
+        return 0;
+    }
+    info.free_count as u64 * unsafe { libc::sysconf(libc::_SC_PAGESIZE) } as u64
+}
+
 fn cores() -> String {
     match (sysctl::<i32>(c"hw.perflevel0.logicalcpu"), sysctl::<i32>(c"hw.perflevel1.logicalcpu")) {
         (Some(p), Some(e)) if e > 0 => format!("{p} performance, {e} efficiency cores"),

@@ -315,13 +315,19 @@ export function memory(v: View) {
 // ---------- Clean ----------
 export function clean(v: View) {
   const s = v.s;
-  const h = header('Clean', 'Remove temporary files that apps can rebuild.', s && !v.down ? button('Measure again', 'clean-scan', { disabled: s.clean.busy }) : '');
+  const h = header('Clean', 'Free up memory and storage.', s && !v.down ? button('Measure again', 'clean-scan', { disabled: s.clean.busy }) : '');
   if (v.down) return h + `<div class="page-body">${helperDown()}</div>`;
   if (!s) return h + loadingPage();
   const c = s.clean, st = s.settings, cols = 'style="grid-template-columns:32px minmax(0,1.2fr) minmax(0,2fr) 100px"';
   const picked = (c.items ?? []).filter((i) => st.cleanKinds.includes(i.id)), total = sum(picked);
   const when = { off: 'Only when I choose', daily: 'Every day', weekly: 'Every week', monthly: 'Every month' };
   return h + `<div class="page-body">
+    <section class="card" style="display:grid;grid-template-columns:1fr auto;gap:8px 32px;align-items:center">
+      <div><h2 class="secondary" style="font:var(--type-group)">Memory</h2>${v.m ? `<span class="num" style="font:var(--type-figure)">${gb(v.m.memUsed)}</span> <span class="secondary">of ${Math.round(v.m.memTotal / 2 ** 30)} GB in use${v.m.swap ? ` · swap ${gb(v.m.swap)}` : ''}</span>` : '<span class="secondary">Reading…</span>'}
+        <p class="secondary" style="font:var(--type-callout);margin-top:6px;max-width:640px">${c.memFreed != null ? `<strong style="color:var(--ok-text)">${c.memFreed > 0 ? `${gb(c.memFreed)} of memory became free.` : 'macOS had no cache worth clearing.'}</strong> ` : ''}Clears the file cache macOS keeps in memory. macOS asks for your password itself. Apps keep their own memory; to free more, quit one on the Memory screen.</p></div>
+      <div>${button(c.memBusy ? 'Waiting for macOS…' : 'Free up memory…', 'free-memory', { large: true, disabled: c.memBusy })}</div>
+    </section>
+    <h2 style="margin-top:4px">Storage</h2>
     <section class="card" style="display:grid;grid-template-columns:1fr auto auto;gap:8px 32px;align-items:end">
       <div><h2 class="secondary" style="font:var(--type-group)">Ticked below</h2><span class="num" style="font:var(--type-figure)">${c.items ? gb(total) : '…'}</span> <span class="secondary">can be removed</span></div>
       <div class="move-to"><label class="secondary" for="clean-every" style="font:var(--type-group)">Clean automatically</label>

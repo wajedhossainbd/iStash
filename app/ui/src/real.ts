@@ -34,7 +34,7 @@ export function createReal(invoke: Invoke): Api {
     permissions: { volumes: true, notify: false, ...saved.permissions },
     scan: { running: true, checked: 0 },
     journalPath: '~/Library/Application Support/Stowaway/journal.jsonl',
-    focus: null, clean: { items: null, busy: false, freed: null, last: read<{ last: number | null }>('stowaway.clean', { last: null }).last },
+    focus: null, clean: { items: null, busy: false, freed: null, memBusy: false, memFreed: null, last: read<{ last: number | null }>('stowaway.clean', { last: null }).last },
     unsupported: ['login', 'updates'], // no login helper and no update feed in this build
   };
   const subs = new Set<(s: State) => void>();
@@ -184,6 +184,12 @@ export function createReal(invoke: Invoke): Api {
     async requestPermission(p) { s.permissions[p] = true; save(); emit(); },
     async startHelper() { /* the engine runs inside the app in this build */ },
     cleanScan, clean,
+    async freeMemory() {
+      s.clean.memBusy = true; emit();
+      try { s.clean.memFreed = await invoke<number>('free_memory'); }
+      catch (e) { throw new Error(String(e)); }
+      finally { s.clean.memBusy = false; emit(); }
+    },
     async focus(appPath) { await invoke('focus', { path: appPath }); s.focus = appPath; emit(); },
     appIcon: (path) => invoke<ArrayBuffer>('app_icon', { path }).then((png) => URL.createObjectURL(new Blob([png], { type: 'image/png' })), () => null),
   };

@@ -49,6 +49,22 @@ pub fn focus(path: Option<String>) -> Result<usize, String> {
     Ok(n)
 }
 
+/// Clears the file cache macOS keeps in memory. macOS only allows this as an administrator, so it shows its own
+/// password prompt; Stowaway never sees the password. Returns the bytes that became free.
+#[tauri::command(async)]
+pub fn free_memory() -> Result<u64, String> {
+    let before = crate::mem::free_bytes();
+    let out = Command::new("/usr/bin/osascript")
+        .args(["-e", "do shell script \"/usr/sbin/purge\" with prompt \"Stowaway wants to clear the memory cache.\" with administrator privileges"])
+        .output()
+        .map_err(|e| e.to_string())?;
+    if !out.status.success() {
+        let err = String::from_utf8_lossy(&out.stderr);
+        return Err(if err.contains("-128") { "You cancelled the password prompt. Nothing was changed.".into() } else { format!("macOS didn’t clear the memory cache. {} Nothing was changed.", err.trim()) });
+    }
+    Ok(crate::mem::free_bytes().saturating_sub(before))
+}
+
 pub const KINDS: [(&str, &str, &str); 4] = [
     ("caches", "App caches", "Files apps keep to start faster. They rebuild them when needed."),
     ("logs", "Logs", "Old diagnostic logs from apps."),

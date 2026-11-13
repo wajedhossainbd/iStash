@@ -129,7 +129,7 @@ export interface State {
   journalPath: string;
   /** App bundle path Focus is on, or null. */
   focus: string | null;
-  clean: { items: CleanItem[] | null; busy: boolean; freed: number | null; last: number | null };
+  clean: { items: CleanItem[] | null; busy: boolean; freed: number | null; last: number | null; memBusy: boolean; memFreed: number | null };
   unsupported?: (keyof Settings)[]; // settings this build cannot act on; shown as such instead of a dead switch
 }
 
@@ -170,6 +170,8 @@ export interface Api {
   cleanScan(): Promise<void>;
   /** Removes the given kinds of temporary files for good. */
   clean(kinds: string[]): Promise<void>;
+  /** Clears macOS's in-memory file cache; macOS asks for an administrator password itself. */
+  freeMemory(): Promise<void>;
   /** Runs every other app in the background so this one gets the processor and disk first; null turns it off. */
   focus(appPath: string | null): Promise<void>;
   /** Data URL of an app's real icon, or null (CLI tools, missing apps, not running in the app). */
@@ -277,7 +279,7 @@ export function mockState(now = Date.now()): State {
     permissions: { volumes: false, notify: false },
     scan: { running: false, checked: 0 },
     journalPath: '~/Library/Application Support/Stowaway/journal.jsonl',
-    focus: null, clean: { items: null, busy: false, freed: null, last: null },
+    focus: null, clean: { items: null, busy: false, freed: null, last: null, memBusy: false, memFreed: null },
   };
 }
 
@@ -407,6 +409,7 @@ export function createMock(scenario: Scenario = 'normal', onboarded = scenario !
       emit();
     },
     async focus(appPath) { await ok(); s.focus = appPath; emit(); },
+    async freeMemory() { await ok(); s.clean.memFreed = 1.8 * GB; emit(); },
     async appIcon(path) {
       // Icons are a UI concern, read from the bundle by the app shell (never from app sandboxes).
       const tauri = (window as any).__TAURI_INTERNALS__;
