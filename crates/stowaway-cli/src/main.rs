@@ -121,6 +121,9 @@ fn recover(cat: &Catalog) -> Result<()> {
 fn show_plan(cat: &Catalog, plan: &Plan, verb: &str) {
     let how = if plan.same_volume { "cloned (same volume)" } else { "copied and checked file by file" };
     println!("{verb} {} ({}) → {}: {how}.", cat.show(&plan.path), gb(plan.size), plan.dest.display());
+    for p in &plan.skipped {
+        println!("  left out {} (a socket or pipe; the program that uses it makes it again)", p.display());
+    }
 }
 
 fn cmd_move(cat: &Catalog, path: &Path, drive: &Path, yes: bool) -> Result<()> {

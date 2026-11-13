@@ -17,6 +17,11 @@ pub struct Image {
 impl Image {
     /// A 20 GB sparse image (takes only the space written) with the given file system, e.g. "APFS", "ExFAT".
     pub fn new(fs: &str) -> Image {
+        Image::sized(fs, "20g")
+    }
+
+    /// Like [`Image::new`] with a size such as "2g".
+    pub fn sized(fs: &str, size: &str) -> Image {
         let name = format!("Stw{}-{}", std::process::id(), N.fetch_add(1, Ordering::Relaxed));
         let file = std::env::temp_dir().join(format!("{name}.sparseimage"));
         let _ = std::fs::remove_file(&file);
@@ -27,7 +32,7 @@ impl Image {
                 "create",
                 "-quiet",
                 "-size",
-                "20g",
+                size,
                 "-type",
                 "SPARSE",
                 "-fs",

@@ -19,16 +19,23 @@ Sizes: S = 1–2 files, M = 3–5 files. Every task must meet the quality bar in
   link (SHA-256 of every file), listed by `drives`, brought back identical, drive tidied
 - [x] SIGKILL during a real move at 0.4 s, 1.5 s and 2.8 s: `recover` undid each, data identical
 - [x] Design reviewed and chosen by the owner
-- Found: an undone move leaves empty `Stowaway/Library/Caches` folders on the drive (cosmetic) → T16
+- Found: an undone move leaves empty `Stowaway/Library/Caches` folders on the drive (cosmetic) → fixed in T16
 
 ## Phase 2 — v0.1 "Offload" (free core as an app)
 
-Status 11 Nov 2026: approved and briefed, **not started**. How to split the work: `HANDOFF.md`.
+Status 11 Nov 2026: T16 done (branch `phase2-t16-mover-hardening`); T17 next. How to split the work: `HANDOFF.md`.
 
 - [ ] **T16: Mover hardening** — fault-injection tests: drive detached mid-copy, target full, permission denied, source
   changed during copy, sparse files stay sparse (Docker.raw-style), hard links, xattrs/ACLs, sockets/FIFOs skipped with
   a report, long/Unicode paths; remove empty parent folders after undo. *Accept:* each case has a test on a temporary
   disk image and leaves data in exactly one valid place. *Size:* M. *Deps:* none.
+  - Done 11 Nov: `crates/stowaway-core/tests/faults.rs` (9 tests). Defects found and fixed: sparse files were copied
+    at full size (1 GB → 1 GB, now 4 KB); one socket or FIFO failed the whole move (now left out and listed in
+    `Plan::skipped`); hard links were split; an unreadable file was reported as "macOS blocked the drive"; a drive
+    detached mid-copy left a partial copy that was journaled as undone (now kept open until recovery removes it);
+    a deny-delete ACL or `uchg` lock stopped the original from being deleted; one stuck op aborted all recovery.
+  - Known limit: folders with paths longer than 1,024 bytes are refused (copyfile stops at PATH_MAX), cleanly.
+  - Known gap: a write between the verify and the switch is caught only by the second "in use" check.
 - [ ] **T17: State store + manifests** — SQLite `state.db`; write a manifest (path, size, mtime, BLAKE3) for every
   stowed folder at move time; backfill for folders already linked. *Accept:* manifest matches a fresh hash in tests;
   migration test. *Size:* M. *Deps:* T16.
