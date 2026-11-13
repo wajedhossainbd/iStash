@@ -170,9 +170,14 @@ export function offload(v: View) {
   const busy = s.jobs.map((j) => s.folders.find((i) => i.id === j.folder)!);
   const rows = [...new Set([...busy, ...tabs![v.ui.offloadTab]])];
   const stowable = sum(suggested(s));
+  // The same choice the move sheet opens with (main.ts target()).
+  const targets = usable(s).filter((d) => d.connected && !d.problem), to = targets.find((d) => d.id === s.settings.defaultDrive) ?? targets[0];
   return h + `<div class="page-body">
-    <section class="card" style="display:grid;grid-template-columns:1fr auto;gap:8px 24px;align-items:end">
+    <section class="card" style="display:grid;grid-template-columns:1fr auto auto;gap:8px 32px;align-items:end">
       <div><h2 class="secondary" style="font:var(--type-group)">This Mac</h2><span class="num" style="font:var(--type-figure)">${gb(s.mac.free)}</span> <span class="secondary">free of ${Math.round(s.mac.total / GB)} GB</span></div>
+      <div class="move-to"><label class="secondary" for="default-drive" style="font:var(--type-group)">Move to</label>${targets.length
+        ? `<select class="select" id="default-drive" data-action="default-drive">${targets.map((d) => `<option value="${esc(d.id)}" ${d.id === to?.id ? 'selected' : ''}>${esc(d.name)} · ${gb(d.free)} free</option>`).join('')}</select>`
+        : '<span style="color:var(--danger-text)">No drive that can take folders is connected</span>'}</div>
       <div style="text-align:right"><h2 class="secondary" style="font:var(--type-group)">After moving the ${suggested(s).length} suggested folders</h2><span class="num" style="font:var(--type-figure);color:var(--ok-text)">${gb(s.mac.free + stowable)}</span> <span class="secondary">free</span></div>
       <div style="grid-column:1/-1">${capacity([{ value: s.mac.total - s.mac.free - stowable, color: 'var(--storage-system)', label: 'Used' }, { value: stowable, color: 'var(--accent-fill)', label: `Can move ${gb(stowable)}` }], s.mac.total, true)}</div>
     </section>

@@ -1,7 +1,8 @@
 // App shell: routing, rendering, actions. Ported from design/prototype/app.js; all data goes through api.ts.
 import morphdom from 'morphdom';
 import '@fontsource/jetbrains-mono/latin-400.css';
-import '@fontsource/jetbrains-mono/latin-500.css';
+import '@fontsource-variable/instrument-sans/wght.css';
+import '@fontsource-variable/bricolage-grotesque/wdth.css';
 import '../../../design/prototype/tokens.css';
 import './app.css';
 import { api, ApiError, type Metrics, type Plan, type State, type Theme } from './api';
@@ -198,6 +199,7 @@ document.addEventListener('change', async (e) => {
   if (a === 'setting') await api.set(id as 'login', el.checked);
   else if (a === 'setting-select') await api.set('warnAt', +el.value);
   else if (a === 'pick-drive') ui.onboardDrive = id;
+  else if (a === 'default-drive') await api.set('defaultDrive', el.value);
   else if (a === 'move-drive' && ui.dialog) ui.dialog = { ...ui.dialog, drive: el.value, plan: await api.planMove(ui.dialog.id!, el.value) };
   else return;
   render();
