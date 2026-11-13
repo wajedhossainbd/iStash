@@ -21,6 +21,8 @@ fi
 
 hdiutil attach "$TMP/Stowaway.dmg" -nobrowse -quiet -mountpoint "$MNT"
 osascript -e 'tell application id "bd.wajed.stowaway" to quit' >/dev/null 2>&1 || true
+# Wait for the running copy to finish quitting, or macOS refuses to open the new one.
+i=0; while pgrep -x stowaway-app >/dev/null 2>&1 && [ $i -lt 20 ]; do sleep 0.5; i=$((i+1)); done
 # ditto replaces the old copy in place; your settings and moved folders are not touched.
 ditto "$MNT/Stowaway.app" "$APP"
 # Stowaway is not notarised by Apple yet, so macOS would refuse a downloaded copy without this.
