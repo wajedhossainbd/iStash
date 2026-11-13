@@ -69,16 +69,31 @@ pub const KINDS: [(&str, &str, &str); 4] = [
     ("caches", "App caches", "Files apps keep to start faster. They rebuild them when needed."),
     ("logs", "Logs", "Old diagnostic logs from apps."),
     ("derived", "Xcode build files", "Xcode rebuilds these the next time a project is built."),
-    ("temp", "Old temporary files", "Temporary files untouched for more than three days."),
+    ("temp", "Old temporary files", "Temporary files apps left behind, at least three days old."),
 ];
 
-/// What one kind of cleaning would remove. Links are never followed or removed, so folders moved to a drive are safe.
-pub fn targets(home: &Path, tmp: &Path, kind: &str, now: SystemTime) -> Vec<PathBuf> {
+/// When anything inside `p` was last changed. Links are not followed.
+fn newest(p: &Path) -> SystemTime {
+    let Ok(m) = p.symlink_metadata() else { return SystemTime::now() };
+    let mut t = m.modified().unwrap_or_else(|_| SystemTime::now());
+    if m.is_dir() {
+        for e in std::fs::read_dir(p).into_iter().flatten().flatten() {
+            t = t.max(newest(&e.path()));
+        }
+    }
+    t
+}
+
+/// What one kind of cleaning would remove: only items with nothing changed inside for `days` days (temporary files
+/// always wait at least three). Links are never followed or removed, so folders moved to a drive are safe.
+pub fn targets(home: &Path, tmp: &Path, kind: &str, now: SystemTime, days: u64) -> Vec<PathBuf> {
+    let days = if kind == "temp" { days.max(3) } else { days };
+    let fresh = move |p: &Path| days > 0 && now.duration_since(newest(p)).unwrap_or_default() < Duration::from_secs(days * 86400);
     let (dir, keep): (PathBuf, Box<dyn Fn(&std::fs::DirEntry) -> bool>) = match kind {
         "caches" => (home.join("Library/Caches"), Box::new(|e| { let n = e.file_name().to_string_lossy().to_lowercase(); n.starts_with("com.apple.") || n.contains("stowaway") })),
         "logs" => (home.join("Library/Logs"), Box::new(|_| false)),
         "derived" => (home.join("Library/Developer/Xcode/DerivedData"), Box::new(|_| false)),
-        "temp" => (tmp.to_path_buf(), Box::new(move |e| e.metadata().and_then(|m| m.modified()).map_or(true, |t| now.duration_since(t).unwrap_or_default() < Duration::from_secs(3 * 86400)))),
+        "temp" => (tmp.to_path_buf(), Box::new(|_| false)),
         _ => return vec![],
     };
     // A category folder that is itself a link lives on a drive; leave it alone.
@@ -86,7 +101,7 @@ pub fn targets(home: &Path, tmp: &Path, kind: &str, now: SystemTime) -> Vec<Path
         return vec![];
     }
     let Ok(rd) = std::fs::read_dir(&dir) else { return vec![] };
-    rd.flatten().filter(|e| e.file_type().is_ok_and(|t| !t.is_symlink()) && !keep(e)).map(|e| e.path()).collect()
+    rd.flatten().filter(|e| e.file_type().is_ok_and(|t| !t.is_symlink()) && !keep(e)).map(|e| e.path()).filter(|p| !fresh(p)).collect()
 }
 
 fn places() -> (PathBuf, PathBuf) {
@@ -95,14 +110,14 @@ fn places() -> (PathBuf, PathBuf) {
 
 /// Sizes of everything the cleaner could remove. Changes nothing.
 #[tauri::command(async)]
-pub fn clean_scan() -> Value {
+pub fn clean_scan(days: u64) -> Value {
     let (home, tmp) = places();
     let now = SystemTime::now();
     Value::Array(
         KINDS
             .iter()
             .map(|(id, name, note)| {
-                let t = targets(&home, &tmp, id, now);
+                let t = targets(&home, &tmp, id, now, days);
                 json!({ "id": id, "name": name, "note": note, "count": t.len(), "size": t.iter().map(|p| scan::disk_usage(p)).sum::<u64>() })
             })
             .collect(),
@@ -122,13 +137,13 @@ pub fn remove(paths: &[PathBuf]) -> u64 {
 
 /// Removes the chosen kinds. Returns the bytes freed.
 #[tauri::command(async)]
-pub fn clean_run(kinds: Vec<String>) -> u64 {
+pub fn clean_run(kinds: Vec<String>, days: u64) -> u64 {
     let (home, tmp) = places();
     if home.as_os_str().is_empty() {
         return 0;
     }
     let now = SystemTime::now();
-    kinds.iter().filter(|k| KINDS.iter().any(|x| x.0 == k.as_str())).map(|k| remove(&targets(&home, &tmp, k, now))).sum()
+    kinds.iter().filter(|k| KINDS.iter().any(|x| x.0 == k.as_str())).map(|k| remove(&targets(&home, &tmp, k, now, days))).sum()
 }
 
 #[cfg(test)]
@@ -151,12 +166,15 @@ mod tests {
         fs::write(tmp.join("fresh"), b"x").unwrap();
         let later = SystemTime::now() + Duration::from_secs(4 * 86400);
 
-        let names = |k: &str, now| { let mut v: Vec<String> = targets(&home, &tmp, k, now).iter().map(|p| p.file_name().unwrap().to_string_lossy().into_owned()).collect(); v.sort(); v };
+        let names = |k: &str, now| { let mut v: Vec<String> = targets(&home, &tmp, k, now, 0).iter().map(|p| p.file_name().unwrap().to_string_lossy().into_owned()).collect(); v.sort(); v };
         assert_eq!(names("caches", SystemTime::now()), ["pip"]);
         assert_eq!(names("temp", SystemTime::now()), Vec::<String>::new());
         assert_eq!(names("temp", later), ["fresh"]);
         assert_eq!(names("derived", SystemTime::now()), Vec::<String>::new());
-        assert!(remove(&targets(&home, &tmp, "caches", SystemTime::now())) > 0);
+        // With a 7-day rule nothing made just now goes; a week and a day later it does.
+        assert!(targets(&home, &tmp, "caches", SystemTime::now(), 7).is_empty());
+        assert_eq!(targets(&home, &tmp, "caches", SystemTime::now() + Duration::from_secs(8 * 86400), 7).len(), 1);
+        assert!(remove(&targets(&home, &tmp, "caches", SystemTime::now(), 0)) > 0);
         assert!(!home.join("Library/Caches/pip").exists());
         assert!(home.join("Library/Caches/com.apple.Safari/f").exists() && drive.join("Google/keep").exists() && home.join("Library/Caches/Google").is_symlink());
         fs::remove_dir_all(&root).unwrap();

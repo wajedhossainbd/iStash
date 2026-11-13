@@ -205,6 +205,7 @@ document.addEventListener('change', async (e) => {
   else if (a === 'setting-select') await api.set('warnAt', +el.value);
   else if (a === 'pick-drive') ui.onboardDrive = id;
   else if (a === 'clean-every') await api.set('cleanEvery', el.value as 'off');
+  else if (a === 'clean-age') await api.set('cleanAge', +el.value);
   else if (a === 'clean-kind') await api.set('cleanKinds', el.checked ? [...s!.settings.cleanKinds, id] : s!.settings.cleanKinds.filter((k) => k !== id));
   else if (a === 'default-drive') await api.set('defaultDrive', el.value);
   else if (a === 'move-drive' && ui.dialog) ui.dialog = { ...ui.dialog, drive: el.value, plan: await api.planMove(ui.dialog.id!, el.value) };

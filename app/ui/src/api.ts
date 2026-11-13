@@ -103,7 +103,8 @@ export interface Settings {
   ejectGuard: boolean;
   updates: boolean;
   defaultDrive: string | null;
-  cleanEvery: 'off' | 'daily' | 'weekly' | 'monthly';
+  cleanEvery: 'off' | 'daily' | 'weekly' | 'monthly' | 'over2' | 'over5' | 'over10'; // overN: when the ticked kinds pass N GB
+  cleanAge: number; // days an item must be untouched before it may be removed; 0 = any age
   cleanKinds: string[]; // which kinds the Clean screen has ticked; the schedule cleans the same ones
 }
 
@@ -275,7 +276,7 @@ export function mockState(now = Date.now()): State {
     mac: { model: 'MacBook Pro', total: 494 * GB, free: 31.2 * GB, system: 104 * GB, apps: 153 * GB, reserve: 10 * GB },
     drives, folders, jobs: [], memApps,
     forecast: strained(now),
-    settings: { onboarded: false, theme: 'dark', login: true, menubar: true, dryRun: true, warnAt: 30, ejectGuard: true, updates: true, defaultDrive: null, cleanEvery: 'off', cleanKinds: ['caches', 'logs', 'temp'] },
+    settings: { onboarded: false, theme: 'dark', login: true, menubar: true, dryRun: true, warnAt: 30, ejectGuard: true, updates: true, defaultDrive: null, cleanEvery: 'off', cleanAge: 7, cleanKinds: ['caches', 'logs', 'temp'] },
     permissions: { volumes: false, notify: false },
     scan: { running: false, checked: 0 },
     journalPath: '~/Library/Application Support/Stowaway/journal.jsonl',

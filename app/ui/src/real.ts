@@ -29,7 +29,7 @@ export function createReal(invoke: Invoke): Api {
     version: '0.1.0',
     mac: { model: 'This Mac', total: 1, free: 0, system: 0, apps: 0, reserve: 10 * 2 ** 30 },
     drives: [], folders: [], jobs: [], forecast: null, memApps: [],
-    settings: { onboarded: false, theme: 'dark', login: false, menubar: true, dryRun: true, warnAt: 30, ejectGuard: true, updates: false, defaultDrive: null, cleanEvery: 'off', cleanKinds: ['caches', 'logs', 'temp'], ...saved.settings },
+    settings: { onboarded: false, theme: 'dark', login: false, menubar: true, dryRun: true, warnAt: 30, ejectGuard: true, updates: false, defaultDrive: null, cleanEvery: 'off', cleanAge: 7, cleanKinds: ['caches', 'logs', 'temp'], ...saved.settings },
     // macOS asks for these itself the first time they are needed; there is nothing to pre-grant.
     permissions: { volumes: true, notify: false, ...saved.permissions },
     scan: { running: true, checked: 0 },
@@ -130,22 +130,28 @@ export function createReal(invoke: Invoke): Api {
   pollJobs().then(() => { if (s.jobs.length) jobTimer ??= setInterval(() => pollJobs().catch(() => {}), 1000); }, () => {});
   invoke('set_guard', { on: s.settings.ejectGuard }).catch(() => {});
 
-  const cleanScan = async () => { s.clean.items = await invoke<CleanItem[]>('clean_scan'); emit(); };
+  const cleanScan = async () => { s.clean.items = await invoke<CleanItem[]>('clean_scan', { days: s.settings.cleanAge }); emit(); };
   const clean = async (kinds: string[]) => {
     if (s.clean.busy || !kinds.length) return;
     s.clean.busy = true; emit();
     try {
-      s.clean.freed = await invoke<number>('clean_run', { kinds });
+      s.clean.freed = await invoke<number>('clean_run', { kinds, days: s.settings.cleanAge });
       s.clean.last = Date.now();
       write('stowaway.clean', { last: s.clean.last });
     } finally { s.clean.busy = false; emit(); }
     await cleanScan();
   };
   // Schedule: checked at launch and every hour while Stowaway is open; a missed run happens at the next check.
-  const DAY = 864e5, EVERY = { off: Infinity, daily: DAY, weekly: 7 * DAY, monthly: 30 * DAY };
-  const cleanIfDue = () => { if (Date.now() - (s.clean.last ?? 0) >= EVERY[s.settings.cleanEvery]) clean(s.settings.cleanKinds).catch(() => {}); };
-  setTimeout(cleanIfDue, 60e3);
-  setInterval(cleanIfDue, 36e5);
+  const DAY = 864e5, EVERY: Record<string, number> = { off: Infinity, daily: DAY, weekly: 7 * DAY, monthly: 30 * DAY };
+  const cleanIfDue = async () => {
+    const every = s.settings.cleanEvery, kinds = s.settings.cleanKinds;
+    if (!every.startsWith('over')) { if (Date.now() - (s.clean.last ?? 0) >= EVERY[every]) await clean(kinds); return; }
+    // Size rule: measure, and clean only once the ticked kinds together pass the chosen size.
+    await cleanScan();
+    if ((s.clean.items ?? []).filter((i) => kinds.includes(i.id)).reduce((n, i) => n + i.size, 0) >= +every.slice(4) * GB) await clean(kinds);
+  };
+  setTimeout(() => cleanIfDue().catch(() => {}), 60e3);
+  setInterval(() => cleanIfDue().catch(() => {}), 36e5);
 
   return {
     async state() { return structuredClone(s); },
@@ -178,6 +184,7 @@ export function createReal(invoke: Invoke): Api {
       save();
       if (key === 'ejectGuard') await invoke('set_guard', { on: value });
       // Turning a schedule on starts the clock now, so the first cleaning is one interval away, not at once.
+      if (key === 'cleanAge') cleanScan().catch(() => {});
       if (key === 'cleanEvery' && value !== 'off' && s.clean.last == null) { s.clean.last = Date.now(); write('stowaway.clean', { last: s.clean.last }); }
       emit();
     },

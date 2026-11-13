@@ -320,7 +320,8 @@ export function clean(v: View) {
   if (!s) return h + loadingPage();
   const c = s.clean, st = s.settings, cols = 'style="grid-template-columns:32px minmax(0,1.2fr) minmax(0,2fr) 100px"';
   const picked = (c.items ?? []).filter((i) => st.cleanKinds.includes(i.id)), total = sum(picked);
-  const when = { off: 'Only when I choose', daily: 'Every day', weekly: 'Every week', monthly: 'Every month' };
+  const when = { off: 'Only when I choose', daily: 'Every day', weekly: 'Every week', monthly: 'Every month', over2: 'When it passes 2 GB', over5: 'When it passes 5 GB', over10: 'When it passes 10 GB' };
+  const ages: [number, string][] = [[0, 'Any age'], [3, '3 days'], [7, '7 days'], [30, '30 days']];
   return h + `<div class="page-body">
     <section class="card" style="display:grid;grid-template-columns:1fr auto;gap:8px 32px;align-items:center">
       <div><h2 class="secondary" style="font:var(--type-group)">Memory</h2>${v.m ? `<span class="num" style="font:var(--type-figure)">${gb(v.m.memUsed)}</span> <span class="secondary">of ${Math.round(v.m.memTotal / 2 ** 30)} GB in use${v.m.swap ? ` · swap ${gb(v.m.swap)}` : ''}</span>` : '<span class="secondary">Reading…</span>'}
@@ -328,10 +329,12 @@ export function clean(v: View) {
       <div>${button(c.memBusy ? 'Waiting for macOS…' : 'Free up memory…', 'free-memory', { large: true, disabled: c.memBusy })}</div>
     </section>
     <h2 style="margin-top:4px">Storage</h2>
-    <section class="card" style="display:grid;grid-template-columns:1fr auto auto;gap:8px 32px;align-items:end">
+    <section class="card" style="display:grid;grid-template-columns:1fr auto auto auto;gap:8px 24px;align-items:end">
       <div><h2 class="secondary" style="font:var(--type-group)">Ticked below</h2><span class="num" style="font:var(--type-figure)">${c.items ? gb(total) : '…'}</span> <span class="secondary">can be removed</span></div>
       <div class="move-to"><label class="secondary" for="clean-every" style="font:var(--type-group)">Clean automatically</label>
         <select class="select" id="clean-every" data-action="clean-every">${Object.entries(when).map(([k, label]) => `<option value="${k}" ${st.cleanEvery === k ? 'selected' : ''}>${label}</option>`).join('')}</select></div>
+      <div class="move-to"><label class="secondary" for="clean-age" style="font:var(--type-group)">Only files untouched for</label>
+        <select class="select" id="clean-age" data-action="clean-age">${ages.map(([d, label]) => `<option value="${d}" ${st.cleanAge === d ? 'selected' : ''}>${label}</option>`).join('')}</select></div>
       <div>${button(c.busy ? 'Cleaning…' : 'Clean now…', 'clean-ask', { kind: 'primary', large: true, disabled: c.busy || !total })}</div>
     </section>
     ${c.freed != null && c.last ? banner({ kind: 'info', ic: 'check', title: `Freed ${gb(c.freed)}`, body: `Last cleaned ${ago(c.last)}.` }) : ''}
