@@ -1,8 +1,7 @@
 // App shell: routing, rendering, actions. Ported from design/prototype/app.js; all data goes through api.ts.
 import morphdom from 'morphdom';
-import '@fontsource/jetbrains-mono/latin-400.css';
-import '@fontsource-variable/instrument-sans/wght.css';
-import '@fontsource-variable/bricolage-grotesque/wdth.css';
+import '@fontsource-variable/geist/wght.css';
+import '@fontsource-variable/geist-mono/wght.css';
 import '../../../design/prototype/tokens.css';
 import './app.css';
 import { api, ApiError, type Metrics, type Plan, type State, type Theme } from './api';
