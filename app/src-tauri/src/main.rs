@@ -40,6 +40,31 @@ fn open_target(target: &str) -> Result<(), String> {
     ok.then_some(()).ok_or_else(|| "macOS couldn’t open it.".into())
 }
 
+/// External volumes as macOS reports them, read only: `diskutil info` on each mount in /Volumes. Never writes.
+#[tauri::command]
+fn volumes() -> Vec<serde_json::Value> {
+    let Ok(dir) = std::fs::read_dir("/Volumes") else { return vec![] };
+    dir.flatten()
+        .filter_map(|e| {
+            let out = Command::new("/usr/sbin/diskutil").arg("info").arg("-plist").arg(e.path()).output().ok()?;
+            let d = plist::Value::from_reader_xml(&out.stdout[..]).ok()?.into_dictionary()?;
+            let s = |k: &str| d.get(k).and_then(|v| v.as_string()).unwrap_or("").to_string();
+            let n = |k: &str| d.get(k).and_then(|v| v.as_unsigned_integer()).unwrap_or(0);
+            let b = |k: &str| d.get(k).and_then(|v| v.as_boolean()).unwrap_or(false);
+            // The boot volume shows up here as a symlink to /; it is "This Mac", not a drive.
+            if b("Internal") || s("MountPoint") == "/" {
+                return None;
+            }
+            // APFS reports FreeSpace 0 and puts the real figure on the container.
+            let free = if n("APFSContainerFree") > 0 { n("APFSContainerFree") } else { n("FreeSpace") };
+            Some(serde_json::json!({
+                "id": s("VolumeUUID"), "name": s("VolumeName"), "format": s("FilesystemUserVisibleName"),
+                "bus": s("BusProtocol"), "total": n("TotalSize"), "free": free, "writable": b("WritableVolume"),
+            }))
+        })
+        .collect()
+}
+
 /// Keeps the View > Appearance checkmarks in step with the saved setting.
 #[tauri::command]
 fn appearance_checked(app: AppHandle, theme: String) {
@@ -90,7 +115,7 @@ fn main() {
                 .with_state_flags(StateFlags::SIZE | StateFlags::POSITION | StateFlags::MAXIMIZED | StateFlags::FULLSCREEN)
                 .build(),
         )
-        .invoke_handler(tauri::generate_handler![app_icon, open_target, appearance_checked])
+        .invoke_handler(tauri::generate_handler![app_icon, open_target, appearance_checked, volumes])
         .setup(|app| {
             let handle = app.handle();
             app.set_menu(menu(handle)?)?;

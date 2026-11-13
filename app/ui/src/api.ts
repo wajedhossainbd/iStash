@@ -160,6 +160,28 @@ export interface Api {
   appIcon(appPath: string): Promise<string | null>;
 }
 
+/** One mounted external volume, as the app shell's read-only `volumes` command reports it. */
+export interface Volume { id: string; name: string; format: string; bus: string; total: number; free: number; writable: boolean }
+
+const CABLES: Cable[] = ['blue', 'orange', 'violet', 'green', 'pink', 'teal'];
+const HOLDS_LINKS = /^(APFS|Mac OS Extended)/;
+/** Real volumes as drives. A drive that still holds folders stays listed (missing) when unplugged; others drop out. */
+export function toDrives(vols: Volume[], prev: Drive[], holds: (id: string) => boolean, now = Date.now()): Drive[] {
+  const used = new Set(prev.map((d) => d.cable));
+  const here = [...vols].sort((a, b) => a.name.localeCompare(b.name)).map((v): Drive => {
+    const old = prev.find((d) => d.id === v.id);
+    const cable = old?.cable ?? CABLES.find((c) => !used.has(c)) ?? CABLES[used.size % CABLES.length];
+    used.add(cable);
+    const refused = !HOLDS_LINKS.test(v.format);
+    const problem = refused ? `${v.format} can’t hold links safely. Stowaway can use it only after it is erased and reformatted as APFS in Disk Utility.`
+      : v.writable ? undefined : 'macOS mounted it read-only, so Stowaway can’t write to it.';
+    return { id: v.id, name: v.name, format: v.format, bus: v.bus, total: v.total, free: v.free, cable, connected: true,
+      lastSeen: old?.connected ? old.lastSeen : now, ...(refused && { refused }), ...(problem && { problem }) };
+  });
+  const gone = prev.filter((d) => !vols.some((v) => v.id === d.id) && holds(d.id)).map((d) => ({ ...d, connected: false, lastSeen: d.connected ? now : d.lastSeen }));
+  return [...here, ...gone];
+}
+
 // ---------------------------------------------------------------------------------------------------------------
 // Mock, from design/prototype/data.js. `?mock=loading|empty|error|noaccess|unreadable` picks a designed state.
 
@@ -244,6 +266,20 @@ export function createMock(scenario: Scenario = 'normal', onboarded = scenario !
   if (scenario === 'unreadable') s.drives[0].problem = 'macOS reports the disk needs First Aid.';
   if (scenario === 'loading') { s.scan = { running: true, checked: 1284 }; s.forecast = null; }
   let helperUp = scenario !== 'error';
+  // In the app the drives are the real mounted volumes, read only. Nothing has been moved onto them, so the sample
+  // drives and the sample folders "on" them go, and moving is refused until the helper does real copies.
+  const shell = (globalThis as any).__TAURI_INTERNALS__;
+  const real = !!shell && scenario === 'normal';
+  if (real) {
+    s.drives = [];
+    s.folders = s.folders.filter((x) => x.verdict !== 'stowed');
+    const poll = () => shell.invoke('volumes').then((v: Volume[]) => {
+      const next = toDrives(v, s.drives, (id) => s.folders.some((x) => x.drive === id));
+      if (JSON.stringify(next) !== JSON.stringify(s.drives)) { s.drives = next; emit(); }
+    }, () => { /* keep the last list */ });
+    poll();
+    setInterval(poll, 5000); // catches plug and unplug
+  }
   const subs = new Set<(s: State) => void>();
   const emit = () => subs.forEach((fn) => fn(structuredClone(s)));
   const folder = (id: string) => s.folders.find((x) => x.id === id)!;
@@ -269,6 +305,7 @@ export function createMock(scenario: Scenario = 'normal', onboarded = scenario !
   ticker.unref?.(); // lets the node tests exit
 
   const planMove = (id: string, driveId: string): Plan => {
+    if (real) return { ok: false, title: 'Moving isn’t connected yet', reason: 'This build shows your real drives, but the helper that copies folders is still being built. Nothing was changed.' };
     const it = folder(id), d = drive(driveId);
     if (!d || !d.connected || d.refused || d.problem) return { ok: false, title: 'No drive connected', reason: 'Plug in an APFS drive to move this folder. Nothing was changed.' };
     if (it.size > d.free) return { ok: false, title: `Not enough room on ${d.name}`, reason: `${d.name} has ${fmt(d.free)} free and this folder needs ${fmt(it.size)}. Nothing was changed.` };
@@ -310,6 +347,7 @@ export function createMock(scenario: Scenario = 'normal', onboarded = scenario !
     async eject(id) {
       await ok();
       const j = s.jobs.find((x) => x.drive === id);
+      if (real) throw new Error('Ejecting from Stowaway isn’t connected yet in this build. Nothing was changed. Eject it from Finder.');
       if (j) throw new Error(`${drive(id).name} is in use: ${folder(j.folder).app} ${folder(j.folder).name.toLowerCase()} is being ${j.kind === 'move' ? 'moved to' : 'brought back from'} it. Nothing was changed.`);
       this.setConnected(id, false);
     },

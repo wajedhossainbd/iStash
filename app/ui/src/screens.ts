@@ -115,7 +115,7 @@ export function overview(v: View) {
       <section class="card"><div class="card-head"><h2>Drives</h2></div>${drives.length ? `<div style="display:grid;gap:8px">${drives.map((d) => {
         const on = stowedOn(s, d.id);
         return `<div style="display:flex;gap:8px;align-items:center"><span class="dot ${d.connected ? 'ok' : 'hollow'}"></span><strong style="font:var(--type-emphasis)">${esc(d.name)}</strong>
-          <span class="secondary" style="margin-left:auto;font:var(--type-callout)">${d.connected ? `${on.length} folders · ${gb(sum(on))}` : `<span style="color:var(--danger-text)">Missing</span> · ${esc(list(appsOn(on)))} held`}</span></div>`;
+          <span class="secondary" style="margin-left:auto;font:var(--type-callout)">${d.connected ? (on.length ? `${on.length} folders · ${gb(sum(on))}` : `${gb(d.free)} free`) : `<span style="color:var(--danger-text)">Missing</span> · ${esc(list(appsOn(on)))} held`}</span></div>`;
       }).join('')}</div>` : '<p class="secondary">Connect an APFS drive to start moving app data.</p>'}</section>
     </div></div>`;
 }
@@ -245,9 +245,10 @@ function driveModule(s: State, d: Drive) {
   const on = d.connected, st = stowedOn(s, d.id), stowed = sum(st), busy = s.jobs.some((j) => j.drive === d.id);
   return `<article class="module ${on ? '' : 'is-missing'}" style="--c:${cableVar(d)}" data-hot="drive:${d.id}" aria-label="${esc(d.name)}">
     <header><span class="swatch"></span><strong>${esc(d.name)}</strong><span class="kind">${esc(d.format)} · ${esc(d.bus)}</span><span class="spacer"></span>
-      ${on ? button(icon('eject'), 'eject', { id: d.id, disabled: busy, title: busy ? `A folder is being copied. Stop it or wait before ejecting ${d.name}.` : `Eject ${d.name}`, label: `Eject ${d.name}` }) : pill('danger', 'Missing')}</header>
+      ${d.refused ? pill('neutral', 'Can’t hold links') : !st.length ? '' : on ? button(icon('eject'), 'eject', { id: d.id, disabled: busy, title: busy ? `A folder is being copied. Stop it or wait before ejecting ${d.name}.` : `Eject ${d.name}`, label: `Eject ${d.name}` }) : pill('danger', 'Missing')}</header>
     ${capacity(on ? [{ value: d.total - d.free - stowed, color: 'var(--storage-apps)', label: 'Other files' }, { value: stowed, color: cableVar(d), label: `App data ${gb(stowed)}` }] : [], d.total)}
-    <div class="stats"><span>${on ? `<span class="num">${gb(d.free)}</span> free of ${tb(d.total)}` : `Last seen ${ago(d.lastSeen)}`}</span><span><span class="num">${st.length}</span> folder${st.length === 1 ? '' : 's'} · <span class="num">${gb(stowed)}</span></span></div>
+    <div class="stats"><span>${on ? `<span class="num">${gb(d.free)}</span> free of ${tb(d.total)}` : `Last seen ${ago(d.lastSeen)}`}</span><span>${st.length ? `<span class="num">${st.length}</span> folder${st.length === 1 ? '' : 's'} · <span class="num">${gb(stowed)}</span>` : 'Nothing moved here'}</span></div>
+    ${d.refused && d.problem ? `<p class="secondary" style="font:var(--type-caption)">${esc(d.problem)}</p>` : ''}
   </article>`;
 }
 
@@ -257,7 +258,9 @@ export function drives(v: View) {
   const h = header('Drives', 'Which app needs which drive.', holders.length === 1 && !v.down && !s!.jobs.some((j) => j.drive === holders[0].id) ? button(`${icon('eject')} Eject ${esc(holders[0].name)}…`, 'eject', { id: holders[0].id }) : '');
   if (v.down) return h + `<div class="page-body">${helperDown()}</div>`;
   if (!s) return h + `<div class="page-body" aria-busy="true"><div class="modules">${'<div class="module"><span class="skeleton" style="height:14px;width:50%"></span><span class="skeleton" style="height:8px"></span><span class="skeleton" style="height:10px;width:70%"></span></div>'.repeat(3)}</div><div class="bay"><span class="skeleton" style="display:block;height:260px"></span></div></div>`;
-  if (!s.folders.some((i) => i.verdict === 'stowed')) return h + `<div class="page-body">${empty({ illus: ILLUS_PORT, title: 'No app data on drives yet', body: 'When you move a folder to a drive, it shows up here with the app that needs it, so you know what breaks before you unplug.', actions: button('Go to Offload', 'go', { id: 'offload', kind: 'primary' }) })}</div>`;
+  const none = !s.folders.some((i) => i.verdict === 'stowed');
+  const shown = s.drives.filter((d) => d.connected || stowedOn(s, d.id).length);
+  if (none && !shown.length) return h + `<div class="page-body">${empty({ illus: ILLUS_PORT, title: 'No drives connected', body: 'Plug in an external drive. It shows up here with its free space, and later with the apps that keep data on it.' })}</div>`;
   const low = s.mac.free < 40 * GB;
   const mac = `<article class="module" style="--c:var(--text-secondary)" aria-label="Macintosh HD"><header><span class="swatch"></span><strong>Macintosh HD</strong><span class="kind">Internal</span></header>
     ${capacity([{ value: s.mac.total - s.mac.free, color: low ? 'var(--danger-fill)' : 'var(--storage-system)', label: 'Used' }], s.mac.total)}
@@ -272,8 +275,8 @@ export function drives(v: View) {
       body: `${apps} would otherwise write to an empty folder. Plug ${esc(d.name)} in and ${many ? 'they open' : 'it opens'} normally. To keep the data (${gb(sum(st))}) on this Mac instead, plug it in and choose Bring back.` });
   });
   return h + `<div class="page-body">${broken.join('')}
-    <div class="modules">${usable(s).map((d) => driveModule(s, d)).join('')}${mac}</div>
-    ${cableMap(v as V)}${missing.join('')}
+    <div class="modules">${shown.map((d) => driveModule(s, d)).join('')}${mac}</div>
+    ${none ? empty({ illus: ILLUS_PORT, title: 'No app data on drives yet', body: 'When you move a folder to a drive, it shows up here with the app that needs it, so you know what breaks before you unplug.', actions: button('Go to Offload', 'go', { id: 'offload', kind: 'primary' }) }) : cableMap(v as V)}${missing.join('')}
   </div>`;
 }
 

@@ -2,7 +2,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { gb, list, ago } from './ui.ts';
-import { createMock } from './api.ts';
+import { createMock, toDrives, type Volume } from './api.ts';
 
 test('formatting', () => {
   assert.equal(gb(31.2e9), '31.2 GB');
@@ -37,4 +37,12 @@ test('mock forecast agrees with its own swap curve', async () => {
   assert.ok(f.swapRate > 0 && f.swap < f.swapLimit);
   await api.move('gradle', 't7');
   await assert.rejects(api.eject('t7'), /in use/);
+});
+
+test('real volumes become drives: exFAT refused, cables kept, unplugged drives drop unless they hold data', () => {
+  const v = (id: string, name: string, format = 'APFS'): Volume => ({ id, name, format, bus: 'USB', total: 1e12, free: 5e11, writable: true });
+  const a = toDrives([v('b', 'Mac 500 SSD'), v('a', 'Jetdrive'), v('c', 'Storejet', 'ExFAT')], [], () => false, 1);
+  assert.deepEqual(a.map((d) => [d.name, d.cable, !!d.refused]), [['Jetdrive', 'blue', false], ['Mac 500 SSD', 'orange', false], ['Storejet', 'violet', true]]);
+  const b = toDrives([v('b', 'Mac 500 SSD')], a, (id) => id === 'a', 2);
+  assert.deepEqual(b.map((d) => [d.name, d.cable, d.connected, d.lastSeen]), [['Mac 500 SSD', 'orange', true, 1], ['Jetdrive', 'blue', false, 2]]);
 });
