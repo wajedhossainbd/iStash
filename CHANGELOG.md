@@ -5,6 +5,10 @@ updates installed copies through the app itself.
 
 ## Unreleased
 
+Nothing yet.
+
+## 0.1.17 — 14 Nov 2026
+
 ### Changed
 - **New cleaner design.** Memory and storage each show soft, translucent petals drifting round a solid centre with
   the amount, airy in the light theme and glowing in the dark. While cleaning, the petals speed up, particles drift
