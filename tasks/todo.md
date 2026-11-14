@@ -23,9 +23,11 @@ Sizes: S = 1–2 files, M = 3–5 files. Every task must meet the quality bar in
 
 ## Phase 2 — v0.1 "Offload" (free core as an app)
 
-Status 11 Nov 2026: T16 done (branch `phase2-t16-mover-hardening`); T17 next. How to split the work: `HANDOFF.md`.
+Status 14 Nov 2026: shipped as iStash 0.1.12. T16 and T19–T23 done, T25 mostly done (DMG, signed updates, install
+script; not notarised). T17, T18 and T24 are open: the app hosts the engine itself instead of a login agent. Details:
+`HANDOFF.md`, `CHANGELOG.md`.
 
-- [ ] **T16: Mover hardening** — fault-injection tests: drive detached mid-copy, target full, permission denied, source
+- [x] **T16: Mover hardening** — fault-injection tests: drive detached mid-copy, target full, permission denied, source
   changed during copy, sparse files stay sparse (Docker.raw-style), hard links, xattrs/ACLs, sockets/FIFOs skipped with
   a report, long/Unicode paths; remove empty parent folders after undo. *Accept:* each case has a test on a temporary
   disk image and leaves data in exactly one valid place. *Size:* M. *Deps:* none.
@@ -42,16 +44,16 @@ Status 11 Nov 2026: T16 done (branch `phase2-t16-mover-hardening`); T17 next. Ho
 - [ ] **T18: Agent** — `crates/stowaway-agent`: launchd login agent with its own bundle id, Unix-socket API with token,
   owns journal + state, runs recover on login, forecast notifications, eject guard. *Accept:* app/CLI talk only through
   the socket; forced-threshold notification test; < 25 MB RAM, < 1% CPU idle measured. *Size:* M. *Deps:* T17.
-- [ ] **T19: Tauri shell** — window per `design/prototype` (vibrancy sidebar, merged draggable title bar), routing,
+- [x] **T19: Tauri shell** — window per `design/prototype` (vibrancy sidebar, merged draggable title bar), routing,
   tokens, light/dark, onboarding screen that asks for drive access once. *Accept:* opens, navigates, VoiceOver reads
   the sidebar. *Size:* M. *Deps:* T18.
-- [ ] **T20: Overview screen** — live gauges, charts, memory forecast card. *Accept:* matches prototype; app < 150 MB.
+- [x] **T20: Overview screen** — live gauges, charts, memory forecast card. *Accept:* matches prototype; app < 150 MB.
   *Deps:* T19.
-- [ ] **T21: Offload screen** — list with verdicts and real app icons, Move / Quit / Bring back, progress, refusals,
+- [x] **T21: Offload screen** — list with verdicts and real app icons, Move / Quit / Bring back, progress, refusals,
   dry-run preview dialog. *Accept:* a real folder moved end to end from the UI. *Deps:* T19.
-- [ ] **T22: Drives screen (cable map)** — apps patched to drives, missing-drive state, eject warning. *Accept:* reacts
+- [x] **T22: Drives screen (cable map)** — apps patched to drives, missing-drive state, eject warning. *Accept:* reacts
   to a disk image attach/detach within 2 s. *Deps:* T19.
-- [ ] **T23: Menu-bar popover + Settings.** *Deps:* T20.
+- [x] **T23: Menu-bar popover + Settings.** *Deps:* T20.
 - [ ] **T24: Recipe verification, first set** — Docker, Xcode (DerivedData, Device Support), Ollama, LM Studio, Claude
   Cowork VM, Android SDK/emulator, npm/pnpm/Gradle/Cargo caches: move, launch, use, bring back on the owner's Mac; mark
   verified or unsupported with the reason. *Accept:* `docs/recipes.md` table with evidence. *Deps:* T21.

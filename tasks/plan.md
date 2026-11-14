@@ -1,4 +1,6 @@
-# Implementation Plan: Stowaway
+# Implementation Plan: iStash (formerly Stowaway)
+
+> 14 Nov 2026: v0.1 "Offload" is shipping as iStash; see `HANDOFF.md` for what is done and what is open.
 
 Revised 10 Nov 2026 (v2): rebuilt around features worth paying for, and a stricter quality bar.
 Research: `research/market.md`, `research/tidymac-teardown.md`, `research/naming-and-emroze.md`.

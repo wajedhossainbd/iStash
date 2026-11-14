@@ -1,4 +1,9 @@
-# Stowaway design system
+# iStash design system
+
+> **Current (14 Nov 2026):** the app is called iStash (it was Stowaway). Type is **Geist** for text and numbers
+> and **Geist Mono** for paths, both bundled. Surfaces are glass in light and dark; floating windows (menu-bar panel,
+> edge widget) are fixed dark glass using macOS vibrancy. Help text is one short line. Where this document says SF Pro
+> or JetBrains Mono, read Geist and Geist Mono; the rules below still apply.
 
 Direction **Signal**, chosen by the owner on 13 Nov 2026 from [`directions/v2/`](directions/v2/): graphite, one lime
 accent, mono instrument numerals, dark first. It restyles Patch Bay (9 Nov) and keeps its screens, flows, components
@@ -93,7 +98,7 @@ Window 1200 × 760 default, minimum 960 × 640. Merged title bar, traffic lights
 - **Memory:** forecast card with a taller chart → apps using memory, each with Quit.
 - **Settings:** grouped form (General, Moving, Memory, Drives, Privacy).
 - **Onboarding** (first launch, no sidebar): Welcome (promises) → Permissions → Choose a drive.
-- **Menu-bar popover:** forecast sentence, four mini meters, drives with status, primary "Open Stowaway".
+- **Menu-bar popover:** forecast sentence, four mini meters, drives with status, primary "Open iStash".
 
 ## Components
 
@@ -182,7 +187,7 @@ disabled switch.
 ### Menu-bar popover
 340 px, `elevation.3`. Menu-bar item: the cable glyph, plus minutes left when memory is strained ("38m").
 Content: status dot + forecast sentence + one-line advice, four mini meters, drives list, then the advised action
-and "Open Stowaway".
+and "Open iStash".
 
 ## Accessibility
 - Full keyboard use: Tab order follows reading order; Escape closes sheets; focus goes to the primary button when a
