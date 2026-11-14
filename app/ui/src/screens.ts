@@ -4,7 +4,7 @@ import { esc, gb, tb, day, clock, ago, list, icon, appIcon, button, pill, seg, c
 
 export type Route = 'overview' | 'offload' | 'drives' | 'memory' | 'internet' | 'clean' | 'settings' | 'onboarding' | 'popover' | 'widget';
 export type Dialog = { type: 'move' | 'back' | 'how' | 'why' | 'apfs' | 'eject' | 'quit-app' | 'clean' | 'trash' | 'desktop'; id?: string; drive?: string; plan?: Plan };
-export interface Ui { route: Route; dialog: Dialog | null; offloadTab: 'suggested' | 'stowed' | 'all'; onboardStep: number; onboardDrive: string | null; busy: boolean; drive: string | null; serverOpen?: boolean; serverQuery?: string; serverIndex?: number; searching?: boolean }
+export interface Ui { route: Route; dialog: Dialog | null; offloadTab: 'suggested' | 'stowed' | 'all'; onboardStep: number; onboardDrive: string | null; busy: boolean; drive: string | null; serverOpen?: boolean; serverQuery?: string; serverIndex?: number; searching?: boolean; fanManual?: boolean; fanRpm?: number; fanBusy?: boolean; temps?: boolean }
 /** s is null while the first state is loading; down when the helper can't be reached. */
 export interface View { s: State | null; m: Metrics | null; ui: Ui; down: boolean; icon: (path?: string) => string | null }
 type V = View & { s: State };
@@ -507,12 +507,13 @@ export function settings(v: View) {
       ${row('Edge widget', 'CPU, memory, network and drives on the edge of the screen.', seg('widget-mode', [['off', 'Off'], ['auto', 'Show on hover'], ['pinned', 'Always']], st.widget))}
       ${st.widget === 'off' ? '' : row('Widget edge', '', seg('widget-side', [['left', 'Left'], ['right', 'Right']], st.widgetSide))}
       ${row('Notch island', 'iStash notifications drop from the top of the screen.', toggle('island', st.island, 'Notch island'))}
-      ${st.island ? row('Island glow', '', seg('island-glow', [['amber', 'Amber'], ['blue', 'Blue'], ['pink', 'Pink'], ['green', 'Green'], ['white', 'White']], st.islandGlow)) : ''}
+      ${st.island ? row('Island glow', '', seg('island-glow', [['amber', 'Amber'], ['blue', 'Blue'], ['pink', 'Pink'], ['green', 'Green'], ['white', 'White'], ['rgb', 'RGB']], st.islandGlow)) : ''}
       ${st.island ? row('Island stays for', '', `${seg('island-secs', [['3', '3 s'], ['5', '5 s'], ['8', '8 s']], String(st.islandSecs))} ${button('Show it', 'island-test')}`) : ''}
       ${row('Check for updates automatically', '', sw('updates', 'Check for updates automatically'))}
       ${row(`Version ${esc(s.version)}`, s.update.available ? `Version ${esc(s.update.available)} is available. iStash restarts to finish.` : s.update.checked ? `This is the latest version. Checked ${ago(s.update.checked)}.` : '',
         s.update.available ? button(s.update.busy ? 'Updating…' : `Update to ${esc(s.update.available)}`, 'install-update', { kind: 'primary', disabled: s.update.busy }) : button(s.update.busy ? 'Checking…' : 'Check now', 'check-update', { disabled: s.update.busy }))}
     </div></section>
+    <section><h2>Permissions</h2>${permRows(s)}</section>
     <section><h2>Moving</h2><div class="group">
       ${row('Show what will happen before every move', 'Lists each step and the space it needs. Recommended.', toggle('dryRun', st.dryRun, 'Show what will happen before every move'))}
       ${row('Keep the original until every file is checked', '', '<span class="secondary">Always on</span>')}
@@ -531,6 +532,19 @@ export function settings(v: View) {
 }
 
 // ---------- Onboarding ----------
+// Every permission iStash uses, with an Allow button each and Allow all; shared by onboarding and Settings.
+export function permRows(s: State) {
+  const p = s.permissions;
+  const perm = (key: keyof State['permissions'], title: string, why: string) => `<div class="perm"><strong>${title}</strong>${p[key] ? pill('ok', 'Allowed') : button('Allow…', 'grant', { id: key, label: `Allow ${title.toLowerCase()}` })}<p>${why}</p></div>`;
+  const all = (['volumes', 'notify', 'camera', 'finder', 'fans'] as const).every((k) => p[k]);
+  return perm('volumes', 'Removable volumes', 'Needed to copy app data to your external drive and check it.')
+    + perm('notify', 'Notifications', 'Memory warnings, drive warnings and updates, on the notch island or as banners.')
+    + perm('camera', 'Camera', 'Only for the Camera button in the menu bar.')
+    + perm('finder', 'Finder', 'Lets Empty Trash ask Finder to empty it.')
+    + perm('fans', 'Fan control', 'Asks for your password once to install a helper that only sets fan speed.')
+    + (all ? '' : `<div style="margin-top:12px">${button('Allow all', 'grant-all', { kind: 'primary' })}</div>`);
+}
+
 export function onboarding(v: View) {
   const { s, ui } = v;
   const names = ['Welcome', 'Permissions', 'Choose a drive'];
@@ -548,10 +562,8 @@ export function onboarding(v: View) {
       <div class="promise">${promise('Nothing is removed until the copy is checked', 'File count, size and content are compared first.')}${promise('Your documents are off limits', 'Documents, Desktop, iCloud Drive and app sandboxes are never touched.')}${promise('Every move can be undone', 'Bring anything back with one click, even after a crash.')}${promise('No account, no tracking, free', 'It only goes online to check for updates.')}</div>
       <div class="footer">${button('Continue', 'onboard-next', { kind: 'primary', large: true })}</div>`;
   } else if (ui.onboardStep === 1) {
-    const perm = (key: 'volumes' | 'notify', title: string, why: string) => `<div class="perm"><strong>${title}</strong>${s.permissions[key] ? pill('ok', 'Allowed') : button('Allow…', 'grant', { id: key, kind: key === 'volumes' ? 'primary' : '', label: `Allow ${title.toLowerCase()}` })}<p>${why}</p></div>`;
-    main = `<h1>Two permissions</h1><p class="lead">macOS asks once for each, in iStash’s name. You can change them later in System Settings.</p>
-      ${perm('volumes', 'Removable volumes', 'Needed to copy app data to your external drive and check it. Without it nothing can be moved.')}
-      ${perm('notify', 'Notifications', 'Optional. Used only for memory warnings and when a drive an app needs is about to be ejected.')}
+    main = `<h1>Permissions</h1><p class="lead">Give them now, so iStash doesn’t stop to ask later. macOS asks once for each, in iStash’s name; fan control asks for your password once.</p>
+      ${permRows(s)}
       <p class="secondary" style="font:var(--type-callout);max-width:600px">iStash doesn’t ask for Full Disk Access and never reads other apps’ sandboxes, so you won’t see a stream of “would like to access” prompts.</p>
       <div class="footer">${s.permissions.volumes ? '' : '<span class="tertiary" style="font:var(--type-caption);align-self:center">Allow removable volumes first</span>'}${button('Back', 'onboard-back', { large: true })}${button('Continue', 'onboard-next', { kind: 'primary', large: true, disabled: !s.permissions.volumes, title: s.permissions.volumes ? '' : 'Allow removable volumes first' })}</div>`;
   } else {
@@ -588,17 +600,22 @@ export function widget(v: View) {
   const drives = usable(s).map((d) => {
     const io = s.io?.[d.id], used = d.connected ? Math.round(((d.total - d.free) / d.total) * 100) : 0;
     return `<div class="edge-block edge-drive ${d.connected ? '' : 'is-missing'}" title="${esc(d.name)}">
-      <span class="edge-label"><i class="edge-dot"></i>${esc(d.name)}</span>
+      <span class="edge-label">${icon('drives')}${esc(d.name)}</span>
       <span class="edge-num">${d.connected ? gb(d.free) : 'Missing'}</span>
       ${d.connected ? bar(used, cableVar(d)) + (io && io.read + io.write > 4096 ? `<span class="edge-sub">↓${rate(io.read)} ↑${rate(io.write)}</span>` : '<span class="edge-sub">idle</span>') : '<span class="edge-sub">Connect it</span>'}
     </div>`;
   }).join('');
+  const sn = s.sensors, fan = sn?.fans[0];
+  const fanBlock = fan || sn?.cpu ? `<div class="edge-block"><span class="edge-label">${icon('fan')}${fan ? 'Fan' : 'Temp'}</span><span class="edge-num edge-small">${fan ? `${Math.round(fan.rpm).toLocaleString('en-GB')}<small> rpm</small>` : `${Math.round(sn!.cpu!.avg)}°`}</span>`
+    + (fan?.max ? bar(((fan.rpm - (fan.min ?? 0)) / (fan.max - (fan.min ?? 0))) * 100, '#5AC8FA') : '')
+    + (sn?.cpu ? `<span class="edge-sub">CPU ${Math.round(sn.cpu.avg)}° · peak ${Math.round(sn.cpu.max)}°</span>` : '') + '</div>' : '';
   return `<div class="edge" data-action="open-main" title="Open iStash">
     <div class="edge-head"><i class="edge-live"></i><strong>iStash</strong></div>
-    <div class="edge-block"><span class="edge-label">CPU</span><span class="edge-num">${cpu}<small>%</small></span>${spark(m.cpu, 100, tone(cpu, 70, 90))}</div>
-    <div class="edge-block"><span class="edge-label">Memory</span><span class="edge-num">${mem}<small>%</small></span>${bar(mem, tone(mem, 60, 80))}${m.swap ? `<span class="edge-sub">swap ${gb(m.swap)}</span>` : ''}</div>
-    <div class="edge-block"><span class="edge-label">Network</span><span class="edge-num edge-small">↓ ${rate(m.netIn.at(-1) ?? 0)}</span><span class="edge-sub">↑ ${rate(m.netOut)}</span>${spark(m.netIn, netMax, '#5AC8FA')}</div>
-    <div class="edge-block"><span class="edge-label">Disk</span><span class="edge-num edge-small">${gb(s.mac.free)}</span><span class="edge-sub">free</span>${bar(disk, tone(disk, 80, 90))}</div>
+    <div class="edge-block"><span class="edge-label">${icon('pulse')}CPU</span><span class="edge-num">${cpu}<small>%</small></span>${spark(m.cpu, 100, tone(cpu, 70, 90))}</div>
+    <div class="edge-block"><span class="edge-label">${icon('memory')}Memory</span><span class="edge-num">${mem}<small>%</small></span>${bar(mem, tone(mem, 60, 80))}${m.swap ? `<span class="edge-sub">swap ${gb(m.swap)}</span>` : ''}</div>
+    <div class="edge-block"><span class="edge-label">${icon('wifi')}Network</span><span class="edge-num edge-small">↓ ${rate(m.netIn.at(-1) ?? 0)}</span><span class="edge-sub">↑ ${rate(m.netOut)}</span>${spark(m.netIn, netMax, '#5AC8FA')}</div>
+    <div class="edge-block"><span class="edge-label">${icon('drives')}Disk</span><span class="edge-num edge-small">${gb(s.mac.free)}</span><span class="edge-sub">free</span>${bar(disk, tone(disk, 80, 90))}</div>
+    ${fanBlock}
     ${drives ? `<div class="edge-rule"></div>${drives}` : ''}
   </div>`;
 }
@@ -642,10 +659,22 @@ export function popover(v: View) {
 
   // Fan and temperatures. macOS sets the fan speed itself; iStash only reads it.
   const sn = s.sensors, fan = sn?.fans[0], hot = sn?.cpu?.max ?? 0;
+  // Fan modes: System (macOS decides), Max, Manual with a speed slider. Manual shows its slider before it's applied.
+  const fanControls = (f: typeof fan & {}) => {
+    const lo = f.min ?? 0, hi = f.max ?? 6000;
+    const mode = ui.fanManual ? 'manual' : !f.manual ? 'auto' : f.target != null && f.target >= hi - 50 ? 'max' : 'manual';
+    const rpm = ui.fanRpm ?? f.target ?? f.rpm;
+    const b = (id: string, label: string) => `<button data-action="fan-mode" data-id="${id}" aria-pressed="${mode === id}" ${ui.fanBusy ? 'disabled' : ''}>${label}</button>`;
+    return `<div class="pop-seg" role="group" aria-label="Fan mode">${b('auto', 'System')}${b('max', 'Max')}${b('manual', 'Manual')}</div>` +
+      (mode === 'manual' ? `<div class="pop-fan"><input type="range" data-action="fan-rpm" min="${lo}" max="${hi}" step="100" value="${Math.round(rpm)}" aria-label="Fan speed" ${ui.fanBusy ? 'disabled' : ''}><span class="pop-fan-rpm">${Math.round(rpm).toLocaleString('en-GB')}</span></div>` : '') +
+      line(`<span class="pop-dim">${ui.fanBusy ? 'Setting the fan…' : mode === 'auto' ? `${f.min && f.rpm <= f.min + 50 ? 'Idle speed' : 'Cooling'} · set by macOS` : 'Until you pick System or restart'}</span>`);
+  };
   const fanTile = sn && (fan || sn.cpu) ? tile(fan ? 'Fan' : 'Temperature', fan ? `${Math.round(fan.rpm).toLocaleString('en-GB')} rpm` : `${Math.round(sn.cpu!.avg)}°C`,
     (fan && fan.max ? popBar(Math.round(((fan.rpm - (fan.min ?? 0)) / (fan.max - (fan.min ?? 0))) * 100), 'var(--pop-blue)', `Fan at ${Math.round(fan.rpm)} rpm`) : '') +
     line(sn.cpu ? kv('CPU', `${Math.round(sn.cpu.avg)}°`, tone(hot, 80, 95)) + kv('peak', `${Math.round(sn.cpu.max)}°`) : '', sn.gpu ? kv('GPU', `${Math.round(sn.gpu.avg)}°`) : '') +
-    line(fan ? `<span class="pop-dim">${fan.min && fan.rpm <= fan.min + 50 ? 'Idle speed' : 'Cooling'} · set by macOS</span>` : '<span class="pop-dim">No fan in this Mac</span>')) : '';
+    (fan ? fanControls(fan) : line('<span class="pop-dim">No fan in this Mac</span>')) +
+    (sn.sensors.length ? `<button class="pop-more" data-action="pop-temps" aria-expanded="${!!ui.temps}">Temperatures <span>${ui.temps ? '−' : '+'}</span></button>` +
+      (ui.temps ? `<div class="pop-temps">${[...sn.sensors].sort((a, b) => b.c - a.c).map((t) => `<div><span>${esc(t.name || 'Sensor')}</span><b>${t.c.toFixed(1)}°</b></div>`).join('')}</div>` : '') : '')) : '';
   const appsRow = `<div class="pop-apps">${([['system-settings', '/System/Applications/System Settings.app', 'System Settings'], ['disk-utility', '/System/Applications/Utilities/Disk Utility.app', 'Disk Utility'],
     ['activity-monitor', '/System/Applications/Utilities/Activity Monitor.app', 'Activity Monitor'], ['system-information', '/System/Applications/Utilities/System Information.app', 'System Information']] as const)
     .map(([id, path, name]) => `<button class="pop-app" data-action="open-app" data-id="${id}" title="Open ${name}">${appIcon(v.icon(path), name)}<span>${name.replace('System ', '')}</span></button>`).join('')}<button class="pop-app" data-action="pop-camera" title="See the camera's picture"><span class="pop-cam">${icon('camera')}</span><span>Camera</span></button></div>`;

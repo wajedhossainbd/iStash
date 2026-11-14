@@ -10,7 +10,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Mutex, OnceLock};
 use tauri::{AppHandle, Emitter, Manager, PhysicalPosition};
 
-const W: f64 = 380.0; // window, in points: room for the open island and its shadow
+const W: f64 = 480.0; // window, in points: room for the open island and its shadow
 static ON: AtomicBool = AtomicBool::new(true);
 static APP: OnceLock<AppHandle> = OnceLock::new();
 static LOOK: Mutex<(String, u32)> = Mutex::new((String::new(), 5)); // glow colour, seconds on screen
@@ -70,7 +70,7 @@ pub fn island_hide(app: AppHandle) {
 #[tauri::command]
 pub fn set_island(on: bool, glow: String, secs: u32) {
     ON.store(on, Ordering::Relaxed);
-    let glow = if ["amber", "blue", "pink", "green", "white"].contains(&glow.as_str()) { glow } else { "amber".into() };
+    let glow = if ["amber", "blue", "pink", "green", "white", "rgb"].contains(&glow.as_str()) { glow } else { "amber".into() };
     if let Ok(mut l) = LOOK.lock() {
         *l = (glow, secs.clamp(2, 15));
     }
@@ -80,31 +80,50 @@ pub fn set_island(on: bool, glow: String, secs: u32) {
 extern "C" {}
 
 /// A small window with the camera's picture, to check the camera works. Opening it again brings it to the front.
-/// macOS is asked for the camera first, so its permission prompt names iStash; if access was refused before, the
-/// Camera privacy settings open next to the window.
-#[tauri::command]
+/// macOS is asked for the camera first, so its prompt names iStash; if access was refused, Camera privacy settings
+/// open next to the window.
+#[tauri::command(async)]
 pub fn open_camera(app: AppHandle) -> Result<(), String> {
-    use objc2::runtime::{AnyClass, Bool};
-    use objc2_foundation::NSString;
-    let cls = AnyClass::get(c"AVCaptureDevice").ok_or("This Mac has no camera support.")?;
-    let video = NSString::from_str("vide"); // AVMediaTypeVideo
-    // SAFETY: class methods of AVCaptureDevice with an NSString media type; 0 = not asked yet, 3 = allowed.
-    let status: isize = unsafe { msg_send![cls, authorizationStatusForMediaType: &*video] };
-    if status == 0 {
-        let a = app.clone();
-        let done = block2::RcBlock::new(move |_ok: Bool| {
-            let b = a.clone();
-            let _ = a.run_on_main_thread(move || {
-                let _ = camera_window(&b);
-            });
-        });
-        let _: () = unsafe { msg_send![cls, requestAccessForMediaType: &*video, completionHandler: &*done] };
-        return Ok(());
-    }
-    if status != 3 {
+    if ask_camera() != 3 {
         let _ = Command::new("/usr/bin/open").arg("x-apple.systempreferences:com.apple.preference.security?Privacy_Camera").status();
     }
     camera_window(&app)
+}
+
+/// Asks macOS for the camera if it hasn't been asked yet, waits for the answer, and returns the status.
+pub fn ask_camera() -> isize {
+    use objc2::runtime::{AnyClass, Bool};
+    let Some(cls) = AnyClass::get(c"AVCaptureDevice") else { return -1 };
+    if camera_status() == 0 {
+        let (tx, rx) = std::sync::mpsc::channel();
+        // macOS shows the prompt only for a request made on the main thread.
+        let ask = move || {
+            let video = objc2_foundation::NSString::from_str("vide");
+            let done = block2::RcBlock::new(move |_ok: Bool| {
+                let _ = tx.send(());
+            });
+            // SAFETY: class method of AVCaptureDevice; it copies the block.
+            let _: () = unsafe { msg_send![cls, requestAccessForMediaType: &*video, completionHandler: &*done] };
+        };
+        match APP.get() {
+            Some(app) => {
+                let _ = app.run_on_main_thread(ask);
+            }
+            None => ask(),
+        }
+        let _ = rx.recv_timeout(std::time::Duration::from_secs(120));
+    }
+    camera_status()
+}
+
+/// macOS's camera permission for iStash: 0 not asked, 1 restricted, 2 denied, 3 allowed.
+#[tauri::command]
+pub fn camera_status() -> isize {
+    use objc2::runtime::AnyClass;
+    let Some(cls) = AnyClass::get(c"AVCaptureDevice") else { return -1 };
+    let video = objc2_foundation::NSString::from_str("vide");
+    // SAFETY: class method of AVCaptureDevice with an NSString media type.
+    unsafe { msg_send![cls, authorizationStatusForMediaType: &*video] }
 }
 
 fn camera_window(app: &AppHandle) -> Result<(), String> {
@@ -120,4 +139,13 @@ fn camera_window(app: &AppHandle) -> Result<(), String> {
         .build()
         .map(|_| ())
         .map_err(|e| e.to_string())
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    #[ignore = "asks this Mac's camera permission; run by hand"]
+    fn camera_status_reads() {
+        eprintln!("camera status: {}", super::camera_status());
+    }
 }

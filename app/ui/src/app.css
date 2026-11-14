@@ -741,3 +741,23 @@ h1:focus { outline: none; } /* focused on navigation so VoiceOver announces the 
 .pop-app:active { transform: scale(0.96); }
 .pop-app .app-icon { width: 30px; height: 30px; }
 .pop-app span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+
+/* Fan controls and temperature list in the menu-bar panel (fixed dark palette). */
+.pop-seg { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px; padding: 2px; margin: 8px 0 2px; border-radius: 8px; background: rgba(255, 255, 255, 0.06); }
+.pop-seg button { padding: 4px 0; border: 0; border-radius: 6px; background: transparent; color: var(--pop-ink-2); font: inherit; font-size: 12px; cursor: pointer; }
+.pop-seg button[aria-pressed='true'] { background: rgba(255, 255, 255, 0.16); color: var(--pop-ink); }
+.pop-seg button:disabled { opacity: 0.5; cursor: default; }
+.pop-fan { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
+.pop-fan input { flex: 1; min-width: 0; accent-color: var(--pop-blue); }
+.pop-fan-rpm { flex: none; width: 46px; text-align: right; font-variant-numeric: tabular-nums; color: var(--pop-ink); }
+.pop-more { display: flex; justify-content: space-between; width: 100%; margin-top: 6px; padding: 4px 0 0; border: 0; border-top: 1px solid rgba(255, 255, 255, 0.08); background: none; color: var(--pop-ink-2); font: inherit; font-size: 12px; cursor: pointer; }
+.pop-temps { max-height: 180px; overflow-y: auto; margin-top: 4px; font-size: 12px; }
+.pop-temps div { display: flex; gap: 8px; padding: 2px 0; }
+.pop-temps span { flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; color: var(--pop-ink-2); }
+.pop-temps b { flex: none; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--pop-ink); }
+
+/* Settings: permission cards span the form, like the groups above them. */
+.form .perm { max-width: none; }
+.form section > .perm + .perm { margin-top: 8px; }
+.edge-label svg { width: 12px; height: 12px; flex: none; opacity: 0.85; }
+.edge-drive.is-missing .edge-label svg { color: #FF6B6B; }

@@ -153,7 +153,7 @@ export function createReal(invoke: Invoke): Api {
   pollNet();
   setInterval(pollNet, 30e3);
   const pollMem = () => invoke<Reading | null>('memory').then(async (r) => {
-    if (isPopover && !document.hidden) { await pollSys(); s.sensors = await invoke<State['sensors']>('sensors').catch(() => s.sensors); }
+    if (light && !document.hidden) { if (isPopover) await pollSys(); s.sensors = await invoke<State['sensors']>('sensors').catch(() => s.sensors); }
     await pollIo();
     Object.assign(s.net!, read<{ test: SpeedTest | null; history: SpeedTest[] }>('stowaway.net', { test: s.net!.test, history: s.net!.history })); // a test run in another window
     if (!r) return;
@@ -176,6 +176,7 @@ export function createReal(invoke: Invoke): Api {
     invoke('set_guard', { on: s.settings.ejectGuard }).catch(() => {});
     invoke('widget_mode', { mode: s.settings.widget, left: s.settings.widgetSide === 'left' }).catch(() => {});
     islandLook();
+    invoke<{ camera: boolean; fans: boolean }>('permissions_status').then((p) => { Object.assign(s.permissions, p); emit(); }, () => {});
   }
 
   function islandLook() { invoke('set_island', { on: s.settings.island, glow: s.settings.islandGlow, secs: s.settings.islandSecs }).catch(() => {}); }
@@ -260,7 +261,14 @@ export function createReal(invoke: Invoke): Api {
       if (key === 'cleanEvery' && value !== 'off' && s.clean.last == null) { s.clean.last = Date.now(); write('stowaway.clean', { last: s.clean.last }); }
       emit();
     },
-    async requestPermission(p) { s.permissions[p] = true; save(); emit(); },
+    async requestPermission(p) {
+      if (p === 'camera' || p === 'finder' || p === 'fans') s.permissions[p] = await invoke<boolean>('ask_permission', { kind: p }).catch((e) => { throw new Error(String(e)); });
+      else s.permissions[p] = true;
+      save(); emit();
+    },
+    async requestAll() {
+      for (const p of ['volumes', 'notify', 'camera', 'finder', 'fans'] as const) if (!s.permissions[p]) await this.requestPermission(p);
+    },
     async startHelper() { /* the engine runs inside the app in this build */ },
     cleanScan, clean, checkUpdate,
     async setSpeedServer(url, label) {
@@ -294,6 +302,10 @@ export function createReal(invoke: Invoke): Api {
     },
     async testIsland() { await invoke('notify', { kind: 'info', title: 'This is the island', body: 'iStash notifications appear here.' }); },
     async openCamera() { await invoke('open_camera'); },
+    async setFan(mode, rpm) {
+      await invoke('set_fan', { mode, rpm: rpm == null ? null : Math.round(rpm) }).catch((e) => { throw new Error(String(e)); });
+      s.sensors = await invoke<State['sensors']>('sensors').catch(() => s.sensors); emit();
+    },
     async keepScreen(on) { s.sys!.screenOn = await invoke<boolean>('keep_screen', { on }).catch((e) => { throw new Error(String(e)); }); emit(); },
     async keepAwake(on) { s.sys!.awake = await invoke<boolean>('keep_awake', { on }).catch((e) => { throw new Error(String(e)); }); emit(); },
     async lockScreen() { await invoke('lock_screen').catch((e) => { throw new Error(`macOS didn’t lock the screen: ${e}`); }); },

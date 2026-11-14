@@ -108,7 +108,7 @@ export interface Settings {
   widget: 'off' | 'auto' | 'pinned'; // the glass panel on a screen edge
   widgetSide: 'left' | 'right'; // days an item must be untouched before it may be removed; 0 = any age
   island: boolean; // iStash's notifications drop from the top of the screen instead of macOS banners
-  islandGlow: 'amber' | 'blue' | 'pink' | 'green' | 'white';
+  islandGlow: 'amber' | 'blue' | 'pink' | 'green' | 'white' | 'rgb';
   islandSecs: number;
   cleanKinds: string[]; // which kinds the Clean screen has ticked; the schedule cleans the same ones
 }
@@ -116,6 +116,9 @@ export interface Settings {
 export interface Permissions {
   volumes: boolean;
   notify: boolean;
+  camera?: boolean;
+  finder?: boolean; // Apple Events to Finder, for Empty Trash
+  fans?: boolean; // the fan helper, installed once with the password
 }
 
 export interface CleanItem { id: string; name: string; note: string; count: number; size: number; kept?: number } // kept: newer than the age rule
@@ -145,7 +148,7 @@ export interface State {
   /** Popover only: CPU split (percent, last 2 s), seconds since boot, and the quick toggles macOS reports. */
   sys?: { user: number; system: number; idle: number; uptime: number; awake: boolean; screenOn?: boolean; desktopIcons: boolean };
   /** Fans and temperatures (popover only). */
-  sensors?: { fans: { rpm: number; min: number | null; max: number | null }[]; cpu: { avg: number; max: number } | null; gpu: { avg: number; max: number } | null; sensors: { name: string; c: number }[] };
+  sensors?: { fans: { rpm: number; min: number | null; max: number | null; manual?: boolean; target?: number | null }[]; cpu: { avg: number; max: number } | null; gpu: { avg: number; max: number } | null; sensors: { name: string; c: number }[] };
   loginNeedsApproval?: boolean; // macOS waits for the user to allow iStash in Login Items
   unsupported?: (keyof Settings)[]; // settings this build cannot act on; shown as such instead of a dead switch
 }
@@ -182,6 +185,8 @@ export interface Api {
   scan(): Promise<void>;
   set<K extends keyof Settings>(key: K, value: Settings[K]): Promise<void>;
   requestPermission(p: keyof Permissions): Promise<void>;
+  /** Asks for every permission not yet given, one after another. */
+  requestAll(): Promise<void>;
   startHelper(): Promise<void>;
   /** Measures what the cleaner could remove. Changes nothing. */
   cleanScan(): Promise<void>;
@@ -208,6 +213,8 @@ export interface Api {
   keepScreen(on: boolean): Promise<void>;
   testIsland(): Promise<void>;
   openCamera(): Promise<void>;
+  /** Fans: 'auto' gives them back to macOS. The first change asks for the password once. */
+  setFan(mode: 'auto' | 'max' | 'rpm', rpm?: number): Promise<void>;
   /** Sleeps the display, which locks the Mac when a password is required after sleep. */
   lockScreen(): Promise<void>;
   /** Empties the Trash for good, through Finder. */
@@ -445,6 +452,7 @@ export function createMock(scenario: Scenario = 'normal', onboarded = scenario !
     async scan() { await ok(); s.scan = { running: true, checked: 0 }; emit(); setTimeout(() => { s.scan = { running: false, checked: 1284 }; emit(); }, 1600); },
     async set(key, value) { await ok(); s.settings[key] = value; save(); emit(); },
     async requestPermission(p) { await ok(); s.permissions[p] = true; save(); emit(); },
+    async requestAll() { await ok(); Object.assign(s.permissions, { volumes: true, notify: true, camera: true, finder: true, fans: true }); save(); emit(); },
     async startHelper() { helperUp = true; emit(); },
     async cleanScan() {
       await ok();
@@ -465,6 +473,7 @@ export function createMock(scenario: Scenario = 'normal', onboarded = scenario !
     async keepAwake(on) { await ok(); s.sys!.awake = on; emit(); },
     async testIsland() { await ok(); },
     async openCamera() { await ok(); },
+    async setFan(mode, rpm) { await ok(); const f = s.sensors!.fans[0]; f.manual = mode !== 'auto'; f.target = mode === 'max' ? f.max : rpm ?? null; emit(); },
     async keepScreen(on) { await ok(); s.sys!.screenOn = on; emit(); },
     async lockScreen() { await ok(); },
     async emptyTrash() { await ok(); },

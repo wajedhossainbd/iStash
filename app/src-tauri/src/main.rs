@@ -175,6 +175,14 @@ fn show_main(app: &AppHandle) {
 }
 
 fn main() {
+    // The setuid fan helper is a copy of this binary: as root it does fan control and nothing else.
+    let args: Vec<String> = std::env::args().skip(1).collect();
+    // SAFETY: geteuid has no preconditions.
+    let root = unsafe { libc::geteuid() } == 0;
+    if root || args.first().map(String::as_str) == Some("--fan") {
+        std::process::exit(if args.first().map(String::as_str) == Some("--fan") && root { sensors::fan_cli(&args[1..]) } else { 1 });
+    }
+
     // A move runs as this binary with --engine, so Stop can end it and recovery can undo it.
     if let Some(code) = engine::child(&std::env::args().collect::<Vec<_>>()) {
         std::process::exit(code);
@@ -189,7 +197,7 @@ fn main() {
         )
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
-        .invoke_handler(tauri::generate_handler![island::island_hide, island::set_island, island::open_camera, sensors::sensors, quick::keep_screen, net::net_info, net::speed_test, net::speed_servers, disk_io, widget::widget_mode, widget::widget_hover, login::login_status, login::set_login, tune::focus, tune::clean_scan, tune::clean_run, tune::free_memory, app_icon, open_target, notify, appearance_checked, volumes, mem::memory, mem::quit_app, engine::scan_home, engine::plan, engine::start_job, engine::jobs, engine::stop_job, engine::eject, engine::quit_drive_users, engine::set_guard, quick::sys_status, quick::keep_awake, quick::lock_screen, quick::empty_trash, quick::set_desktop_icons])
+        .invoke_handler(tauri::generate_handler![island::island_hide, island::set_island, island::open_camera, island::camera_status, quick::ask_permission, quick::permissions_status, sensors::sensors, sensors::set_fan, quick::keep_screen, net::net_info, net::speed_test, net::speed_servers, disk_io, widget::widget_mode, widget::widget_hover, login::login_status, login::set_login, tune::focus, tune::clean_scan, tune::clean_run, tune::free_memory, app_icon, open_target, notify, appearance_checked, volumes, mem::memory, mem::quit_app, engine::scan_home, engine::plan, engine::start_job, engine::jobs, engine::stop_job, engine::eject, engine::quit_drive_users, engine::set_guard, quick::sys_status, quick::keep_awake, quick::lock_screen, quick::empty_trash, quick::set_desktop_icons])
         .setup(|app| {
             mem::start();
             engine::start();

@@ -189,7 +189,8 @@ const actions: Record<string, (id: string) => unknown> = {
   'install-update': () => api.installUpdate(),
   'clean-ask': () => { ui.dialog = { type: 'clean' }; },
   'confirm-clean': () => { ui.dialog = null; return api.clean(s!.settings.cleanKinds); },
-  grant: (id) => api.requestPermission(id as 'volumes' | 'notify'),
+  grant: (id) => api.requestPermission(id as 'volumes'),
+  'grant-all': () => api.requestAll(),
   'open-main': () => tauri().then((n) => n.showMain()),
   // Popover quick toggles. Each one flips back with a second click.
   'pop-dark': () => api.set('theme', root.querySelector('[data-action="pop-dark"]')?.getAttribute('aria-pressed') === 'true' ? 'light' : 'dark'),
@@ -200,6 +201,11 @@ const actions: Record<string, (id: string) => unknown> = {
   'island-glow': (id) => api.set('islandGlow', id as 'amber'),
   'island-secs': (id) => api.set('islandSecs', Number(id)),
   'pop-camera': () => api.openCamera(),
+  'pop-temps': () => { ui.temps = !ui.temps; render(); },
+  'fan-mode': (id) => {
+    if (id === 'manual') { ui.fanManual = true; render(); return; }
+    return setFan(id as 'auto', undefined);
+  },
   'open-app': (id) => native && tauri().then((n) => n.openTarget(id)),
   'pop-trash': () => { ui.dialog = { type: 'trash' }; },
   'confirm-trash': () => { ui.dialog = null; return api.emptyTrash(); },
@@ -238,6 +244,7 @@ document.addEventListener('change', async (e) => {
   else if (a === 'pick-drive') ui.onboardDrive = id;
   else if (a === 'speed-server') await api.setSpeedServer(el.value);
 
+  else if (a === 'fan-rpm') await setFan('rpm', +el.value).catch((err) => { ui.dialog = { type: 'move', id: '', plan: failed(err) }; });
   else if (a === 'clean-every') await api.set('cleanEvery', el.value as 'off');
   else if (a === 'clean-age') await api.set('cleanAge', +el.value);
   else if (a === 'clean-kind') await api.set('cleanKinds', el.checked ? [...s!.settings.cleanKinds, id] : s!.settings.cleanKinds.filter((k) => k !== id));
@@ -273,6 +280,12 @@ route();
 load().then(poll);
 
 
+// Fans: the first change asks for the password once (to install the helper); errors show like any other.
+async function setFan(mode: 'auto' | 'max' | 'rpm', rpm?: number) {
+  ui.fanBusy = true; render();
+  try { await api.setFan(mode, rpm); ui.fanManual = mode === 'rpm'; if (mode !== 'rpm') ui.fanRpm = undefined; } finally { ui.fanBusy = false; render(); }
+}
+
 // Server picker: typing filters at once and searches the Speedtest list after a pause; arrows move, Enter picks.
 let searchTimer: ReturnType<typeof setTimeout> | undefined;
 async function pickServer(i: number) {
@@ -284,6 +297,7 @@ const openPicker = () => { if (!ui.serverOpen) { ui.serverOpen = true; ui.server
 document.addEventListener('focusin', (e) => { if ((e.target as HTMLElement).dataset?.action === 'server-box') openPicker(); });
 document.addEventListener('input', (e) => {
   const el = e.target as HTMLInputElement;
+  if (el.dataset.action === 'fan-rpm') { ui.fanRpm = +el.value; const o = el.parentElement?.querySelector('.pop-fan-rpm'); if (o) o.textContent = (+el.value).toLocaleString('en-GB'); return; }
   if (el.dataset.action !== 'server-box') return;
   ui.serverOpen = true; ui.serverQuery = el.value; ui.serverIndex = 0; render();
   clearTimeout(searchTimer);

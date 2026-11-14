@@ -1,7 +1,7 @@
-//! Fan speed and temperatures, read only. Fans come from the SMC (the System Management Controller) through its
-//! IOKit user client; temperatures on Apple silicon come from the HID temperature sensors, as Activity tools such as
-//! Stats read them. Setting fan speed would need an administrator helper writing to the SMC, which iStash doesn't
-//! have, so it isn't offered.
+//! Fan speed and temperatures. Fans come from the SMC (the System Management Controller) through its IOKit user
+//! client; temperatures on Apple silicon come from the HID temperature sensors, as tools such as Stats read them.
+//! Setting fan speed needs root: a copy of this binary, installed once with the owner's password as a setuid helper,
+//! runs `--fan auto|max|rpm N` and nothing else (see `fan_cli`, and `set_fan` for the install).
 //! shortcut: sensor names differ by model; CPU and GPU are told apart by name ("tdie", "GPU"), good enough for
 //! averages, not for a per-core list.
 
@@ -78,6 +78,19 @@ impl Smc {
         let r = unsafe { IOConnectCallStructMethod(self.0, 2, input as *const _ as *const c_void, size, &mut out as *mut _ as *mut c_void, &mut size) };
         (r == 0 && out.result == 0).then_some(out)
     }
+    /// Writes a key, sized and typed as the SMC reports it. Needs root.
+    fn write(&self, key: &[u8; 4], value: f64) -> bool {
+        let Some(info) = self.call(&KeyData { key: fourcc(key), data8: 9, ..Default::default() }).map(|o| o.info) else { return false };
+        let mut bytes = [0u8; 32];
+        match &info.kind.to_be_bytes() {
+            b"flt " => bytes[..4].copy_from_slice(&(value as f32).to_le_bytes()),
+            b"ui8 " => bytes[0] = value as u8,
+            b"ui16" => bytes[..2].copy_from_slice(&(value as u16).to_be_bytes()),
+            b"fpe2" => bytes[..2].copy_from_slice(&((value * 4.0) as u16).to_be_bytes()),
+            _ => return false,
+        }
+        self.call(&KeyData { key: fourcc(key), info, data8: 6, bytes, ..Default::default() }).is_some()
+    }
     /// A key's value as a number, for the types fans use.
     fn read(&self, key: &[u8; 4]) -> Option<f64> {
         let info = self.call(&KeyData { key: fourcc(key), data8: 9, ..Default::default() })?.info;
@@ -106,7 +119,9 @@ fn fans() -> Vec<Value> {
         .filter_map(|i| {
             let d = b'0' + i;
             let rpm = smc.read(&[b'F', d, b'A', b'c'])?;
-            Some(json!({ "rpm": rpm.round(), "min": smc.read(&[b'F', d, b'M', b'n']).map(f64::round), "max": smc.read(&[b'F', d, b'M', b'x']).map(f64::round) }))
+            let manual = smc.read(&[b'F', d, b'M', b'd']).unwrap_or(0.0) >= 1.0;
+            Some(json!({ "rpm": rpm.round(), "min": smc.read(&[b'F', d, b'M', b'n']).map(f64::round), "max": smc.read(&[b'F', d, b'M', b'x']).map(f64::round),
+                "manual": manual, "target": smc.read(&[b'F', d, b'T', b'g']).map(f64::round) }))
         })
         .collect()
 }
@@ -177,11 +192,91 @@ pub fn sensors() -> Value {
     })
 }
 
+/// The root helper's whole job: `auto` gives the fans back to macOS, `max` runs them at full speed, `rpm N` holds
+/// them at N, clamped to each fan's own range. Returns the process exit code.
+pub fn fan_cli(args: &[String]) -> i32 {
+    let target = match args {
+        [m] if m == "auto" => None,
+        [m] if m == "max" => Some(f64::MAX),
+        [m, n] if m == "rpm" => match n.parse::<f64>() {
+            Ok(v) if v.is_finite() => Some(v),
+            _ => return 2,
+        },
+        _ => return 2,
+    };
+    let Some(smc) = Smc::open() else { return 3 };
+    let n = smc.read(b"FNum").unwrap_or(0.0) as u8;
+    // Apple silicon only takes manual fan modes after this test-mode key is set; it can take a few seconds.
+    smc.write(b"Ftst", if target.is_some() { 1.0 } else { 0.0 });
+    let mut ok = true;
+    for i in 0..n.min(4) {
+        let d = b'0' + i;
+        let (lo, hi) = (smc.read(&[b'F', d, b'M', b'n']).unwrap_or(0.0), smc.read(&[b'F', d, b'M', b'x']).unwrap_or(0.0));
+        let done = (0..40).any(|_| {
+            let w = match target {
+                None => smc.write(&[b'F', d, b'M', b'd'], 0.0),
+                Some(t) => smc.write(&[b'F', d, b'M', b'd'], 1.0) && smc.write(&[b'F', d, b'T', b'g'], t.clamp(lo, hi.max(lo))),
+            };
+            if !w {
+                std::thread::sleep(std::time::Duration::from_millis(250));
+            }
+            w
+        });
+        ok &= done;
+    }
+    if ok { 0 } else { 4 }
+}
+
+/// Whether the fan helper is installed: owned by root and setuid.
+pub fn fan_ready() -> bool {
+    use std::os::unix::fs::MetadataExt;
+    std::fs::metadata(HELPER).map(|m| m.uid() == 0 && m.mode() & 0o4000 != 0).unwrap_or(false)
+}
+
+const HELPER: &str = "/Library/PrivilegedHelperTools/bd.wajed.stowaway.fan";
+
+/// Sets the fans: "auto", "max", or "rpm" with a speed. The first time, macOS asks for the password to install the
+/// helper; after that it runs without asking.
+#[tauri::command(async)]
+pub fn set_fan(mode: String, rpm: Option<u32>) -> Result<(), String> {
+    let args: Vec<String> = match (mode.as_str(), rpm) {
+        ("auto", _) | ("max", _) => vec![mode.clone()],
+        ("rpm", Some(n)) if n <= 20_000 => vec!["rpm".into(), n.to_string()],
+        _ => return Err("Unknown fan setting.".into()),
+    };
+    if !fan_ready() {
+        let exe = std::env::current_exe().map_err(|e| e.to_string())?;
+        let exe = exe.to_str().filter(|p| !p.contains('\'') && !p.contains('"')).ok_or("iStash's path can't be used.")?;
+        let script = format!(
+            "do shell script \"mkdir -p /Library/PrivilegedHelperTools && cp '{exe}' '{HELPER}' && chown root:wheel '{HELPER}' && chmod 4755 '{HELPER}'\" with prompt \"iStash needs your password once to control the fans.\" with administrator privileges"
+        );
+        let out = std::process::Command::new("/usr/bin/osascript").args(["-e", &script]).output().map_err(|e| e.to_string())?;
+        if !out.status.success() {
+            return Err("Fan control wasn't set up. Nothing was changed.".into());
+        }
+    }
+    let st = std::process::Command::new(HELPER).arg("--fan").args(&args).status().map_err(|e| e.to_string())?;
+    match st.code() {
+        Some(0) => Ok(()),
+        Some(4) => Err("The fan didn't accept the setting. macOS is still in charge of it.".into()),
+        _ => Err("Fan control failed. macOS is still in charge of the fans.".into()),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     #[test]
     fn layout_matches_the_smc() {
         assert_eq!(std::mem::size_of::<super::KeyData>(), 80);
+    }
+
+    #[test]
+    fn fan_cli_refuses_anything_else() {
+        let a = |v: &[&str]| super::fan_cli(&v.iter().map(|s| s.to_string()).collect::<Vec<_>>());
+        assert_eq!(a(&[]), 2);
+        assert_eq!(a(&["rpm"]), 2);
+        assert_eq!(a(&["rpm", "NaN"]), 2);
+        assert_eq!(a(&["rm", "-rf"]), 2);
     }
 
     #[test]

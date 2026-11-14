@@ -62,7 +62,7 @@ Changing any of these breaks existing installs or moved data:
 - Never read `~/Library/Containers` or `~/Library/Group Containers`, and never touch ~/Documents, ~/Desktop, Photos.
   The scan also skips macOS's own `Library/Application Support/com.apple.*` and `Library/Caches/com.apple.*` (reading
   them triggers privacy prompts, such as Apple Music access).
-- No root helper. exFAT targets are refused.
+- No root helper, except the fan helper the owner approved (see AGENTS.md). exFAT targets are refused.
 - Don't push to `main` without the owner's go-ahead: every push publishes a release to everyone.
 
 ## Lessons (paid for already)
@@ -91,6 +91,11 @@ Changing any of these breaks existing installs or moved data:
 - A page that redraws on every poll replaces controls under the mouse; morphdom keeps unchanged nodes.
 
 ## Known gaps
+
+- The fan helper isn't removed when iStash is deleted, and isn't updated with the app (it only drives fans).
+  Remove it with `sudo rm /Library/PrivilegedHelperTools/bd.wajed.stowaway.fan`.
+- Ad-hoc signed builds can lose privacy grants (camera) when the signature changes; reset with
+  `tccutil reset Camera bd.wajed.stowaway`.
 
 - No login agent (T18): everything runs inside the app, so drive warnings and schedules need iStash running
   (Open at login covers this).

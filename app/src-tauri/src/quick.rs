@@ -173,3 +173,28 @@ mod tests {
         assert!(!super::awake());
     }
 }
+
+/// Asks for the permissions iStash uses later, all at once: "camera", "finder" (Apple Events, for Empty Trash) or
+/// "fans" (the one-time password for fan control). Returns whether it's allowed now.
+#[tauri::command(async)]
+pub fn ask_permission(kind: String) -> Result<bool, String> {
+    match kind.as_str() {
+        "camera" => {
+            let st = crate::island::ask_camera();
+            if st == 1 || st == 2 {
+                // Refused before: macOS won't ask again, so open the switch for it.
+                let _ = Command::new("/usr/bin/open").arg("x-apple.systempreferences:com.apple.preference.security?Privacy_Camera").status();
+            }
+            Ok(st == 3)
+        }
+        "finder" => Ok(Command::new("/usr/bin/osascript").args(["-e", "tell application \"Finder\" to get name"]).output().map(|o| o.status.success()).unwrap_or(false)),
+        "fans" => crate::sensors::set_fan("auto".into(), None).map(|_| true),
+        _ => Err("Unknown permission.".into()),
+    }
+}
+
+/// What's already allowed, without asking: camera and fan control.
+#[tauri::command]
+pub fn permissions_status() -> serde_json::Value {
+    serde_json::json!({ "camera": crate::island::camera_status() == 3, "fans": crate::sensors::fan_ready() })
+}

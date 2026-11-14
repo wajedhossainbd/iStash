@@ -12,8 +12,13 @@ updates installed copies through the app itself.
 - **Menu-bar panel:** shortcuts to System Settings, Disk Utility, Activity Monitor and System Information; a Camera
   button that opens a small window with the camera's picture; a **Screen on** toggle that keeps the display awake
   (Awake now keeps the Mac awake but lets the display sleep).
-- **Fan and temperature tile** in the menu-bar panel: fan speed against its range, and CPU temperature. Fan speed is
-  shown, not set: changing it needs administrator rights, which iStash doesn't ask for.
+- **Fan control** in the menu-bar panel: System (macOS decides), Max, or Manual with a speed slider, plus every
+  temperature sensor. The first change asks for your password once, to install a small helper that can only set fan
+  speed. A manual speed lasts until you pick System or restart.
+- The edge widget shows the fan speed and CPU temperature.
+- **Permissions** in Settings and during setup: removable volumes, notifications, camera, Finder (for Empty Trash) and
+  fan control, each with Allow, or Allow all at once, so iStash doesn't stop to ask later.
+- An RGB glow for the island.
 
 ## 0.1.17 — 14 Nov 2026
 

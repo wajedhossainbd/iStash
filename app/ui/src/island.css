@@ -16,8 +16,14 @@ html, body { margin: 0; height: 100%; background: transparent; overflow: hidden;
 .island[data-glow='pink'] { --glow: 255 80 190; }
 .island[data-glow='green'] { --glow: 70 230 140; }
 .island[data-glow='white'] { --glow: 235 235 245; }
+/* RGB: three colours round the pill, cycling through the spectrum. */
+.island[data-glow='rgb'] { --glow: 255 60 90;
+  box-shadow: -10px 4px 22px rgb(255 40 120 / 0.55), 10px 4px 22px rgb(40 160 255 / 0.55), 0 10px 30px rgb(120 255 80 / 0.4), 0 12px 50px rgb(255 200 40 / 0.2); }
+.island[data-glow='rgb'].shown { animation: spectrum 4s linear infinite; }
+@keyframes spectrum { to { filter: hue-rotate(360deg); } }
 .island.shown { opacity: 1; transform: none; }
-.island.open { width: 350px; height: 70px; border-radius: 0 0 26px 26px; animation: breathe 2.4s ease-in-out infinite; }
+.island:not([data-glow='rgb']).open { animation: breathe 2.4s ease-in-out infinite; }
+.island.open { width: 350px; height: 70px; border-radius: 0 0 26px 26px; }
 @keyframes breathe {
   50% { box-shadow: 0 3px 14px rgb(var(--glow) / 0.6), 0 8px 32px rgb(var(--glow) / 0.36), 0 12px 52px rgb(var(--glow) / 0.18); }
 }
@@ -31,4 +37,4 @@ html, body { margin: 0; height: 100%; background: transparent; overflow: hidden;
 .island.open .island-icon { opacity: 1; transform: none; }
 .island.open .island-text { opacity: 1; }
 .island:not(.open) .island-icon, .island:not(.open) .island-text { transition-delay: 0s; }
-@media (prefers-reduced-motion: reduce) { .island, .island-icon, .island-text { transition-duration: 0.01s; } .island.open { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .island, .island-icon, .island-text { transition-duration: 0.01s; } .island.open, .island[data-glow='rgb'].shown { animation: none; } }

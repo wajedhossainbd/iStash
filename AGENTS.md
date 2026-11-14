@@ -65,7 +65,9 @@ Run all three test suites before committing.
 - The engine never removes an original before the copy is verified, and journals every step.
 - Never read `~/Library/Containers`, `~/Library/Group Containers`, macOS's own `com.apple.*` Library folders,
   ~/Documents, ~/Desktop or Photos.
-- No root helper and no admin prompts in normal use.
+- No root helper and no admin prompts in normal use. One exception, the owner's decision (15 Nov 2026): fan control
+  installs a setuid copy of the app binary at `/Library/PrivilegedHelperTools/bd.wajed.stowaway.fan`, once, with the
+  password. As root, the binary only runs `--fan auto|max|rpm N` (`sensors::fan_cli`); keep it that way.
 - Anything that deletes for good (Clean, Empty Trash) shows what it will remove and asks first.
 - The only network calls are update checks and speed tests the user starts. Don't add others without the owner.
 
