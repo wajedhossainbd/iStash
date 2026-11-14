@@ -15,6 +15,8 @@ so your apps carry on as if nothing moved.
 
 [**Download for Mac**](https://github.com/wajedhossainbd/stowaway/releases/latest/download/Stowaway.dmg) · [Install with one command](#install) · [Features](#features)
 
+[![Buy me a coffee](https://img.shields.io/badge/Buy%20me%20a%20coffee-FFDD00?style=for-the-badge&logo=buymeacoffee&logoColor=000000)](https://supportkori.com/wajed)
+
 <br>
 
 ![A short tour of Stowaway](docs/screenshots/tour.gif)
@@ -31,7 +33,7 @@ Stowaway does the move safely, keeps track of every link, and tells you when a d
 
 ## Features
 
-| | |
+| Feature | What it does |
 | --- | --- |
 | **Offload app data** | Finds the big app folders that can live on an external drive and moves them with one click. |
 | **Safe moves** | Copies, checks every file, leaves a link, then removes the original. Stop at any time and everything is put back. |
@@ -130,6 +132,10 @@ repository secret `TAURI_SIGNING_PRIVATE_KEY`; the matching public key is in `ap
 | `docs/screenshots/` | The pictures on this page, taken on sample data |
 
 </details>
+
+## Support
+
+Stowaway is free. If it saved you a drive's worth of space, you can [buy me a coffee](https://supportkori.com/wajed).
 
 ## License
 
