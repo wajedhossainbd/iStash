@@ -1,5 +1,5 @@
-//! The screen-edge widget: a narrow glass panel on the right edge of the main display showing CPU, memory, disk
-//! and drives. "pinned" keeps it out; "auto" tucks it in, leaving a thin edge, and slides it out under the pointer.
+//! The screen-edge widget: a narrow glass panel on the left or right edge of the display showing CPU, memory,
+//! network, disk and drives. "pinned" keeps it out; "auto" tucks it in, leaving a thin edge, and slides it out under the pointer.
 
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::sync::Mutex;

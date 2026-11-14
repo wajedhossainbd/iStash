@@ -1,5 +1,6 @@
 //! The popover's quick toggles and the few readings only it shows. Everything here is something macOS lets an
-//! ordinary app do: no admin password, no private APIs.
+//! ordinary app do, with no admin password. One exception: Lock calls `SACLockScreenImmediate` in Apple's private
+//! login.framework, as Apple menu > Lock Screen does, because no public call locks the screen.
 
 use serde_json::{json, Value};
 use std::process::{Child, Command};

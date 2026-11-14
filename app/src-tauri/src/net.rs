@@ -1,6 +1,7 @@
 //! Network details for the Overview: the active connection (read locally), and an on-demand speed test.
 //! The speed test is the only thing here that goes online, and only when the user asks: it measures against
-//! Cloudflare's public speed-test servers and looks up the public address and provider at ipinfo.io.
+//! Cloudflare, a Speedtest (Ookla) server from their public list, or a file the user picks, and looks up the public
+//! address and provider at ipinfo.io.
 
 use serde_json::{json, Value};
 use std::process::Command;
