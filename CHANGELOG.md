@@ -5,6 +5,10 @@ updates installed copies through the app itself.
 
 ## Unreleased
 
+Nothing yet.
+
+## 0.1.15 — 14 Nov 2026
+
 ### Changed
 - **Clean looks like a phone cleaner.** Memory and storage each get a ring with the amount in the middle. While
   cleaning, the ring sweeps round and particles are pulled into it; rows being cleaned slide aside. When it's done,
