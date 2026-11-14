@@ -1,6 +1,6 @@
 {
   "$schema": "../ui/node_modules/@tauri-apps/cli/config.schema.json",
-  "productName": "Stowaway",
+  "productName": "iStash",
   "version": "0.1.0",
   "identifier": "bd.wajed.stowaway",
   "build": {
@@ -14,7 +14,7 @@
     "windows": [
       {
         "label": "main",
-        "title": "Stowaway",
+        "title": "iStash",
         "width": 1200,
         "height": 760,
         "minWidth": 960,
@@ -36,7 +36,7 @@
       },
       {
         "label": "popover",
-        "title": "Stowaway",
+        "title": "iStash",
         "url": "index.html#/popover",
         "width": 340,
         "height": 320,
@@ -50,7 +50,7 @@
       },
       {
         "label": "widget",
-        "title": "Stowaway",
+        "title": "iStash",
         "url": "index.html#/widget",
         "width": 140,
         "height": 560,

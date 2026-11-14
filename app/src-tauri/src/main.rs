@@ -1,4 +1,4 @@
-// Stowaway app shell: the window, the menu-bar popover and a View > Appearance menu. All data goes through
+// iStash app shell: the window, the menu-bar popover and a View > Appearance menu. All data goes through
 // app/ui/src/api.ts (the agent socket after integration); this process only hosts the UI.
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
@@ -199,15 +199,15 @@ fn main() {
             let tray_menu = Menu::with_items(
                 handle,
                 &[
-                    &MenuItem::with_id(handle, "tray:open", "Open Stowaway", true, None::<&str>)?,
+                    &MenuItem::with_id(handle, "tray:open", "Open iStash", true, None::<&str>)?,
                     &PredefinedMenuItem::separator(handle)?,
-                    &MenuItem::with_id(handle, "tray:quit", "Quit Stowaway", true, None::<&str>)?,
+                    &MenuItem::with_id(handle, "tray:quit", "Quit iStash", true, None::<&str>)?,
                 ],
             )?;
             TrayIconBuilder::with_id("main")
                 .icon(Image::from_bytes(include_bytes!("../icons/tray.png"))?)
                 .icon_as_template(true)
-                .tooltip("Stowaway")
+                .tooltip("iStash")
                 .menu(&tray_menu)
                 .show_menu_on_left_click(false)
                 .on_tray_icon_event(|tray, ev| {
@@ -240,9 +240,9 @@ fn main() {
             Ok(())
         })
         .build(tauri::generate_context!())
-        .expect("failed to start Stowaway")
+        .expect("failed to start iStash")
         .run(|app, event| match event {
-            // Closing the window keeps Stowaway in the menu bar; clicking the Dock icon brings it back.
+            // Closing the window keeps iStash in the menu bar; clicking the Dock icon brings it back.
             RunEvent::WindowEvent { label, event: WindowEvent::CloseRequested { api, .. }, .. } if label == "main" => {
                 api.prevent_close();
                 if let Some(w) = app.get_webview_window("main") {

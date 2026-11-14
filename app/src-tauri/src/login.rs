@@ -1,4 +1,4 @@
-//! Open at login, through macOS's own login item list (SMAppService). Stowaway then shows in System Settings >
+//! Open at login, through macOS's own login item list (SMAppService). iStash then shows in System Settings >
 //! General > Login Items, where it can also be turned off.
 
 use objc2_service_management::{SMAppService, SMAppServiceStatus};

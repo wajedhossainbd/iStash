@@ -1,7 +1,7 @@
 //! Watches for a drive that holds moved folders going away, and for an app being used while its folder is away.
 //! macOS gives no way to stop an app from opening, so this reacts within a few seconds instead: it says which
 //! drive to connect and offers to quit the app before it runs for long without its data.
-//! shortcut: polls every 3 s and covers only moves in Stowaway's journal; folders linked by hand are not watched.
+//! shortcut: polls every 3 s and covers only moves in iStash's journal; folders linked by hand are not watched.
 
 use std::collections::BTreeSet;
 use std::path::Path;

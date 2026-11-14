@@ -145,7 +145,7 @@ export function createReal(invoke: Invoke): Api {
     // One notification per episode: when the forecast first drops inside the chosen window.
     const left = s.forecast?.minutesLeft;
     const due = left != null && left <= s.settings.warnAt;
-    if (due && !warned && s.permissions.notify) invoke('notify', { title: `Memory may run out in about ${left} minutes`, body: s.forecast?.suggest ? `Quitting ${s.forecast.suggest.app} frees the most.` : 'Open Stowaway to see what is using memory.' }).catch(() => {});
+    if (due && !warned && s.permissions.notify) invoke('notify', { title: `Memory may run out in about ${left} minutes`, body: s.forecast?.suggest ? `Quitting ${s.forecast.suggest.app} frees the most.` : 'Open iStash to see what is using memory.' }).catch(() => {});
     warned = due;
     s.memApps = toMemApps(r);
     s.mac.free = r.diskFree || s.mac.free;
@@ -171,7 +171,7 @@ export function createReal(invoke: Invoke): Api {
     } finally { s.clean.busy = false; emit(); }
     await cleanScan();
   };
-  // Schedule: checked at launch and every hour while Stowaway is open; a missed run happens at the next check.
+  // Schedule: checked at launch and every hour while iStash is open; a missed run happens at the next check.
   const DAY = 864e5, EVERY: Record<string, number> = { off: Infinity, daily: DAY, weekly: 7 * DAY, monthly: 30 * DAY };
   const cleanIfDue = async () => {
     const every = s.settings.cleanEvery, kinds = s.settings.cleanKinds;
@@ -191,9 +191,9 @@ export function createReal(invoke: Invoke): Api {
     try {
       const was = s.update.available;
       try { s.update.available = await (await native()).checkUpdate(); }
-      catch { throw new Error('Stowaway couldn’t reach its update page. Check your connection and try again. Nothing was changed.'); }
+      catch { throw new Error('iStash couldn’t reach its update page. Check your connection and try again. Nothing was changed.'); }
       s.update.checked = Date.now();
-      if (s.update.available && s.update.available !== was && s.permissions.notify) invoke('notify', { title: `Stowaway ${s.update.available} is ready`, body: 'Open Settings to install it.' }).catch(() => {});
+      if (s.update.available && s.update.available !== was && s.permissions.notify) invoke('notify', { title: `iStash ${s.update.available} is ready`, body: 'Open Settings to install it.' }).catch(() => {});
     } finally { s.update.busy = false; emit(); }
   };
   // Automatic checks: shortly after launch, then every six hours, when the setting is on. Offline is not an error.
@@ -222,7 +222,7 @@ export function createReal(invoke: Invoke): Api {
     },
     async quitApp(appId) {
       const a = s.memApps.find((x) => x.id === appId);
-      if (!a?.appPath) throw new Error('Stowaway can only quit apps, not background programs. Nothing was changed.');
+      if (!a?.appPath) throw new Error('iStash can only quit apps, not background programs. Nothing was changed.');
       await invoke('quit_app', { path: a.appPath });
     },
     async scan() { await scan(); },

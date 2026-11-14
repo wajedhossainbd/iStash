@@ -1,4 +1,4 @@
-# Stowaway app (Tauri 2)
+# iStash app (Tauri 2)
 
 `ui/` is the web UI (TypeScript, Vite, no framework), ported from `design/prototype/`. `src-tauri/` is the native
 shell: the window, the menu-bar popover, and the commands that run `stowaway-core` (scan, move, bring back, eject
@@ -10,7 +10,7 @@ Updates use `tauri-plugin-updater` against the GitHub releases; see "Releases" i
 ```sh
 cd app/ui && npm install
 npm run app:dev        # the app, with hot reload
-npm run app:build      # app/src-tauri/target/release/bundle/macos/Stowaway.app
+npm run app:build      # app/src-tauri/target/release/bundle/macos/iStash.app
 npm run dev            # the UI alone in a browser at http://127.0.0.1:1420
 npm test               # formatting and mock dry-run checks
 ```

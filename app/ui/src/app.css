@@ -1,4 +1,4 @@
-/* Stowaway app styles, direction Signal (structure ported from design/prototype/app.css). Every value comes from tokens.css; see design/system.md for usage rules. */
+/* iStash app styles, direction Signal (structure ported from design/prototype/app.css). Every value comes from tokens.css; see design/system.md for usage rules. */
 * { box-sizing: border-box; }
 html, body { margin: 0; }
 body {
@@ -509,3 +509,4 @@ h1:focus { outline: none; } /* focused on navigation so VoiceOver announces the 
 .pick-check { width: 14px; height: 14px; color: var(--accent-text); }
 .pick-empty { padding: 16px; color: var(--text-secondary); font: var(--type-callout); }
 .pick-panel { background: color-mix(in srgb, var(--bg-raised) 96%, transparent); }
+.brand-mark { width: 28px; height: 28px; border-radius: 7px; }

@@ -19,7 +19,7 @@ export interface Drive {
   cable: Cable; // assigned on first use, never reused while the drive is known
   connected: boolean;
   lastSeen: number;
-  /** Why Stowaway won't write to it (exFAT, needs First Aid); absent when usable. */
+  /** Why iStash won't write to it (exFAT, needs First Aid); absent when usable. */
   problem?: string;
   /** Formats that can never hold links; such drives are listed only so onboarding can explain the refusal. */
   refused?: boolean;
@@ -56,7 +56,7 @@ export interface Mac {
   free: number;
   system: number;
   apps: number;
-  /** Stowaway keeps this much free on the Mac; a bring-back that would cut into it is refused. */
+  /** iStash keeps this much free on the Mac; a bring-back that would cut into it is refused. */
   reserve: number;
 }
 
@@ -139,7 +139,7 @@ export interface State {
   /** App bundle path Focus is on, or null. */
   focus: string | null;
   clean: { items: CleanItem[] | null; busy: boolean; freed: number | null; last: number | null; memBusy: boolean; memFreed: number | null };
-  loginNeedsApproval?: boolean; // macOS waits for the user to allow Stowaway in Login Items
+  loginNeedsApproval?: boolean; // macOS waits for the user to allow iStash in Login Items
   unsupported?: (keyof Settings)[]; // settings this build cannot act on; shown as such instead of a dead switch
 }
 
@@ -201,7 +201,7 @@ export interface Api {
 
 /** One mounted external volume, as the app shell's read-only `volumes` command reports it. */
 export interface Volume { id: string; name: string; format: string; bus: string; total: number; free: number; writable: boolean; disk?: string }
-/** Bytes per second now and averaged since Stowaway started, and when the drive last read or wrote. */
+/** Bytes per second now and averaged since iStash started, and when the drive last read or wrote. */
 export interface NetInfo { iface: string; kind: string; ip: string; gateway: string }
 export interface SpeedServer { host: string; sponsor: string; city: string; cc: string; km?: number }
 export interface SpeedLive { phase: 'ping' | 'down' | 'up' | 'done'; mbps: number; ping: number | null; pct: number }
@@ -218,8 +218,8 @@ export function toDrives(vols: Volume[], prev: Drive[], holds: (id: string) => b
     const cable = old?.cable ?? CABLES.find((c) => !used.has(c)) ?? CABLES[used.size % CABLES.length];
     used.add(cable);
     const refused = !HOLDS_LINKS.test(v.format);
-    const problem = refused ? `${v.format} can’t hold links safely. Stowaway can use it only after it is erased and reformatted as APFS in Disk Utility.`
-      : v.writable ? undefined : 'macOS mounted it read-only, so Stowaway can’t write to it.';
+    const problem = refused ? `${v.format} can’t hold links safely. iStash can use it only after it is erased and reformatted as APFS in Disk Utility.`
+      : v.writable ? undefined : 'macOS mounted it read-only, so iStash can’t write to it.';
     return { id: v.id, name: v.name, format: v.format, bus: v.bus, total: v.total, free: v.free, cable, connected: true,
       lastSeen: old?.connected ? old.lastSeen : now, ...(refused && { refused }), ...(problem && { problem }) };
   });
@@ -349,7 +349,7 @@ export function createMock(scenario: Scenario = 'normal', onboarded = scenario !
   const folder = (id: string) => s.folders.find((x) => x.id === id)!;
   const drive = (id: string) => s.drives.find((x) => x.id === id)!;
   const live = { cpu: [22, 25, 31, 28, 34, 30, 36, 33, 29, 34], net: [1.2, 2.4, 0.8, 3.9, 4.2, 2.2, 1.1, 5.0, 3.3, 4.2].map((x) => x * 1e6) };
-  const ok = async () => { if (!helperUp) throw new ApiError('helper-down', 'Stowaway’s helper isn’t running.'); };
+  const ok = async () => { if (!helperUp) throw new ApiError('helper-down', 'iStash’s helper isn’t running.'); };
 
   // Jobs advance in the steps the engine reports, about once a second.
   const ticker = setInterval(() => {
@@ -378,7 +378,7 @@ export function createMock(scenario: Scenario = 'normal', onboarded = scenario !
     const it = folder(id), d = drive(it.drive!);
     if (!d.connected) return { ok: false, title: `${d.name} is missing`, reason: `Connect ${d.name} first. Nothing was changed.` };
     if (it.size > s.mac.free - s.mac.reserve) return { ok: false, title: 'Not enough room on this Mac',
-      reason: `${it.app} ${it.name.toLowerCase()} needs ${fmt(it.size)}. This Mac has ${fmt(s.mac.free)} free, and Stowaway keeps ${fmt(s.mac.reserve)} spare so macOS can keep working. Nothing was changed.` };
+      reason: `${it.app} ${it.name.toLowerCase()} needs ${fmt(it.size)}. This Mac has ${fmt(s.mac.free)} free, and iStash keeps ${fmt(s.mac.reserve)} spare so macOS can keep working. Nothing was changed.` };
     return { ok: true, size: it.size, drive: d, quits: it.running ? it.app : null, macFreeAfter: s.mac.free - it.size };
   };
   const start = (id: string, kind: Job['kind'], driveId: string) => {

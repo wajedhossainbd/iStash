@@ -258,7 +258,7 @@ function itemRow(v: V, it: Folder) {
   } else {
     const d = drive(s, it.drive), held = isHeld(s, it);
     verdict = held ? pill('danger', `${d.name} is missing`) + `<span>${esc(it.app)} is held until it’s back</span>`
-      : pill('ok', `On ${d.name}`) + `<span>${it.since ? `Since ${day(it.since)}, checked file by file` : 'Linked by hand, before Stowaway'}</span>`;
+      : pill('ok', `On ${d.name}`) + `<span>${it.since ? `Since ${day(it.since)}, checked file by file` : 'Linked by hand, before iStash'}</span>`;
     // The engine only undoes moves it made itself (its journal has them), so a hand-made link gets no button.
     act = !it.since ? '' : button('Bring back…', 'back', { id: it.id, disabled: held, title: held ? `Connect ${d.name} first` : '', label: `Bring back ${it.app} ${it.name}` });
   }
@@ -275,7 +275,7 @@ export function offload(v: View) {
   if (v.down) return h + `<div class="page-body">${helperDown()}</div>`;
   if (!s || s.scan.running) return h + `<div class="page-body"><section class="card" style="display:grid;gap:8px"><div style="display:flex;justify-content:space-between"><h2>Looking for big app folders…</h2>${s ? `<span class="num secondary">${s.scan.checked.toLocaleString('en-GB')} checked</span>` : ''}</div>${progress(0, true, 'Scanning')}
     <p class="secondary" style="font:var(--type-caption)">Read only. If macOS asks for access, choose Allow.</p></section><div class="table" aria-hidden="true">${head}${skeletonRows(5)}</div></div>`;
-  if (!s.permissions.volumes) return h + `<div class="page-body">${empty({ illus: icon('lock', 'illus'), title: 'Stowaway can’t see your drives',
+  if (!s.permissions.volumes) return h + `<div class="page-body">${empty({ illus: icon('lock', 'illus'), title: 'iStash can’t see your drives',
     body: 'macOS hasn’t allowed access to removable volumes, so nothing can be moved. Nothing was changed.', actions: button('Allow access…', 'grant', { kind: 'primary', id: 'volumes' }) + button('Open System Settings…', 'open', { id: 'privacy' }) })}</div>`;
   if (!usable(s).length) return h + `<div class="page-body">${empty({ illus: ILLUS_PORT, title: 'Connect a drive to start',
     body: 'Plug in an APFS or Mac OS Extended drive.', actions: button('Which drives work?', 'apfs', { kind: 'plain' }) })}</div>`;
@@ -407,12 +407,12 @@ export function drives(v: View) {
     <div class="stats"><span><span class="num" style="color:${low ? 'var(--danger-text)' : ''}">${gb(s.mac.free)}</span> free of ${Math.round(s.mac.total / GB)} GB</span><span>${low ? 'Low' : ''}</span></div></article>`;
   const broken = usable(s).filter((d) => d.connected && d.problem).map((d) => {
     const apps = appsOn(stowedOn(s, d.id));
-    return banner({ kind: 'danger', title: `${esc(d.name)} can’t be read`, body: `${esc(d.problem!)} Stowaway won’t write to it and keeps ${esc(list(apps))} held until it’s repaired.`, actions: button('Open Disk Utility…', 'open', { id: 'disk-utility', kind: 'primary' }) });
+    return banner({ kind: 'danger', title: `${esc(d.name)} can’t be read`, body: `${esc(d.problem!)} iStash won’t write to it and keeps ${esc(list(apps))} held until it’s repaired.`, actions: button('Open Disk Utility…', 'open', { id: 'disk-utility', kind: 'primary' }) });
   });
   const missing = usable(s).filter((d) => !d.connected && stowedOn(s, d.id).length).map((d) => {
     const st = stowedOn(s, d.id), appList = appsOn(st), apps = esc(list(appList)), many = appList.length > 1;
     return banner({ kind: 'danger', ic: 'plug', title: `${esc(d.name)} is missing, so ${apps} ${many ? 'are' : 'is'} held.`,
-      body: `The data is safe on the drive, and the link Stowaway left stops ${apps} from starting over with an empty folder. Plug ${esc(d.name)} in and ${many ? 'they open' : 'it opens'} normally. To keep the data (${gb(sum(st))}) on this Mac instead, plug it in and choose Bring back.` });
+      body: `The data is safe on the drive, and the link iStash left stops ${apps} from starting over with an empty folder. Plug ${esc(d.name)} in and ${many ? 'they open' : 'it opens'} normally. To keep the data (${gb(sum(st))}) on this Mac instead, plug it in and choose Bring back.` });
   });
   return h + `<div class="page-body">${broken.join('')}
     <div class="modules">${shown.map((d) => driveModule(s, d)).join('')}${mac}</div>
@@ -483,7 +483,7 @@ export function settings(v: View) {
       ${row('Edge widget', 'CPU, memory, network and drives on the edge of the screen.', seg('widget-mode', [['off', 'Off'], ['auto', 'Show on hover'], ['pinned', 'Always']], st.widget))}
       ${st.widget === 'off' ? '' : row('Widget edge', '', seg('widget-side', [['left', 'Left'], ['right', 'Right']], st.widgetSide))}
       ${row('Check for updates automatically', '', sw('updates', 'Check for updates automatically'))}
-      ${row(`Version ${esc(s.version)}`, s.update.available ? `Version ${esc(s.update.available)} is available. Stowaway restarts to finish.` : s.update.checked ? `This is the latest version. Checked ${ago(s.update.checked)}.` : '',
+      ${row(`Version ${esc(s.version)}`, s.update.available ? `Version ${esc(s.update.available)} is available. iStash restarts to finish.` : s.update.checked ? `This is the latest version. Checked ${ago(s.update.checked)}.` : '',
         s.update.available ? button(s.update.busy ? 'Updating…' : `Update to ${esc(s.update.available)}`, 'install-update', { kind: 'primary', disabled: s.update.busy }) : button(s.update.busy ? 'Checking…' : 'Check now', 'check-update', { disabled: s.update.busy }))}
     </div></section>
     <section><h2>Moving</h2><div class="group">
@@ -508,7 +508,7 @@ export function onboarding(v: View) {
   const { s, ui } = v;
   const names = ['Welcome', 'Permissions', 'Choose a drive'];
   const aside = `<aside ${drag}><div class="traffic" ${drag}></div>
-    <div style="display:flex;gap:10px;align-items:center;margin-top:20px">${icon('cable', 'brand-mark')}<strong style="font:var(--type-headline)">Stowaway</strong></div>
+    <div style="display:flex;gap:10px;align-items:center;margin-top:20px"><img class="brand-mark" src="/logo.png" alt=""><strong style="font:var(--type-headline)">iStash</strong></div>
     <ol aria-label="Setup steps">${names.map((t, i) => `<li class="${i === ui.onboardStep ? 'is-current' : i < ui.onboardStep ? 'is-done' : ''}" ${i === ui.onboardStep ? 'aria-current="step"' : ''}><span class="n" aria-hidden="true">${i < ui.onboardStep ? '✓' : i + 1}</span>${t}</li>`).join('')}</ol>
     <p class="tertiary" style="margin-top:auto;font:var(--type-caption)">Nothing is moved until you choose.</p></aside>`;
   let main;
@@ -517,15 +517,15 @@ export function onboarding(v: View) {
   else if (ui.onboardStep === 0) {
     const promise = (t: string, d: string) => `${icon('check')}<div><strong style="font:var(--type-emphasis)">${t}</strong><p>${d}</p></div>`;
     main = `<h1>Make room on your Mac.<br>Keep every app working.</h1>
-      <p class="lead">Stowaway moves heavy app data, like AI models, build caches and virtual machines, to an external drive and leaves a link behind, so the apps never notice. It also tells you which app needs which drive and warns before memory runs out.</p>
+      <p class="lead">iStash moves heavy app data, like AI models, build caches and virtual machines, to an external drive and leaves a link behind, so the apps never notice. It also tells you which app needs which drive and warns before memory runs out.</p>
       <div class="promise">${promise('Nothing is removed until the copy is checked', 'File count, size and content are compared first.')}${promise('Your documents are off limits', 'Documents, Desktop, iCloud Drive and app sandboxes are never touched.')}${promise('Every move can be undone', 'Bring anything back with one click, even after a crash.')}${promise('No account, no tracking, free', 'It only goes online to check for updates.')}</div>
       <div class="footer">${button('Continue', 'onboard-next', { kind: 'primary', large: true })}</div>`;
   } else if (ui.onboardStep === 1) {
     const perm = (key: 'volumes' | 'notify', title: string, why: string) => `<div class="perm"><strong>${title}</strong>${s.permissions[key] ? pill('ok', 'Allowed') : button('Allow…', 'grant', { id: key, kind: key === 'volumes' ? 'primary' : '', label: `Allow ${title.toLowerCase()}` })}<p>${why}</p></div>`;
-    main = `<h1>Two permissions</h1><p class="lead">macOS asks once for each, in Stowaway’s name. You can change them later in System Settings.</p>
+    main = `<h1>Two permissions</h1><p class="lead">macOS asks once for each, in iStash’s name. You can change them later in System Settings.</p>
       ${perm('volumes', 'Removable volumes', 'Needed to copy app data to your external drive and check it. Without it nothing can be moved.')}
       ${perm('notify', 'Notifications', 'Optional. Used only for memory warnings and when a drive an app needs is about to be ejected.')}
-      <p class="secondary" style="font:var(--type-callout);max-width:600px">Stowaway doesn’t ask for Full Disk Access and never reads other apps’ sandboxes, so you won’t see a stream of “would like to access” prompts.</p>
+      <p class="secondary" style="font:var(--type-callout);max-width:600px">iStash doesn’t ask for Full Disk Access and never reads other apps’ sandboxes, so you won’t see a stream of “would like to access” prompts.</p>
       <div class="footer">${s.permissions.volumes ? '' : '<span class="tertiary" style="font:var(--type-caption);align-self:center">Allow removable volumes first</span>'}${button('Back', 'onboard-back', { large: true })}${button('Continue', 'onboard-next', { kind: 'primary', large: true, disabled: !s.permissions.volumes, title: s.permissions.volumes ? '' : 'Allow removable volumes first' })}</div>`;
   } else {
     const choice = (d: Drive) => {
@@ -537,7 +537,7 @@ export function onboarding(v: View) {
     };
     main = `<h1>Pick a drive for app data</h1><p class="lead">Use a drive that stays plugged in while you work. You can add more drives later.</p>
       ${s.drives.length ? `<div role="radiogroup" aria-label="Drives" style="display:grid;gap:8px">${s.drives.map(choice).join('')}</div>` : empty({ illus: ILLUS_PORT, title: 'No drive connected', body: 'Plug in an external drive formatted as APFS or Mac OS Extended. You can also skip this and choose later.' })}
-      <div class="footer">${button('Back', 'onboard-back', { large: true })}${button('Start using Stowaway', 'onboard-done', { kind: 'primary', large: true })}</div>`;
+      <div class="footer">${button('Back', 'onboard-back', { large: true })}${button('Start using iStash', 'onboard-done', { kind: 'primary', large: true })}</div>`;
   }
   return `<div class="onboard">${aside}<main>${main}</main></div>`;
 }
@@ -566,8 +566,8 @@ export function widget(v: View) {
       ${d.connected ? bar(used, cableVar(d)) + (io && io.read + io.write > 4096 ? `<span class="edge-sub">↓${rate(io.read)} ↑${rate(io.write)}</span>` : '<span class="edge-sub">idle</span>') : '<span class="edge-sub">Connect it</span>'}
     </div>`;
   }).join('');
-  return `<div class="edge" data-action="open-main" title="Open Stowaway">
-    <div class="edge-head"><i class="edge-live"></i><strong>Stowaway</strong></div>
+  return `<div class="edge" data-action="open-main" title="Open iStash">
+    <div class="edge-head"><i class="edge-live"></i><strong>iStash</strong></div>
     <div class="edge-block"><span class="edge-label">CPU</span><span class="edge-num">${cpu}<small>%</small></span>${spark(m.cpu, 100, tone(cpu, 70, 90))}</div>
     <div class="edge-block"><span class="edge-label">Memory</span><span class="edge-num">${mem}<small>%</small></span>${bar(mem, tone(mem, 60, 80))}${m.swap ? `<span class="edge-sub">swap ${gb(m.swap)}</span>` : ''}</div>
     <div class="edge-block"><span class="edge-label">Network</span><span class="edge-num edge-small">↓ ${rate(m.netIn.at(-1) ?? 0)}</span><span class="edge-sub">↑ ${rate(m.netOut)}</span>${spark(m.netIn, netMax, '#5AC8FA')}</div>
@@ -585,7 +585,7 @@ export function popover(v: View) {
   const advice = !f ? 'The forecast starts once there are enough to see a trend.' : ok ? `Swap ${gb(f.swap)}${f.swapRate < 0 ? ' and falling' : ''}.` : f.suggest ? `Quitting ${esc(f.suggest.app)} frees about ${gb(f.suggest.frees)}.` : '';
   const mini = (label: string, value: string, frac: number, color: string) => `<div><span>${label}</span><strong class="num">${value}</strong>${capacity([{ value: frac, color, label: `${label} ${value}` }], 1)}</div>`;
   const cpu = m?.cpu.at(-1) ?? 0, net = (m?.netIn.at(-1) ?? 0) / 1e6;
-  return `<div class="popover" role="dialog" aria-label="Stowaway">
+  return `<div class="popover" role="dialog" aria-label="iStash">
     <div style="display:flex;gap:8px;align-items:flex-start"><span class="dot ${ok ? 'ok' : 'warn'}" style="margin-top:5px"></span><div><p class="sentence">${sentence}</p>
       <p class="secondary" style="font:var(--type-caption)">${advice}</p></div></div>
     <div class="grid">${mini('CPU', cpu + '%', cpu / 100, 'var(--text-secondary)')}${mini('Memory', (m?.pressure ?? 0) + '%', (m?.pressure ?? 0) / 100, ok ? 'var(--ok-fill)' : 'var(--warn-fill)')}
@@ -595,7 +595,7 @@ export function popover(v: View) {
       return `<div class="drive"><span class="dot ${d.connected ? 'ok' : 'hollow'}"></span>${esc(d.name)}<span class="tertiary">${d.connected ? `${apps.length} app${apps.length === 1 ? '' : 's'} rely on it` : `missing · ${esc(list(apps))} held`}</span></div>`;
     }).join('')}` : ''}
     <hr>
-    <div class="buttons">${ok || !f?.suggest ? '<span></span>' : button(`Quit ${esc(f.suggest.app)}`, 'quit-now', { id: f.suggest.appId })}${button('Open Stowaway', 'open-main', { kind: 'primary' })}</div>
+    <div class="buttons">${ok || !f?.suggest ? '<span></span>' : button(`Quit ${esc(f.suggest.app)}`, 'quit-now', { id: f.suggest.appId })}${button('Open iStash', 'open-main', { kind: 'primary' })}</div>
   </div>`;
 }
 
@@ -631,7 +631,7 @@ export function dialogFor(v: View) {
     case 'why':
       return okOnly(`Why ${esc(it.name.toLowerCase())} can’t move`, esc(it.why || it.reason));
     case 'apfs':
-      return okOnly('Which drives work', 'APFS or Mac OS Extended drives work. exFAT and FAT drives (common on USB sticks) can’t hold the links apps need, so Stowaway won’t use them. Disk Utility can reformat a drive as APFS; that erases it.');
+      return okOnly('Which drives work', 'APFS or Mac OS Extended drives work. exFAT and FAT drives (common on USB sticks) can’t hold the links apps need, so iStash won’t use them. Disk Utility can reformat a drive as APFS; that erases it.');
     case 'eject': {
       const dr = drive(s, d.id), on = stowedOn(s, dr.id), open = on.filter((i) => i.running), apps = appsOn(on);
       return dialog({ title: `${apps.length} app${apps.length === 1 ? '' : 's'} keep data on ${esc(dr.name)}`,
@@ -647,7 +647,7 @@ export function dialogFor(v: View) {
       const a = s.memApps.find((x) => x.id === d.id);
       if (!a) return '';
       return dialog({ title: `Quit ${esc(a.app)}?`, buttons: close() + button('Quit', 'confirm-quit', { kind: 'primary', id: a.id }),
-        body: `<p>Stowaway asks ${esc(a.app)} to quit normally, so it can save its work. ${esc(a.detail)}. This frees about ${gb(a.mem)}.</p>` });
+        body: `<p>iStash asks ${esc(a.app)} to quit normally, so it can save its work. ${esc(a.detail)}. This frees about ${gb(a.mem)}.</p>` });
     }
   }
   return '';

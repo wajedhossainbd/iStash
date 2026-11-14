@@ -1,10 +1,34 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
-  <!-- Stowaway app icon: a jack on the left patched to a drive port on the right (the cable map). -->
-  <rect x="100" y="100" width="824" height="824" rx="185" fill="#1C1E22"/>
-  <rect x="560" y="300" width="250" height="420" rx="48" fill="#2A2D33" stroke="#4A4E57" stroke-width="10"/>
-  <circle cx="685" cy="600" r="52" fill="#0E0F11" stroke="#8C919B" stroke-width="16"/>
-  <circle cx="300" cy="400" r="52" fill="#0E0F11" stroke="#8C919B" stroke-width="16"/>
-  <path d="M300 400 C 420 560, 520 700, 685 600" fill="none" stroke="#4CC2FF" stroke-width="44" stroke-linecap="round"/>
-  <rect x="262" y="378" width="76" height="44" rx="14" fill="#4CC2FF"/>
-  <rect x="647" y="578" width="76" height="44" rx="14" fill="#4CC2FF"/>
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="tile" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFFFFF"/><stop offset="1" stop-color="#E9ECEB"/></linearGradient>
+    <linearGradient id="topWhite" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FFFFFF"/><stop offset="1" stop-color="#EEF2F0"/></linearGradient>
+    <linearGradient id="hill" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="#2E9A57"/><stop offset="0.6" stop-color="#4DB873"/><stop offset="1" stop-color="#8FD4A6"/></linearGradient>
+    <linearGradient id="greenL" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2C8F51"/><stop offset="1" stop-color="#1B6B3B"/></linearGradient>
+    <linearGradient id="greenR" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1F7841"/><stop offset="1" stop-color="#11522B"/></linearGradient>
+    <linearGradient id="whiteL" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#F6F8F7"/><stop offset="1" stop-color="#DCE3DF"/></linearGradient>
+    <linearGradient id="whiteR" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#E8EDEA"/><stop offset="1" stop-color="#CFD8D3"/></linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="160%"><feGaussianBlur in="SourceAlpha" stdDeviation="22"/><feOffset dy="26"/><feComponentTransfer><feFuncA type="linear" slope="0.28"/></feComponentTransfer><feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+    <filter id="tileShadow" x="-10%" y="-10%" width="120%" height="125%"><feGaussianBlur in="SourceAlpha" stdDeviation="14"/><feOffset dy="10"/><feComponentTransfer><feFuncA type="linear" slope="0.22"/></feComponentTransfer><feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+    <clipPath id="topClip"><path d="M512 292 L782 436 L512 580 L242 436 Z"/></clipPath>
+  </defs>
+  <!-- macOS tile -->
+  <rect x="100" y="90" width="824" height="824" rx="185" fill="url(#tile)" filter="url(#tileShadow)"/>
+  <rect x="100.5" y="90.5" width="823" height="823" rx="184.5" fill="none" stroke="#FFFFFF" stroke-opacity="0.9" stroke-width="2"/>
+  <g filter="url(#shadow)" stroke-linejoin="round" stroke-width="34">
+    <!-- lower green slab -->
+    <path d="M242 520 L512 664 L512 770 L242 626 Z" fill="url(#greenL)" stroke="url(#greenL)"/>
+    <path d="M512 664 L782 520 L782 626 L512 770 Z" fill="url(#greenR)" stroke="url(#greenR)"/>
+    <!-- white middle layer -->
+    <path d="M242 436 L512 580 L512 664 L242 520 Z" fill="url(#whiteL)" stroke="url(#whiteL)"/>
+    <path d="M512 580 L782 436 L782 520 L512 664 Z" fill="url(#whiteR)" stroke="url(#whiteR)"/>
+    <!-- top face -->
+    <path d="M512 292 L782 436 L512 580 L242 436 Z" fill="url(#topWhite)" stroke="url(#topWhite)"/>
+  </g>
+  <!-- the green hill rising across the top face -->
+  <g clip-path="url(#topClip)">
+    <path d="M280 470 C 390 540, 470 530, 545 470 C 615 412, 660 362, 730 372 C 775 380, 800 420, 820 440 L 820 640 L 280 640 Z" fill="url(#hill)"/>
+    <path d="M280 470 C 390 540, 470 530, 545 470 C 615 412, 660 362, 730 372" fill="none" stroke="#FFFFFF" stroke-opacity="0.55" stroke-width="5"/>
+  </g>
+  <!-- soft edge highlight on the top -->
+  <path d="M242 436 L512 292 L782 436" fill="none" stroke="#FFFFFF" stroke-width="6" stroke-linejoin="round" stroke-opacity="0.9"/>
 </svg>

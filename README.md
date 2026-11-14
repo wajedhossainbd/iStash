@@ -1,10 +1,10 @@
 <div align="center">
 
-# Stowaway
+# iStash
 
 **Make room on your Mac. Keep every app working.**
 
-Stowaway moves heavy app data to an external drive and leaves a link in its place,
+iStash moves heavy app data to an external drive and leaves a link in its place,
 so your apps carry on as if nothing moved.
 
 [![Latest release](https://img.shields.io/github/v/release/wajedhossainbd/stowaway?label=release&color=C8FF3D&labelColor=15171B)](https://github.com/wajedhossainbd/stowaway/releases/latest)
@@ -13,23 +13,23 @@ so your apps carry on as if nothing moved.
 ![Download 3 MB](https://img.shields.io/badge/download-3%20MB-F2F4F5?labelColor=15171B)
 [![License: GPL 3.0](https://img.shields.io/badge/license-GPL%203.0-F2F4F5?labelColor=15171B)](LICENSE)
 
-[**Download for Mac**](https://github.com/wajedhossainbd/stowaway/releases/latest/download/Stowaway.dmg) · [Install with one command](#install) · [Features](#features)
+[**Download for Mac**](https://github.com/wajedhossainbd/stowaway/releases/latest/download/iStash.dmg) · [Install with one command](#install) · [Features](#features)
 
 [![Buy me a coffee](https://img.shields.io/badge/Buy%20me%20a%20coffee-FFDD00?style=for-the-badge&logo=buymeacoffee&logoColor=000000)](https://supportkori.com/wajed)
 
 <br>
 
-![A short tour of Stowaway](docs/screenshots/tour.gif)
+![A short tour of iStash](docs/screenshots/tour.gif)
 
 </div>
 
-## Why Stowaway
+## Why iStash
 
 A 256 GB Mac fills up fast, and most of the weight isn't your files. It's the data apps keep for themselves: AI models,
 SDKs, build caches, virtual machines, browser caches. Moving those folders by hand works until the drive is unplugged,
 an app starts over with an empty folder, or you forget which app needed which drive.
 
-Stowaway does the move safely, keeps track of every link, and tells you when a drive an app needs isn't there.
+iStash does the move safely, keeps track of every link, and tells you when a drive an app needs isn't there.
 
 ## Features
 
@@ -37,15 +37,15 @@ Stowaway does the move safely, keeps track of every link, and tells you when a d
 | --- | --- |
 | **Offload app data** | Finds the big app folders that can live on an external drive and moves them with one click. |
 | **Safe moves** | Copies, checks every file, leaves a link, then removes the original. Stop at any time and everything is put back. |
-| **Crash-proof** | Every step is written to a journal. An interrupted move is finished or undone the next time Stowaway starts. |
+| **Crash-proof** | Every step is written to a journal. An interrupted move is finished or undone the next time iStash starts. |
 | **Which app needs which drive** | A drive map shows each app's data and where it lives. Open a drive to see every folder on it. |
-| **Eject guard** | macOS asks Stowaway before any eject. If an app still needs the drive, the eject is refused and the app named. |
+| **Eject guard** | macOS asks iStash before any eject. If an app still needs the drive, the eject is refused and the app named. |
 | **Missing-drive warnings** | A notification when a drive with app data disappears, and a prompt to connect it if you open an app that needs it. |
 | **Memory forecast** | Live CPU, memory, disk and network, with a warning before macOS runs out of memory. |
 | **Focus** | Give one app priority: the other apps run in the background until you stop it. |
 | **Clean** | Free up memory with no password, and clear caches, logs, Xcode build files and old temporary files. |
 | **Scheduled cleaning** | Clean daily, weekly, monthly, or once the files pass a size such as 5 GB, and only files older than you choose. |
-| **Updates built in** | New versions install from inside the app, each one checked against Stowaway's signature. |
+| **Updates built in** | New versions install from inside the app, each one checked against iStash's signature. |
 | **Light and dark** | Follows your Mac's appearance, or pick one. |
 
 ## Screenshots
@@ -74,8 +74,8 @@ The download is about 3 MB and the installed app about 6 MB.
 
 ### Download
 
-Get [**Stowaway.dmg**](https://github.com/wajedhossainbd/stowaway/releases/latest/download/Stowaway.dmg), open it,
-and drag Stowaway into Applications.
+Get [**iStash.dmg**](https://github.com/wajedhossainbd/stowaway/releases/latest/download/iStash.dmg), open it,
+and drag iStash into Applications.
 
 ### One command
 
@@ -84,23 +84,23 @@ curl -fsSL https://github.com/wajedhossainbd/stowaway/releases/latest/download/i
 ```
 
 > [!NOTE]
-> Stowaway is not notarised by Apple yet. If macOS says it can't be opened after installing from the DMG, run this
+> iStash is not notarised by Apple yet. If macOS says it can't be opened after installing from the DMG, run this
 > once. The one-command install does it for you.
 >
 > ```sh
-> xattr -dr com.apple.quarantine /Applications/Stowaway.app
+> xattr -dr com.apple.quarantine /Applications/iStash.app
 > ```
 
 ### Updates
 
-Stowaway checks for a new version at launch and every six hours. When one is ready, Settings shows an **Update**
-button; Stowaway installs it and restarts.
+iStash checks for a new version at launch and every six hours. When one is ready, Settings shows an **Update**
+button; iStash installs it and restarts.
 
 ## Privacy and safety
 
 - **Never touched:** Documents, Desktop, iCloud Drive, Photos, Mail and app sandboxes.
-- **No account, no analytics.** Stowaway only goes online to check for updates.
-- **Drives:** APFS or Mac OS Extended. exFAT and FAT can't hold links safely, so Stowaway won't use them.
+- **No account, no analytics.** iStash only goes online to check for updates.
+- **Drives:** APFS or Mac OS Extended. exFAT and FAT can't hold links safely, so iStash won't use them.
 - **Cleaning** deletes for good, never touches folders moved to a drive or macOS's own caches, and always shows what
   it will remove first.
 
@@ -112,7 +112,7 @@ You need Node 22, Rust (stable) and Xcode's command line tools.
 git clone https://github.com/wajedhossainbd/stowaway.git
 cd stowaway/app/ui
 npm install
-npm run app:build    # → app/src-tauri/target/release/bundle/macos/Stowaway.app
+npm run app:build    # → app/src-tauri/target/release/bundle/macos/iStash.app
 ```
 
 `npm run app:dev` runs the app with hot reload; `npm run dev` shows the UI alone in a browser on sample data.
@@ -123,7 +123,7 @@ npm run app:build    # → app/src-tauri/target/release/bundle/macos/Stowaway.ap
 <br>
 
 Every push to `main` runs [`release.yml`](.github/workflows/release.yml): it tests the app, builds the next version,
-and publishes a release with `Stowaway.dmg`, the signed update package and `install.sh`. Updates are signed with the
+and publishes a release with `iStash.dmg`, the signed update package and `install.sh`. Updates are signed with the
 repository secret `TAURI_SIGNING_PRIVATE_KEY`; the matching public key is in `app/src-tauri/tauri.conf.json`.
 
 | Folder | What's in it |
@@ -137,9 +137,9 @@ repository secret `TAURI_SIGNING_PRIVATE_KEY`; the matching public key is in `ap
 
 ## Support
 
-Stowaway is free. If it saved you a drive's worth of space, you can [buy me a coffee](https://supportkori.com/wajed).
+iStash is free. If it saved you a drive's worth of space, you can [buy me a coffee](https://supportkori.com/wajed).
 
 ## License
 
-Stowaway is free software under the [GNU General Public License v3.0](LICENSE). You may use, study, share and change
+iStash is free software under the [GNU General Public License v3.0](LICENSE). You may use, study, share and change
 it; if you distribute a version based on it, it must also be under the GPL.

@@ -1,4 +1,4 @@
-# Every push to main builds Stowaway and publishes it as the latest release: a DMG to download, the signed
+# Every push to main builds iStash and publishes it as the latest release: a DMG to download, the signed
 # update package the app installs by itself, and the install script. Pull requests only build and test.
 name: Release
 
@@ -63,8 +63,8 @@ jobs:
         run: |
           B=app/src-tauri/target/release/bundle
           mkdir out
-          cp "$B"/dmg/*.dmg out/Stowaway.dmg
-          cp "$B/macos/Stowaway.app.tar.gz" out/
+          cp "$B"/dmg/*.dmg out/iStash.dmg
+          cp "$B/macos/iStash.app.tar.gz" out/
           cp install.sh out/
-          node app/latest-json.mjs "$VERSION" "$B/macos/Stowaway.app.tar.gz.sig" "$GITHUB_REPOSITORY" > out/latest.json
-          gh release create "v$VERSION" out/* --latest --title "Stowaway $VERSION" --generate-notes
+          node app/latest-json.mjs "$VERSION" "$B/macos/iStash.app.tar.gz.sig" "$GITHUB_REPOSITORY" > out/latest.json
+          gh release create "v$VERSION" out/* --latest --title "iStash $VERSION" --generate-notes

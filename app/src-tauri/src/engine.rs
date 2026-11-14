@@ -102,7 +102,7 @@ pub fn start() {
                     if let Some(mut e) = j.child.stderr.take() {
                         let _ = std::io::Read::read_to_string(&mut e, &mut err);
                     }
-                    let error = (!status.success() && !j.stopped).then(|| if err.is_empty() { "The move stopped unexpectedly. Nothing was lost; Stowaway put things back.".into() } else { err });
+                    let error = (!status.success() && !j.stopped).then(|| if err.is_empty() { "The move stopped unexpectedly. Nothing was lost; iStash put things back.".into() } else { err });
                     if !status.success() {
                         let cat = Catalog::for_user();
                         let _ = Mover::new(&cat, &idle).recover();

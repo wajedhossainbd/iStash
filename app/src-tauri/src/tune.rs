@@ -15,7 +15,7 @@ fn policy(flag: &str, pid: i32) -> bool {
     Command::new("/usr/sbin/taskpolicy").args([flag, "-p", &pid.to_string()]).status().is_ok_and(|s| s.success())
 }
 
-/// Puts every slowed process back to normal. Also called when Stowaway quits.
+/// Puts every slowed process back to normal. Also called when iStash quits.
 pub fn restore() {
     if let Ok(mut s) = SLOWED.lock() {
         for pid in s.drain(..) {
@@ -24,12 +24,12 @@ pub fn restore() {
     }
 }
 
-/// Which processes Focus slows: apps from an Applications folder, except the focused one, macOS's own and Stowaway.
+/// Which processes Focus slows: apps from an Applications folder, except the focused one, macOS's own and iStash.
 pub fn others(table: &[procs::Proc], focus: &str, me: i32) -> Vec<i32> {
     let focus = format!("{}/", focus.trim_end_matches('/'));
     table
         .iter()
-        .filter(|p| p.pid != me && p.cmd.contains(".app/") && !p.cmd.starts_with("/System/") && !p.cmd.starts_with("/usr/") && !p.cmd.starts_with(&focus) && !p.cmd.contains("/Stowaway.app/"))
+        .filter(|p| p.pid != me && p.cmd.contains(".app/") && !p.cmd.starts_with("/System/") && !p.cmd.starts_with("/usr/") && !p.cmd.starts_with(&focus) && !p.cmd.contains("/iStash.app/") && !p.cmd.contains("/Stowaway.app/"))
         .map(|p| p.pid)
         .collect()
 }
@@ -193,7 +193,7 @@ mod tests {
     fn focus_slows_other_apps_only() {
         let p = |pid, cmd: &str| procs::Proc { pid, cmd: cmd.into() };
         let table = [p(1, "/Applications/Xcode.app/Contents/MacOS/Xcode"), p(2, "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"), p(3, "/Applications/Google Chrome.app/Contents/Frameworks/Helper.app/Contents/MacOS/Helper"),
-            p(4, "/System/Applications/Mail.app/Contents/MacOS/Mail"), p(5, "/usr/bin/python3 x.py"), p(6, "/Applications/Stowaway.app/Contents/MacOS/stowaway-app")];
+            p(4, "/System/Applications/Mail.app/Contents/MacOS/Mail"), p(5, "/usr/bin/python3 x.py"), p(6, "/Applications/iStash.app/Contents/MacOS/stowaway-app")];
         assert_eq!(others(&table, "/Applications/Xcode.app", 6), [2, 3]);
     }
 }
