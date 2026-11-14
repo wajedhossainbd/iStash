@@ -4,7 +4,7 @@ import { esc, gb, tb, day, clock, ago, list, icon, appIcon, button, pill, seg, c
 
 export type Route = 'overview' | 'offload' | 'drives' | 'memory' | 'clean' | 'settings' | 'onboarding' | 'popover' | 'widget';
 export type Dialog = { type: 'move' | 'back' | 'how' | 'why' | 'apfs' | 'eject' | 'quit-app' | 'clean'; id?: string; drive?: string; plan?: Plan };
-export interface Ui { route: Route; dialog: Dialog | null; offloadTab: 'suggested' | 'stowed' | 'all'; onboardStep: number; onboardDrive: string | null; busy: boolean; drive: string | null }
+export interface Ui { route: Route; dialog: Dialog | null; offloadTab: 'suggested' | 'stowed' | 'all'; onboardStep: number; onboardDrive: string | null; busy: boolean; drive: string | null; customServer?: boolean }
 /** s is null while the first state is loading; down when the helper can't be reached. */
 export interface View { s: State | null; m: Metrics | null; ui: Ui; down: boolean; icon: (path?: string) => string | null }
 type V = View & { s: State };
@@ -97,24 +97,41 @@ function metrics(v: V) {
     <div class="metric"><span class="label">Memory</span><span class="figure num">${(m.memUsed / GB).toFixed(1)}<small>of ${Math.round(m.memTotal / GB)} GB</small></span><span class="detail">Swap ${gb(m.swap)} · compressed ${gb(m.compressed)}</span>${capacity([{ value: m.memUsed, color: strained(s) ? 'var(--warn-fill)' : 'var(--ok-fill)', label: `${gb(m.memUsed)} used` }], m.memTotal)}</div>
     <div class="metric ${low ? 'is-danger' : ''}"><span class="label">Disk</span><span class="figure num">${(s.mac.free / GB).toFixed(1)}<small>GB free</small></span><span class="detail">of ${Math.round(s.mac.total / GB)} GB on Macintosh HD</span>${capacity([{ value: s.mac.total - s.mac.free, color: 'var(--text-secondary)', label: `${gb(s.mac.total - s.mac.free)} used` }], s.mac.total)}</div>
     <div class="metric"><span class="label">Network</span><span class="figure num">${(net.at(-1)! / 1e6).toFixed(1)}<small>MB/s in</small></span><span class="detail">${Math.round(m.netOut / 1e3)} KB/s out${s.net?.info ? ` · ${esc(s.net.info.kind)}` : ''}</span>${sparkline(net, 'var(--ok-fill)', Math.max(...net, 1e6))}</div>
-  </div>${internet(s)}`;
+  </div>${internet(s, v.ui)}`;
 }
 
+// Speed test servers. Cloudflare picks the nearest of its sites and also measures upload; the regional ones are
+// public test files, so they measure download and ping only.
+export const SERVERS: [string, string][] = [
+  ['', 'Nearest (Cloudflare)'],
+  ['https://ash-speed.hetzner.com/100MB.bin', 'Washington DC, USA'],
+  ['https://hil-speed.hetzner.com/100MB.bin', 'Oregon, USA'],
+  ['https://proof.ovh.ca/files/100Mb.dat', 'Montréal, Canada'],
+  ['https://sin-speed.hetzner.com/100MB.bin', 'Singapore'],
+  ['https://fsn1-speed.hetzner.com/100MB.bin', 'Falkenstein, Germany'],
+  ['https://hel1-speed.hetzner.com/100MB.bin', 'Helsinki, Finland'],
+  ['https://proof.ovh.net/files/100Mb.dat', 'Roubaix, France'],
+];
+const serverName = (host: string | undefined) => !host ? '' : host === 'Cloudflare' ? 'Cloudflare' : SERVERS.find(([u]) => u.includes(`//${host}/`))?.[1] ?? host;
+
 // Internet: the connection now, the last speed test, its history and the server it used. Tests only run when asked.
-function internet(s: State) {
+function internet(s: State, ui: Ui) {
   const n = s.net;
   if (!n) return '';
   const t = n.test, i = n.info, mbps = (v: number) => v.toFixed(v < 10 ? 1 : 0);
   const fig = (ic: string, label: string, value: string, unit: string) => `<div><span class="label">${icon(ic)}${label}</span><span class="figure num">${value}<small>${unit}</small></span></div>`;
   const fact = (ic: string, label: string, value: string) => value ? `<div class="fact">${icon(ic)}<span>${label}</span><strong class="num" title="${esc(value)}">${esc(value)}</strong></div>` : '';
   const hist = n.history.length > 1 ? `<details class="history"><summary>${icon('history')}History <span class="tertiary">${n.history.length} tests</span></summary>
-    <div class="history-rows">${n.history.map((h) => `<div><span>${day(h.at)} ${clock(h.at)}</span><span class="num">↓ ${mbps(h.down)}</span><span class="num">${h.up == null ? '–' : `↑ ${mbps(h.up)}`}</span><span class="num">${Math.round(h.ping)} ms</span><span class="tertiary">${esc(h.server)}</span></div>`).join('')}</div></details>` : '';
+    <div class="history-rows">${n.history.map((h) => `<div><span>${day(h.at)} ${clock(h.at)}</span><span class="num">↓ ${mbps(h.down)}</span><span class="num">${h.up == null ? '–' : `↑ ${mbps(h.up)}`}</span><span class="num">${Math.round(h.ping)} ms</span><span class="tertiary">${esc(serverName(h.server))}</span></div>`).join('')}</div></details>` : '';
   return `<section class="card internet">
-    <div class="card-head"><h2>Internet</h2><span class="secondary" style="font:var(--type-caption)">${t ? `Tested ${ago(t.at)} · ${esc(t.server)}` : 'Not tested yet'}</span><span class="spacer"></span>
+    <div class="card-head"><h2>Internet</h2><span class="secondary" style="font:var(--type-caption)">${t ? `Tested ${ago(t.at)}${t.server ? ` · ${esc(serverName(t.server))}` : ''}` : 'Not tested yet'}</span><span class="spacer"></span>
       ${button(n.testing ? 'Testing…' : t ? 'Test again' : 'Test speed', 'speed-test', { disabled: n.testing || !i, kind: t ? '' : 'primary' })}</div>
     <div class="internet-figs ${n.testing ? 'is-testing' : ''}">${fig('down', 'Download', t ? mbps(t.down) : '–', 'Mbps')}${fig('up', 'Upload', t?.up != null ? mbps(t.up) : '–', 'Mbps')}${fig('pulse', 'Ping', t ? Math.round(t.ping).toString() : '–', 'ms')}${fig('pulse', 'Jitter', t ? Math.round(t.jitter).toString() : '–', 'ms')}</div>
     <div class="facts">${fact('globe', 'Public IP', t?.ip ?? '')}${fact('building', 'Provider', t?.isp ?? '')}${fact('pin', 'Location', t?.city ? `${t.city}, ${t.country}` : '')}${fact('wifi', i?.kind ?? 'Network', i ? i.ip : 'Not connected')}${fact('router', 'Router', i?.gateway ?? '')}</div>
-    <div class="server-row"><label for="speed-server" class="secondary">Test server</label><input id="speed-server" class="input" data-action="speed-server" placeholder="Cloudflare (default), or a link to a large file" value="${esc(n.server)}" spellcheck="false"></div>
+    ${(() => { const preset = SERVERS.some(([u]) => u === n.server), custom = ui.customServer || !preset;
+      return `<div class="server-row"><label for="speed-server-pick" class="secondary">${icon('globe')}Test server</label>
+      <select class="select" id="speed-server-pick" data-action="speed-server-pick">${SERVERS.map(([u, label]) => `<option value="${esc(u)}" ${!custom && u === n.server ? 'selected' : ''}>${esc(label)}</option>`).join('')}<option value="custom" ${custom ? 'selected' : ''}>Custom file…</option></select>
+      ${custom ? `<input id="speed-server" class="input" data-action="speed-server" placeholder="https://… link to a large file" value="${preset ? '' : esc(n.server)}" spellcheck="false">` : ''}</div>`; })()}
     ${hist}
   </section>`;
 }

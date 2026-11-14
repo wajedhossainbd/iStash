@@ -220,6 +220,7 @@ document.addEventListener('change', async (e) => {
   else if (a === 'setting-select') await api.set('warnAt', +el.value);
   else if (a === 'pick-drive') ui.onboardDrive = id;
   else if (a === 'speed-server') await api.setSpeedServer(el.value);
+  else if (a === 'speed-server-pick') { ui.customServer = el.value === 'custom'; if (!ui.customServer) await api.setSpeedServer(el.value); }
   else if (a === 'clean-every') await api.set('cleanEvery', el.value as 'off');
   else if (a === 'clean-age') await api.set('cleanAge', +el.value);
   else if (a === 'clean-kind') await api.set('cleanKinds', el.checked ? [...s!.settings.cleanKinds, id] : s!.settings.cleanKinds.filter((k) => k !== id));

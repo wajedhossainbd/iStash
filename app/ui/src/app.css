@@ -449,3 +449,6 @@ h1:focus { outline: none; } /* focused on navigation so VoiceOver announces the 
 .edge-block > span { overflow: hidden; display: block; }
 .edge-label { display: flex !important; }
 .edge { height: auto; min-height: 100vh; }
+.server-row { grid-template-columns: auto auto minmax(0, 1fr); }
+.server-row label { display: flex; align-items: center; gap: 6px; }
+.server-row label svg { width: 14px; height: 14px; color: var(--text-tertiary); }
