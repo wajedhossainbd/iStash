@@ -46,7 +46,15 @@
         "visible": false,
         "alwaysOnTop": true,
         "skipTaskbar": true,
-        "shadow": true
+        "shadow": true,
+        "windowEffects": {
+          "effects": [
+            "hudWindow"
+          ],
+          "state": "active",
+          "radius": 16
+        },
+        "theme": "Dark"
       },
       {
         "label": "widget",
@@ -69,7 +77,8 @@
           ],
           "state": "active",
           "radius": 18
-        }
+        },
+        "theme": "Dark"
       }
     ],
     "security": {

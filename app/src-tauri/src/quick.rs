@@ -98,7 +98,23 @@ pub fn stop_awake() {
 /// Sleeps the display; macOS locks it when "Require password after screen saver or display is off" is on.
 #[tauri::command(async)]
 pub fn lock_screen() -> Result<(), String> {
-    ok("/usr/bin/pmset", &["displaysleepnow"])
+    // The same call as the Lock Screen item in the Apple menu (Control-Command-Q). Turning the display off
+    // only locks when "require password immediately" is set, so it is not used.
+    const LOGIN: &std::ffi::CStr = c"/System/Library/PrivateFrameworks/login.framework/Versions/Current/login";
+    // SAFETY: dlopen/dlsym on a system framework; the symbol is a C function taking nothing and returning int.
+    unsafe {
+        let h = libc::dlopen(LOGIN.as_ptr(), libc::RTLD_LAZY);
+        if h.is_null() {
+            return Err("macOS didn’t let iStash lock the screen. Use Control-Command-Q instead.".into());
+        }
+        let f = libc::dlsym(h, c"SACLockScreenImmediate".as_ptr());
+        if f.is_null() {
+            return Err("macOS didn’t let iStash lock the screen. Use Control-Command-Q instead.".into());
+        }
+        let lock: extern "C" fn() -> i32 = std::mem::transmute(f);
+        lock();
+    }
+    Ok(())
 }
 
 /// Empties the Trash through Finder (macOS asks once to let iStash control Finder).
