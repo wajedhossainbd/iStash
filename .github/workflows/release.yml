@@ -5,6 +5,8 @@ name: Release
 on:
   push:
     branches: [main]
+    # Changes to docs alone don't need a new version of the app.
+    paths-ignore: ['**.md', 'docs/**', 'LICENSE']
   pull_request:
 
 permissions:
