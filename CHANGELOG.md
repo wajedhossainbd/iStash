@@ -5,6 +5,10 @@ updates installed copies through the app itself.
 
 ## Unreleased
 
+Nothing yet.
+
+## 0.1.18 — 15 Nov 2026
+
 ### Added
 - **Notch island.** iStash's notifications (drive disconnected or back, memory running out, update ready) drop from
   the top of the screen as a black pill with a neon edge, then shrink back. Choose its glow colour and how long it
