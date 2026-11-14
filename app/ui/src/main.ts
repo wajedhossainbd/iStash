@@ -59,7 +59,8 @@ function render() {
   if (isPopover && native) tauri().then((n) => n.fitPopover(root.firstElementChild as HTMLElement));
   if (isWidget) {
     const e = root.querySelector<HTMLElement>('.edge');
-    if (e) { e.style.zoom = ''; const k = Math.min(1, e.clientHeight / e.scrollHeight); if (k < 1) e.style.zoom = String(Math.max(0.6, k)); }
+    // Shrink the whole column to fit the fixed window: measured unzoomed, applied to the page.
+    if (e) { const r = document.documentElement; r.style.zoom = ''; const k = Math.min(1, innerHeight / e.scrollHeight); r.style.zoom = k < 1 ? String(Math.max(0.55, k - 0.01)) : ''; }
   }
 }
 

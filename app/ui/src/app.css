@@ -448,3 +448,4 @@ h1:focus { outline: none; } /* focused on navigation so VoiceOver announces the 
 .edge-block > * { overflow: visible; }
 .edge-block > span { overflow: hidden; display: block; }
 .edge-label { display: flex !important; }
+.edge { height: auto; min-height: 100vh; }
