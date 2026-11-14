@@ -9,6 +9,7 @@ updates installed copies through the app itself.
 - **New cleaner design.** Memory and storage each show soft, translucent petals drifting round a solid centre with
   the amount, airy in the light theme and glowing in the dark. While cleaning, the petals speed up, particles drift
   in, and a thin ring fills once round the centre; when done, a tick appears with what was freed.
+  In the dark theme it looks like a black hole: a dark centre brightening to a glowing coloured edge.
 - While cleaning, the ring fills once from empty, quickly at first and slowing near the end, instead of a sweep
   that went round and round.
 - After cleaning, the ring shows what was freed for a few seconds, then goes back to the live figure.

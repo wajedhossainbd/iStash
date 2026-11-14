@@ -702,3 +702,30 @@ h1:focus { outline: none; } /* focused on navigation so VoiceOver announces the 
 :root[data-theme="light"] .bloom-petals i { opacity: 0.8; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.85), 0 10px 28px -12px var(--c1); }
 .bloom-core > .bloom-tick { color: var(--text-onFill); }
 .bloom-tick svg path { stroke-width: 2.4; }
+/* Bloom, "black hole" pass for the dark theme: no hard white rims; the petals are blurred glow, and the centre is
+   dark in the middle, brightening through the colour to its edge, like an event horizon. Light theme keeps a
+   pale centre with the same soft inner edge. */
+.bloom-petals i { box-shadow: none; filter: blur(5px); }
+.bloom-petals i { background: radial-gradient(circle at 50% 50%, transparent 38%, var(--c1) 58%, var(--c2) 66%, transparent 71%); }
+.bloom-core { box-shadow: 0 0 0 1px color-mix(in srgb, var(--a-edge, #fff) 0%, transparent), 0 0 28px -4px var(--c1);
+  background: radial-gradient(circle at 50% 50%, #050607 0%, #07090A 52%, color-mix(in srgb, var(--c1) 70%, #050607) 82%, var(--c1) 100%); }
+.bloom-core::after { content: ''; position: absolute; inset: 0; border-radius: 50%; box-shadow: inset 0 0 18px 2px var(--c1), inset 0 0 4px 1px var(--c2); pointer-events: none; }
+.bloom-core > b, .bloom-core > b small { color: #F2F4F5; }
+.bloom-core > span:not(.bloom-tick) { color: rgba(242, 244, 245, 0.7); }
+.bloom.is-done .bloom-core > b { color: #7CF0A8; }
+.bloom.is-busy .bloom-core::after { animation: bloom-horizon 2.2s ease-in-out infinite; }
+@keyframes bloom-horizon { 50% { box-shadow: inset 0 0 26px 4px var(--c1), inset 0 0 6px 1px var(--c2); } }
+:root[data-theme="light"] .bloom-core { background: radial-gradient(circle at 50% 50%, #FFFFFF 0%, #FFFFFF 58%, color-mix(in srgb, var(--c1) 55%, #fff) 86%, var(--c1) 100%); }
+:root[data-theme="light"] .bloom-core > b, :root[data-theme="light"] .bloom-core > b small { color: var(--text-primary); }
+:root[data-theme="light"] .bloom-core > span:not(.bloom-tick) { color: var(--text-secondary); }
+:root[data-theme="light"] .bloom.is-done .bloom-core > b { color: var(--ok-text); }
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) .bloom-core { background: radial-gradient(circle at 50% 50%, #FFFFFF 0%, #FFFFFF 58%, color-mix(in srgb, var(--c1) 55%, #fff) 86%, var(--c1) 100%); }
+  :root:not([data-theme="dark"]) .bloom-core > b, :root:not([data-theme="dark"]) .bloom-core > b small { color: var(--text-primary); }
+  :root:not([data-theme="dark"]) .bloom-core > span:not(.bloom-tick) { color: var(--text-secondary); }
+}
+:root[data-theme="light"] .bloom-petals i { filter: blur(4px); opacity: 0.85; }
+.bloom.mem { --c1: color-mix(in srgb, #8DF05A 70%, transparent); --c2: color-mix(in srgb, #2FC97A 55%, transparent); }
+.bloom.disk { --c1: color-mix(in srgb, #6FA8FF 70%, transparent); --c2: color-mix(in srgb, #A57BFF 55%, transparent); }
+:root[data-theme="light"] .bloom.mem { --c1: color-mix(in srgb, #5CCB7E 45%, transparent); --c2: color-mix(in srgb, #A6E6B9 50%, transparent); }
+:root[data-theme="light"] .bloom.disk { --c1: color-mix(in srgb, #4AA8FF 45%, transparent); --c2: color-mix(in srgb, #A9C8FF 50%, transparent); }
