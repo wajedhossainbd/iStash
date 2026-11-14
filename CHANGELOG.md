@@ -5,6 +5,10 @@ updates installed copies through the app itself.
 
 ## Unreleased
 
+Nothing yet.
+
+## 0.1.16 — 14 Nov 2026
+
 ### Fixed
 - The tick in the cleaner ring was turned sideways; it now sits upright.
 - The cleaner animation no longer repeats one pattern: particles come from varied distances, at their own speed,
