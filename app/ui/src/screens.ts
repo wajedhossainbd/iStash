@@ -388,7 +388,7 @@ export function settings(v: View) {
       ${row('Appearance', 'System follows the light or dark setting of this Mac.', seg('theme', [['light', 'Light'], ['dark', 'Dark'], ['system', 'System']], st.theme))}
       ${row('Open at login', s.loginNeedsApproval ? 'Allow it in System Settings > Login Items.' : '', sw('login', 'Open at login'))}
       ${row('Show in menu bar', '', toggle('menubar', st.menubar, 'Show in menu bar'))}
-      ${row('Edge widget', 'CPU, memory, disk and drives on the right edge of the screen.', seg('widget-mode', [['off', 'Off'], ['auto', 'Show on hover'], ['pinned', 'Always']], st.widget))}
+      ${row('Edge widget', 'CPU, memory, network and drives on the edge of the screen.', seg('widget-mode', [['off', 'Off'], ['auto', 'Show on hover'], ['pinned', 'Always']], st.widget))}
       ${st.widget === 'off' ? '' : row('Widget edge', '', seg('widget-side', [['left', 'Left'], ['right', 'Right']], st.widgetSide))}
       ${row('Check for updates automatically', '', sw('updates', 'Check for updates automatically'))}
       ${row(`Version ${esc(s.version)}`, s.update.available ? `Version ${esc(s.update.available)} is available. Stowaway restarts to finish.` : s.update.checked ? `This is the latest version. Checked ${ago(s.update.checked)}.` : '',
@@ -478,7 +478,7 @@ export function widget(v: View) {
     <div class="edge-head"><i class="edge-live"></i><strong>Stowaway</strong></div>
     <div class="edge-block"><span class="edge-label">CPU</span><span class="edge-num">${cpu}<small>%</small></span>${spark(m.cpu, 100, tone(cpu, 70, 90))}</div>
     <div class="edge-block"><span class="edge-label">Memory</span><span class="edge-num">${mem}<small>%</small></span>${bar(mem, tone(mem, 60, 80))}${m.swap ? `<span class="edge-sub">swap ${gb(m.swap)}</span>` : ''}</div>
-    <div class="edge-block"><span class="edge-label">Network</span><span class="edge-num edge-small">↓ ${rate(m.netIn.at(-1) ?? 0)}</span><span class="edge-sub">↑ ${rate(m.netOut)}</span>${s.net?.test ? `<span class="edge-sub">test ${Math.round(s.net.test.down)}/${s.net.test.up == null ? '–' : Math.round(s.net.test.up)} Mbps</span>` : ''}${spark(m.netIn, netMax, '#5AC8FA')}</div>
+    <div class="edge-block"><span class="edge-label">Network</span><span class="edge-num edge-small">↓ ${rate(m.netIn.at(-1) ?? 0)}</span><span class="edge-sub">↑ ${rate(m.netOut)}</span>${spark(m.netIn, netMax, '#5AC8FA')}</div>
     <div class="edge-block"><span class="edge-label">Disk</span><span class="edge-num edge-small">${gb(s.mac.free)}</span><span class="edge-sub">free</span>${bar(disk, tone(disk, 80, 90))}</div>
     ${drives ? `<div class="edge-rule"></div>${drives}` : ''}
   </div>`;

@@ -440,3 +440,11 @@ h1:focus { outline: none; } /* focused on navigation so VoiceOver announces the 
 .edge-block > * { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 .edge-num { font-size: clamp(15px, 3.2vh, 20px); line-height: 1.1; }
 .edge-num.edge-small { font-size: clamp(13px, 2.4vh, 15px); }
+/* Widget readability: rows always take their full height (zoom shrinks the whole column instead), and the glass
+   is dark enough to read over a light wallpaper. */
+.edge { grid-auto-rows: max-content; background: linear-gradient(180deg, rgba(14, 16, 20, 0.66), rgba(14, 16, 20, 0.78));
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.55); --ink-2: rgba(244, 246, 248, 0.8); --ink-3: rgba(244, 246, 248, 0.62); }
+.edge-block { grid-auto-rows: max-content; }
+.edge-block > * { overflow: visible; }
+.edge-block > span { overflow: hidden; display: block; }
+.edge-label { display: flex !important; }
