@@ -438,21 +438,22 @@ export function memory(v: View) {
 // A cleaner's ring, mobile style: the number in the middle, an arc for how full it is; while working the arc
 // sweeps round and particles are pulled into the centre; when done a tick pops in with what was freed.
 function orb(o: { pct: number; big: string; unit: string; busy: boolean; done: string; tone: 'mem' | 'disk'; small?: boolean; eta?: number }) {
-  const r = 46, len = 2 * Math.PI * r, fill = Math.max(0, Math.min(100, o.pct));
-  // Particles placed by the golden angle, each with its own distance, size, speed, delay and swirl, so the stream
-  // looks natural instead of a repeating ring of dots. Fixed per index, so a redraw doesn't restart them.
+  // Soft translucent petals drift round a solid centre, each on its own period so the motion never visibly repeats.
+  // While working they speed up and a thin arc fills once round the centre; when done a tick pops in.
   const rnd = (i: number, k: number) => { const v = Math.sin(i * 12.9898 + k * 78.233) * 43758.5453; return v - Math.floor(v); };
-  const motes = o.busy ? Array.from({ length: 22 }, (_, i) => {
-    const dur = 1.1 + rnd(i, 1) * 1.3;
-    return `<i style="--a:${((i * 137.5) % 360).toFixed(1)}deg;--r:${(0.75 + rnd(i, 2) * 0.55).toFixed(2)};--s:${(3 + rnd(i, 3) * 6).toFixed(1)}px;--sw:${((rnd(i, 4) - 0.5) * 140).toFixed(0)}deg;--t:${dur.toFixed(2)}s;--d:-${(rnd(i, 5) * dur).toFixed(2)}s"></i>`;
+  const petals = [0, 1, 2, 3, 4].map((i) => `<i style="--rot:${i * 72 + rnd(i, 1) * 30}deg;--dx:${(4 + rnd(i, 2) * 7).toFixed(1)}%;--p:${(11 + i * 4.3).toFixed(1)}s;--sc:${(0.9 + rnd(i, 3) * 0.14).toFixed(2)}"></i>`).join('');
+  const r = 36, len = 2 * Math.PI * r;
+  const motes = o.busy ? Array.from({ length: 16 }, (_, i) => {
+    const dur = 1.2 + rnd(i, 1) * 1.4;
+    return `<b style="--a:${((i * 137.5) % 360).toFixed(1)}deg;--r:${(0.8 + rnd(i, 2) * 0.5).toFixed(2)};--s:${(3 + rnd(i, 3) * 4).toFixed(1)}px;--sw:${((rnd(i, 4) - 0.5) * 120).toFixed(0)}deg;--t:${dur.toFixed(2)}s;--d:-${(rnd(i, 5) * dur).toFixed(2)}s"></b>`;
   }).join('') : '';
-  return `<div class="orb ${o.tone} ${o.small ? 'is-small' : ''} ${o.busy ? 'is-busy' : ''} ${o.done ? 'is-done' : ''}">
-    <svg class="orb-ring" viewBox="0 0 120 120" aria-hidden="true"><defs><linearGradient id="orb-${o.tone}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" class="orb-a"/><stop offset="1" class="orb-b"/></linearGradient></defs>
-      <circle cx="60" cy="60" r="${r}" class="orb-track"/>
-      ${fill > 0 ? `<circle cx="60" cy="60" r="${r}" class="orb-arc" stroke="url(#orb-${o.tone})" stroke-dasharray="${((fill / 100) * len).toFixed(1)} ${len.toFixed(1)}"/>` : ''}
-      ${o.busy ? `<circle cx="60" cy="60" r="${r}" class="orb-progress" stroke-dasharray="${len.toFixed(1)}" style="--len:${len.toFixed(1)}px;--eta:${o.eta ?? 20}s"/>` : ''}</svg>
-    <div class="orb-motes">${motes}</div>
-    <div class="orb-read">${o.done && !o.busy ? `<span class="orb-tick">${icon('check')}</span><b>${esc(o.done)}</b>` : `<b class="num">${esc(o.big)}</b><small>${esc(o.busy ? (o.tone === 'mem' ? 'freeing…' : 'cleaning…') : o.unit)}</small>`}</div>
+  return `<div class="bloom ${o.tone} ${o.small ? 'is-small' : ''} ${o.busy ? 'is-busy' : ''} ${o.done ? 'is-done' : ''}" aria-hidden="true">
+    <div class="bloom-petals">${petals}</div>
+    <div class="bloom-motes">${motes}</div>
+    <div class="bloom-core">
+      ${o.busy ? `<svg viewBox="0 0 80 80"><circle cx="40" cy="40" r="${r}" class="bloom-track"/><circle cx="40" cy="40" r="${r}" class="bloom-progress" stroke-dasharray="${len.toFixed(1)}" style="--len:${len.toFixed(1)}px;--eta:${o.eta ?? 20}s"/></svg>` : ''}
+      ${o.done && !o.busy ? `<span class="bloom-tick">${icon('check')}</span><b>${esc(o.done)}</b>` : `<b class="num">${esc(o.big)}<small>GB</small></b><span>${esc(o.busy ? (o.tone === 'mem' ? 'Freeing memory' : 'Cleaning') : o.unit.replace(/^GB /, ''))}</span>`}
+    </div>
   </div>`;
 }
 
