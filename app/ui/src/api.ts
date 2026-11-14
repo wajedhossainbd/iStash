@@ -133,6 +133,7 @@ export interface State {
   /** App bundle path Focus is on, or null. */
   focus: string | null;
   clean: { items: CleanItem[] | null; busy: boolean; freed: number | null; last: number | null; memBusy: boolean; memFreed: number | null };
+  loginNeedsApproval?: boolean; // macOS waits for the user to allow Stowaway in Login Items
   unsupported?: (keyof Settings)[]; // settings this build cannot act on; shown as such instead of a dead switch
 }
 
@@ -177,7 +178,7 @@ export interface Api {
   checkUpdate(): Promise<void>;
   /** Downloads the release found by checkUpdate, installs it and restarts the app. */
   installUpdate(): Promise<void>;
-  /** Clears macOS's in-memory file cache; macOS asks for an administrator password itself. */
+  /** Makes macOS compress and page out idle apps' memory (no password). */
   freeMemory(): Promise<void>;
   /** Runs every other app in the background so this one gets the processor and disk first; null turns it off. */
   focus(appPath: string | null): Promise<void>;

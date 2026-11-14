@@ -325,8 +325,8 @@ export function clean(v: View) {
   return h + `<div class="page-body">
     <section class="card" style="display:grid;grid-template-columns:1fr auto;gap:8px 32px;align-items:center">
       <div><h2 class="secondary" style="font:var(--type-group)">Memory</h2>${v.m ? `<span class="num" style="font:var(--type-figure)">${gb(v.m.memUsed)}</span> <span class="secondary">of ${Math.round(v.m.memTotal / 2 ** 30)} GB in use${v.m.swap ? ` · swap ${gb(v.m.swap)}` : ''}</span>` : '<span class="secondary">Reading…</span>'}
-        <p class="secondary" style="font:var(--type-callout);margin-top:6px;max-width:640px">${c.memFreed != null ? `<strong style="color:var(--ok-text)">${c.memFreed > 0 ? `${gb(c.memFreed)} of memory became free.` : 'macOS had no cache worth clearing.'}</strong> ` : ''}Clears the file cache macOS keeps in memory. macOS asks for your password itself. Apps keep their own memory; to free more, quit one on the Memory screen.</p></div>
-      <div>${button(c.memBusy ? 'Waiting for macOS…' : 'Free up memory…', 'free-memory', { large: true, disabled: c.memBusy })}</div>
+        <p class="secondary" style="font:var(--type-callout);margin-top:6px;max-width:640px">${c.memFreed != null ? `<strong style="color:var(--ok-text)">${c.memFreed > 0 ? `${gb(c.memFreed)} of memory became free.` : 'macOS had no cache worth clearing.'}</strong> ` : ''}Makes room for the apps you are using: macOS compresses what idle apps hold and moves it to disk. An idle app can take a moment when you switch back to it. Takes up to 30 seconds, no password needed.</p></div>
+      <div>${button(c.memBusy ? 'Freeing memory…' : 'Free up memory', 'free-memory', { large: true, disabled: c.memBusy })}</div>
     </section>
     <h2 style="margin-top:4px">Storage</h2>
     <section class="card" style="display:grid;grid-template-columns:1fr auto auto auto;gap:8px 24px;align-items:end">
@@ -356,7 +356,7 @@ export function settings(v: View) {
   return h + `<div class="page-body"><div class="form">
     <section><h2>General</h2><div class="group">
       ${row('Appearance', 'System follows the light or dark setting of this Mac.', seg('theme', [['light', 'Light'], ['dark', 'Dark'], ['system', 'System']], st.theme))}
-      ${row('Open at login', 'Starts the small helper that watches memory and drives.', sw('login', 'Open at login'))}
+      ${row('Open at login', s.loginNeedsApproval ? 'macOS is waiting for you to allow Stowaway in System Settings > General > Login Items.' : 'Starts Stowaway when you log in, so drive warnings, cleaning and memory warnings keep working.', sw('login', 'Open at login'))}
       ${row('Show in menu bar', '', toggle('menubar', st.menubar, 'Show in menu bar'))}
       ${row('Check for updates automatically', 'Looks for a new version at launch and every six hours.', sw('updates', 'Check for updates automatically'))}
       ${row(`Version ${esc(s.version)}`, s.update.available ? `Version ${esc(s.update.available)} is available. Stowaway restarts to finish.` : s.update.checked ? `This is the latest version. Checked ${ago(s.update.checked)}.` : 'Updates come from the releases on GitHub and are checked against Stowaway’s signature.',

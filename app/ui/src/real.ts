@@ -36,7 +36,6 @@ export function createReal(invoke: Invoke): Api {
     journalPath: '~/Library/Application Support/Stowaway/journal.jsonl',
     update: { available: null, busy: false, checked: null },
     focus: null, clean: { items: null, busy: false, freed: null, memBusy: false, memFreed: null, last: read<{ last: number | null }>('stowaway.clean', { last: null }).last },
-    unsupported: ['login'], // no login helper in this build
   };
   const subs = new Set<(s: State) => void>();
   const emit = () => subs.forEach((fn) => fn(structuredClone(s)));
@@ -154,6 +153,8 @@ export function createReal(invoke: Invoke): Api {
   setTimeout(() => cleanIfDue().catch(() => {}), 60e3);
   setInterval(() => cleanIfDue().catch(() => {}), 36e5);
 
+  // The switch shows what macOS has, not what was last saved: the user can also change it in System Settings.
+  invoke<string>('login_status').then((now) => { s.settings.login = now !== 'off'; s.loginNeedsApproval = now === 'approve'; emit(); }, () => {});
   const native = () => import('./native.ts');
   native().then((n) => n.appVersion()).then((v) => { s.version = v; emit(); }, () => {});
   const checkUpdate = async () => {
@@ -201,6 +202,10 @@ export function createReal(invoke: Invoke): Api {
       s.settings[key] = value;
       save();
       if (key === 'ejectGuard') await invoke('set_guard', { on: value });
+      if (key === 'login') {
+        const now = await invoke<string>('set_login', { on: value }).catch((e) => { s.settings.login = !value; emit(); throw new Error(String(e)); });
+        s.settings.login = now !== 'off'; s.loginNeedsApproval = now === 'approve';
+      }
       // Turning a schedule on starts the clock now, so the first cleaning is one interval away, not at once.
       if (key === 'cleanAge') cleanScan().catch(() => {});
       if (key === 'cleanEvery' && value !== 'off' && s.clean.last == null) { s.clean.last = Date.now(); write('stowaway.clean', { last: s.clean.last }); }

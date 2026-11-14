@@ -49,19 +49,28 @@ pub fn focus(path: Option<String>) -> Result<usize, String> {
     Ok(n)
 }
 
-/// Clears the file cache macOS keeps in memory. macOS only allows this as an administrator, so it shows its own
-/// password prompt; Stowaway never sees the password. Returns the bytes that became free.
+/// Frees memory without a password: macOS's own memory_pressure tool asks for memory until 30% is free, which makes
+/// macOS compress and move to disk what idle apps hold. Returns the bytes that became free.
+/// (Clearing the file cache with purge needs an administrator, so it is not used.)
 #[tauri::command(async)]
 pub fn free_memory() -> Result<u64, String> {
-    let before = crate::mem::free_bytes();
-    let out = Command::new("/usr/bin/osascript")
-        .args(["-e", "do shell script \"/usr/sbin/purge\" with prompt \"Stowaway wants to clear the memory cache.\" with administrator privileges"])
-        .output()
-        .map_err(|e| e.to_string())?;
-    if !out.status.success() {
-        let err = String::from_utf8_lossy(&out.stderr);
-        return Err(if err.contains("-128") { "You cancelled the password prompt. Nothing was changed.".into() } else { format!("macOS didn’t clear the memory cache. {} Nothing was changed.", err.trim()) });
+    // Idle memory goes to swap on the internal disk, so leave it alone when the disk is nearly full.
+    let disk = stowaway_core::fsx::volume(Path::new("/")).map_or(0, |v| v.free);
+    if disk < 20_000_000_000 {
+        return Err("This Mac has less than 20 GB free, and freeing memory needs room on the disk. Clean or move some folders first. Nothing was changed.".into());
     }
+    let before = crate::mem::free_bytes();
+    let mut child = Command::new("/usr/bin/memory_pressure").args(["-p", "30", "-y", "1", "-Q"]).stdout(std::process::Stdio::null()).stderr(std::process::Stdio::null()).spawn().map_err(|e| e.to_string())?;
+    // It stops by itself once 30% is free; never let it hold memory longer than 30 seconds.
+    for _ in 0..60 {
+        if child.try_wait().map_err(|e| e.to_string())?.is_some() {
+            break;
+        }
+        std::thread::sleep(Duration::from_millis(500));
+    }
+    let _ = child.kill();
+    let _ = child.wait();
+    std::thread::sleep(Duration::from_secs(2)); // let macOS hand the pages back
     Ok(crate::mem::free_bytes().saturating_sub(before))
 }
 
