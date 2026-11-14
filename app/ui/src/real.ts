@@ -285,7 +285,7 @@ export function createReal(invoke: Invoke): Api {
     },
     async freeMemory() {
       s.clean.memBusy = true; emit();
-      try { s.clean.memFreed = await invoke<number>('free_memory'); }
+      try { s.clean.memFreed = await invoke<number>('free_memory'); s.clean.memAt = Date.now(); }
       catch (e) { throw new Error(String(e)); }
       finally { s.clean.memBusy = false; emit(); }
     },

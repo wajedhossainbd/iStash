@@ -628,3 +628,18 @@ h1:focus { outline: none; } /* focused on navigation so VoiceOver announces the 
 .orb.is-done .orb-ring { animation: orb-glow 0.9s var(--easing-standard); }
 @keyframes orb-glow { 40% { filter: drop-shadow(0 0 14px var(--a2)); transform: rotate(-90deg) scale(1.05); } }
 .orb-tick svg { transform: none; }
+/* Cleaner ring, third pass. While working, a bright arc fills the ring once, fast at first and slowing as it nears the
+   end (it never loops, so there's no repeating pattern); the result shows for a few seconds, then the live figure.
+   Colours come from theme tokens so the ring reads in light and dark. */
+.orb { --a1: var(--accent-fill); --a2: var(--ok-fill); }
+.orb.disk { --a1: var(--cable-blue); --a2: var(--cable-violet); }
+.orb-sweep { display: none; }
+.orb.is-busy .orb-ring { animation: none; }
+.orb.is-busy .orb-arc { opacity: 0.25; transition: opacity var(--duration-base); }
+.orb-progress { fill: none; stroke: var(--a1); stroke-width: 9; stroke-linecap: round; stroke-dashoffset: var(--len);
+  filter: drop-shadow(0 0 6px color-mix(in srgb, var(--a1) 60%, transparent));
+  animation: orb-progress var(--eta) cubic-bezier(0.1, 0.65, 0.3, 1) forwards; }
+@keyframes orb-progress { to { stroke-dashoffset: calc(var(--len) * 0.06); } }
+.orb-read b { color: var(--text-primary); }
+.orb-tick { color: var(--text-onFill); }
+@media (prefers-reduced-motion: reduce) { .orb-progress { animation-duration: 0s; } }

@@ -5,7 +5,14 @@ updates installed copies through the app itself.
 
 ## Unreleased
 
-Nothing yet.
+### Changed
+- While cleaning, the ring fills once from empty, quickly at first and slowing near the end, instead of a sweep
+  that went round and round.
+- After cleaning, the ring shows what was freed for a few seconds, then goes back to the live figure.
+- **Measure again** is now **Refresh sizes**: it measures how much each kind of file takes up right now.
+
+### Fixed
+- The cleaner rings use the theme's colours, so they read well in the light theme.
 
 ## 0.1.16 — 14 Nov 2026
 

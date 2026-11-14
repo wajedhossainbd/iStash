@@ -437,7 +437,7 @@ export function memory(v: View) {
 // ---------- Clean ----------
 // A cleaner's ring, mobile style: the number in the middle, an arc for how full it is; while working the arc
 // sweeps round and particles are pulled into the centre; when done a tick pops in with what was freed.
-function orb(o: { pct: number; big: string; unit: string; busy: boolean; done: string; tone: 'mem' | 'disk'; small?: boolean }) {
+function orb(o: { pct: number; big: string; unit: string; busy: boolean; done: string; tone: 'mem' | 'disk'; small?: boolean; eta?: number }) {
   const r = 46, len = 2 * Math.PI * r, fill = Math.max(0, Math.min(100, o.pct));
   // Particles placed by the golden angle, each with its own distance, size, speed, delay and swirl, so the stream
   // looks natural instead of a repeating ring of dots. Fixed per index, so a redraw doesn't restart them.
@@ -450,7 +450,7 @@ function orb(o: { pct: number; big: string; unit: string; busy: boolean; done: s
     <svg class="orb-ring" viewBox="0 0 120 120" aria-hidden="true"><defs><linearGradient id="orb-${o.tone}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" class="orb-a"/><stop offset="1" class="orb-b"/></linearGradient></defs>
       <circle cx="60" cy="60" r="${r}" class="orb-track"/>
       ${fill > 0 ? `<circle cx="60" cy="60" r="${r}" class="orb-arc" stroke="url(#orb-${o.tone})" stroke-dasharray="${((fill / 100) * len).toFixed(1)} ${len.toFixed(1)}"/>` : ''}
-      ${o.busy ? `<circle cx="60" cy="60" r="${r}" class="orb-sweep" stroke-dasharray="${(len * 0.18).toFixed(1)} ${len.toFixed(1)}"/>` : ''}</svg>
+      ${o.busy ? `<circle cx="60" cy="60" r="${r}" class="orb-progress" stroke-dasharray="${len.toFixed(1)}" style="--len:${len.toFixed(1)}px;--eta:${o.eta ?? 20}s"/>` : ''}</svg>
     <div class="orb-motes">${motes}</div>
     <div class="orb-read">${o.done && !o.busy ? `<span class="orb-tick">${icon('check')}</span><b>${esc(o.done)}</b>` : `<b class="num">${esc(o.big)}</b><small>${esc(o.busy ? (o.tone === 'mem' ? 'freeing…' : 'cleaning…') : o.unit)}</small>`}</div>
   </div>`;
@@ -458,7 +458,7 @@ function orb(o: { pct: number; big: string; unit: string; busy: boolean; done: s
 
 export function clean(v: View) {
   const s = v.s;
-  const h = header('Clean', 'Free up memory and storage.', s && !v.down ? button('Measure again', 'clean-scan', { disabled: s.clean.busy }) : '');
+  const h = header('Clean', 'Free up memory and storage.', s && !v.down ? button('Refresh sizes', 'clean-scan', { disabled: s.clean.busy, label: 'Measure the storage kinds again' }) : '');
   if (v.down) return h + `<div class="page-body">${helperDown()}</div>`;
   if (!s) return h + loadingPage();
   const c = s.clean, st = s.settings, cols = 'style="grid-template-columns:32px minmax(0,1.2fr) minmax(0,2fr) 100px"';
@@ -467,14 +467,14 @@ export function clean(v: View) {
   const ages: [number, string][] = [[0, 'Any age'], [3, '3 days'], [7, '7 days'], [30, '30 days']];
   return h + `<div class="page-body">
     <section class="card boost-card">
-      ${orb({ pct: v.m ? Math.round((v.m.memUsed / v.m.memTotal) * 100) : 0, big: v.m ? gb(v.m.memUsed).replace(' GB', '') : '–', unit: 'GB in use', busy: c.memBusy, done: c.memFreed != null && !c.memBusy ? (c.memFreed > 0 ? `${gb(c.memFreed)} freed` : 'Already lean') : '', tone: 'mem' })}
+      ${orb({ pct: v.m ? Math.round((v.m.memUsed / v.m.memTotal) * 100) : 0, big: v.m ? gb(v.m.memUsed).replace(' GB', '') : '–', unit: 'GB in use', busy: c.memBusy, done: c.memFreed != null && !c.memBusy && Date.now() - (c.memAt ?? 0) < 8000 ? (c.memFreed > 0 ? `${gb(c.memFreed)} freed` : 'Already lean') : '', tone: 'mem', eta: 25 })}
       <div class="boost-side"><h2>Memory</h2>
         <p class="secondary">${v.m ? `${Math.round(v.m.memTotal / 2 ** 30)} GB total${v.m.swap ? ` · swap ${gb(v.m.swap)}` : ''}` : ''}</p>
         ${button(c.memBusy ? 'Freeing…' : 'Free up memory', 'free-memory', { kind: 'primary', large: true, disabled: c.memBusy })}</div>
     </section>
     <h2 style="margin-top:4px">Storage</h2>
     <section class="card" style="display:grid;grid-template-columns:auto 1fr auto auto auto;gap:8px 24px;align-items:center">
-      <div class="boost-inline">${orb({ pct: Math.min(100, (total / (5 * GB)) * 100), big: c.items ? gb(total).replace(' GB', '') : '…', unit: 'GB to clean', busy: c.busy, done: c.freed != null && c.last && !c.busy && Date.now() - c.last < 60e3 ? `${gb(c.freed)} freed` : '', tone: 'disk', small: true })}</div>
+      <div class="boost-inline">${orb({ pct: Math.min(100, (total / (5 * GB)) * 100), big: c.items ? gb(total).replace(' GB', '') : '…', unit: 'GB to clean', busy: c.busy, done: c.freed != null && c.last && !c.busy && Date.now() - c.last < 8000 ? `${gb(c.freed)} freed` : '', tone: 'disk', small: true, eta: 15 })}</div>
       <span class="secondary" style="font:var(--type-callout)">${c.items && kept > 0.05 * GB && !c.busy ? `${gb(kept)} is newer than ${st.cleanAge} days, so it's kept.` : ''}</span>
       <div class="move-to"><label class="secondary" for="clean-every" style="font:var(--type-group)">Clean automatically</label>
         <select class="select" id="clean-every" data-action="clean-every">${Object.entries(when).map(([k, label]) => `<option value="${k}" ${st.cleanEvery === k ? 'selected' : ''}>${label}</option>`).join('')}</select></div>
