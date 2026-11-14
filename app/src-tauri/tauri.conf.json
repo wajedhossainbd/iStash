@@ -74,7 +74,10 @@
       "minimumSystemVersion": "14.0",
       "signingIdentity": "-"
     },
-    "createUpdaterArtifacts": true
+    "createUpdaterArtifacts": true,
+    "license": "GPL-3.0-only",
+    "copyright": "© 2026 Wajed Hossain. GPL-3.0",
+    "shortDescription": "Move heavy app data to an external drive and keep every app working."
   },
   "plugins": {
     "updater": {
