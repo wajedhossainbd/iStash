@@ -5,7 +5,11 @@ updates installed copies through the app itself.
 
 ## Unreleased
 
-Nothing yet.
+### Changed
+- **Releases are signed with iStash's own certificate**, the same one every time, so macOS recognises each update as
+  the same app and keeps its permissions (camera, external drives, Finder). Before, each update looked like a new app:
+  the camera could stay refused without a prompt, and other permissions were asked again. After this update macOS may
+  ask once more; from then on, permissions carry over.
 
 ## 0.1.18 — 15 Nov 2026
 

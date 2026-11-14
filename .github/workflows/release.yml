@@ -50,12 +50,22 @@ jobs:
           echo "VERSION=$VERSION" >> "$GITHUB_ENV"
           node -e "const f='app/src-tauri/tauri.conf.json',c=require('./'+f);c.version=process.argv[1];require('fs').writeFileSync(f,JSON.stringify(c,null,2)+'\n')" "$VERSION"
 
+      # Every release is signed with the same self-made certificate, so macOS sees each update as the same app and keeps
+      # its permissions (camera, drives, Finder). codesign only uses a trusted certificate, so it is trusted for code
+      # signing on this throwaway runner; users' Macs don't need to trust it.
+      - name: Trust the signing certificate
+        if: github.event_name == 'push'
+        run: sudo security add-trusted-cert -d -r trustRoot -p codeSign -k /Library/Keychains/System.keychain app/src-tauri/signing/istash.crt
+
       - name: Build the app, DMG and update package
         if: github.event_name == 'push'
         working-directory: app/ui
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ""
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: iStash Self Signed
         run: npm run app:build
 
       - name: Publish the release

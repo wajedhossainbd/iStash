@@ -81,6 +81,11 @@ Run all three test suites before committing.
   that heading to the version (`## 0.1.N — date`) and update the release notes if needed.
 - Local builds report version 0.1.0; don't use their "Update" button to test unreleased work.
 
+## Signing
+
+Releases are signed with the "iStash Self Signed" certificate (see HANDOFF.md). Never replace or regenerate it:
+a new certificate makes macOS treat the next update as a different app, and users lose their permissions again.
+
 ## Do not rename
 
 `bd.wajed.stowaway` (bundle id), `~/Library/Application Support/Stowaway/`, the `Stowaway/` folder on each drive,

@@ -120,7 +120,8 @@
     ],
     "macOS": {
       "minimumSystemVersion": "14.0",
-      "signingIdentity": "-"
+      "signingIdentity": "-",
+      "hardenedRuntime": false
     },
     "createUpdaterArtifacts": true,
     "license": "GPL-3.0-only",

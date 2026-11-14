@@ -39,6 +39,13 @@ A local build that should also produce the signed update package needs the signi
 that version, or from `Unreleased`. Pushes that only change `*.md`, `docs/` or `LICENSE` don't release. After a
 release, rename `Unreleased` to the version that was published.
 
+**Code signing:** releases are signed with a self-made certificate, "iStash Self Signed" (10 years, from 15 Nov
+2026). The public certificate is `app/src-tauri/signing/istash.crt`; the private key is `~/.tauri/istash-sign.p12`
+(password in `~/.tauri/istash-sign.pass`) on the owner's Mac and in the repository secrets `APPLE_CERTIFICATE`
+(base64 of the .p12) and `APPLE_CERTIFICATE_PASSWORD`. The workflow trusts the certificate on the runner, because
+`codesign` only uses trusted identities; users' Macs don't need to. Keeping one certificate keeps privacy grants
+(camera, drives, Finder) across updates. Local builds stay ad-hoc signed. Back up the .p12 with the updater key.
+
 **Signing key:** private key at `~/.tauri/stowaway-updater.key` on the owner's Mac and in the repository secret
 `TAURI_SIGNING_PRIVATE_KEY`; public key in `app/src-tauri/tauri.conf.json`. If the key is lost, installed copies can
 never accept another update. Back it up.
@@ -91,9 +98,10 @@ Changing any of these breaks existing installs or moved data:
 - A page that redraws on every poll replaces controls under the mouse; morphdom keeps unchanged nodes.
 - Fan speed needs root. The fan helper is a setuid copy of the app binary in `/Library/PrivilegedHelperTools`; as
   root, `main()` runs only `--fan auto|max|rpm N`. Apple silicon needs the `Ftst` key set before `F0Md` takes.
-- Camera: WKWebView grants `getUserMedia` itself (wry), but macOS must allow iStash first, and the request has to be
-  made on the main thread. A stale "denied" record doesn't show in System Settings; `tccutil reset Camera
-  bd.wajed.stowaway` clears it.
+- Camera: WKWebView grants `getUserMedia` itself (wry), but macOS must allow iStash first, and the request is made on
+  the main thread. With ad-hoc signing every build is a new app to macOS: it kept a hidden "denied" for the bundle id,
+  showed no prompt and no entry in System Settings. Running `tccutil` from inside the app doesn't clear it. A stable
+  signing certificate is the fix. A plain `cargo build` app loads the UI from the dev server: use `npm run app:build`.
 - The island is its own page (`island.html`) in a borderless window above the menu bar (level 26, all Spaces). Its
   window is wider than the pill so the glow isn't cut square.
 - Screenshots: headless Chrome won't go narrower than about 500 px, so narrow windows (panel, widget) are framed in an
@@ -103,8 +111,8 @@ Changing any of these breaks existing installs or moved data:
 
 - The fan helper isn't removed when iStash is deleted, and isn't updated with the app (it only drives fans).
   Remove it with `sudo rm /Library/PrivilegedHelperTools/bd.wajed.stowaway.fan`.
-- Ad-hoc signed builds can lose privacy grants (camera) when the signature changes; reset with
-  `tccutil reset Camera bd.wajed.stowaway`.
+- Local (ad-hoc signed) builds don't share privacy grants with releases. If the camera is refused without a prompt,
+  `tccutil reset Camera bd.wajed.stowaway` clears it (an app can't clear its own record).
 
 - No login agent (T18): everything runs inside the app, so drive warnings and schedules need iStash running
   (Open at login covers this).
