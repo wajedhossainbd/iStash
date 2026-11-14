@@ -53,9 +53,25 @@ jobs:
       # Every release is signed with the same self-made certificate, so macOS sees each update as the same app and keeps
       # its permissions (camera, drives, Finder). codesign only uses a trusted certificate, so it is trusted for code
       # signing on this throwaway runner; users' Macs don't need to trust it.
-      - name: Trust the signing certificate
+      # Tauri's own certificate import only accepts Apple-issued names, so the keychain is set up here and Tauri is
+      # given just the identity name, which it passes to codesign.
+      - name: Set up the signing certificate
         if: github.event_name == 'push'
-        run: sudo security add-trusted-cert -d -r trustRoot -p codeSign -k /Library/Keychains/System.keychain app/src-tauri/signing/istash.crt
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+        run: |
+          KC="$RUNNER_TEMP/istash.keychain-db"
+          echo "$APPLE_CERTIFICATE" | base64 --decode > "$RUNNER_TEMP/istash.p12"
+          security create-keychain -p ci "$KC"
+          security set-keychain-settings -lut 21600 "$KC"
+          security unlock-keychain -p ci "$KC"
+          security import "$RUNNER_TEMP/istash.p12" -k "$KC" -P "$APPLE_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k ci "$KC" > /dev/null
+          security list-keychains -d user -s "$KC" $(security list-keychains -d user | tr -d '"')
+          rm "$RUNNER_TEMP/istash.p12"
+          sudo security add-trusted-cert -d -r trustRoot -p codeSign -k /Library/Keychains/System.keychain app/src-tauri/signing/istash.crt
+          security find-identity -v -p codesigning "$KC" | grep -q '"iStash Self Signed"'
 
       - name: Build the app, DMG and update package
         if: github.event_name == 'push'
@@ -63,8 +79,6 @@ jobs:
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ""
-          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
-          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
           APPLE_SIGNING_IDENTITY: iStash Self Signed
         run: npm run app:build
 
