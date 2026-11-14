@@ -1,8 +1,8 @@
 #!/bin/sh
 # Installs the latest iStash into /Applications.
-#   curl -fsSL https://github.com/wajedhossainbd/stowaway/releases/latest/download/install.sh | sh
+#   curl -fsSL https://github.com/wajedhossainbd/iStash/releases/latest/download/install.sh | sh
 set -eu
-REPO=wajedhossainbd/stowaway
+REPO=wajedhossainbd/iStash
 APP=/Applications/iStash.app
 [ "$(uname -s)" = Darwin ] || { echo "iStash runs on macOS only."; exit 1; }
 [ "$(uname -m)" = arm64 ] || { echo "This build is for Apple Silicon Macs (M1 or later)."; exit 1; }

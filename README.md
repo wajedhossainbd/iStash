@@ -7,13 +7,13 @@
 iStash moves heavy app data to an external drive and leaves a link in its place,
 so your apps carry on as if nothing moved.
 
-[![Latest release](https://img.shields.io/github/v/release/wajedhossainbd/stowaway?label=release&color=C8FF3D&labelColor=15171B)](https://github.com/wajedhossainbd/stowaway/releases/latest)
+[![Latest release](https://img.shields.io/github/v/release/wajedhossainbd/iStash?label=release&color=C8FF3D&labelColor=15171B)](https://github.com/wajedhossainbd/iStash/releases/latest)
 ![macOS 14+](https://img.shields.io/badge/macOS-14%2B-F2F4F5?labelColor=15171B)
 ![Apple Silicon](https://img.shields.io/badge/Apple%20Silicon-M1%20and%20later-F2F4F5?labelColor=15171B)
 ![Download 3 MB](https://img.shields.io/badge/download-3%20MB-F2F4F5?labelColor=15171B)
 [![License: GPL 3.0](https://img.shields.io/badge/license-GPL%203.0-F2F4F5?labelColor=15171B)](LICENSE)
 
-[**Download for Mac**](https://github.com/wajedhossainbd/stowaway/releases/latest/download/iStash.dmg) · [Install with one command](#install) · [Features](#features)
+[**Download for Mac**](https://github.com/wajedhossainbd/iStash/releases/latest/download/iStash.dmg) · [Install with one command](#install) · [Features](#features)
 
 [![Buy me a coffee](https://img.shields.io/badge/Buy%20me%20a%20coffee-FFDD00?style=for-the-badge&logo=buymeacoffee&logoColor=000000)](https://supportkori.com/wajed)
 
@@ -74,13 +74,13 @@ The download is about 3 MB and the installed app about 6 MB.
 
 ### Download
 
-Get [**iStash.dmg**](https://github.com/wajedhossainbd/stowaway/releases/latest/download/iStash.dmg), open it,
+Get [**iStash.dmg**](https://github.com/wajedhossainbd/iStash/releases/latest/download/iStash.dmg), open it,
 and drag iStash into Applications.
 
 ### One command
 
 ```sh
-curl -fsSL https://github.com/wajedhossainbd/stowaway/releases/latest/download/install.sh | sh
+curl -fsSL https://github.com/wajedhossainbd/iStash/releases/latest/download/install.sh | sh
 ```
 
 > [!NOTE]
@@ -109,8 +109,8 @@ button; iStash installs it and restarts.
 You need Node 22, Rust (stable) and Xcode's command line tools.
 
 ```sh
-git clone https://github.com/wajedhossainbd/stowaway.git
-cd stowaway/app/ui
+git clone https://github.com/wajedhossainbd/iStash.git
+cd iStash/app/ui
 npm install
 npm run app:build    # → app/src-tauri/target/release/bundle/macos/iStash.app
 ```
