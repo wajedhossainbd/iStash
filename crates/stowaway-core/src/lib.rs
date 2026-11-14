@@ -37,3 +37,37 @@ pub type Result<T> = std::result::Result<T, Fail>;
 pub(crate) fn fail<T>(msg: impl Into<String>) -> Result<T> {
     Err(Fail(msg.into()))
 }
+
+#[cfg(debug_assertions)]
+#[doc(hidden)]
+pub type StepHook = Option<Box<dyn Fn(&str)>>;
+
+#[cfg(debug_assertions)]
+thread_local! {
+    static STEP_HOOK: std::cell::RefCell<StepHook> = const { std::cell::RefCell::new(None) };
+}
+
+/// Run `hook` at every named step on this thread (debug builds only): fault-injection tests detach drives,
+/// fill them or change files at exact points. `None` removes it.
+#[cfg(debug_assertions)]
+#[doc(hidden)]
+pub fn set_step_hook(hook: StepHook) {
+    STEP_HOOK.with(|h| *h.borrow_mut() = hook);
+}
+
+/// A named step: tests may kill the process here (`STOWAWAY_CRASH_AT`) or run a hook (debug builds only).
+pub(crate) fn step(name: &str) {
+    #[cfg(debug_assertions)]
+    {
+        if std::env::var("STOWAWAY_CRASH_AT").is_ok_and(|v| v == name) {
+            // SAFETY: plain syscalls; SIGKILL ends the process like a crash or power loss would.
+            unsafe { libc::kill(libc::getpid(), libc::SIGKILL) };
+        }
+        STEP_HOOK.with(|h| {
+            if let Some(f) = h.borrow().as_ref() {
+                f(name)
+            }
+        });
+    }
+    let _ = name;
+}

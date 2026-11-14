@@ -1,14 +1,16 @@
 # Stowaway design system
 
-Direction **B · Patch Bay**, chosen by the owner on 9 Nov 2026, after a de-AI pass (below). Tokens live in
+Direction **Signal**, chosen by the owner on 13 Nov 2026 from [`directions/v2/`](directions/v2/): graphite, one lime
+accent, mono instrument numerals, dark first. It restyles Patch Bay (9 Nov) and keeps its screens, flows, components
+and de-AI rules (below). Tokens live in
 [`tokens.json`](tokens.json); `node design/tokens.mjs` regenerates `prototype/tokens.css` and fails if any listed
 colour pair misses WCAG AA. The clickable prototype in [`prototype/`](prototype/) is the reference implementation:
 every component here has a function of the same name in `prototype/ui.js` or `prototype/screens.js`.
 
 ## The idea in one line
 
-Stowaway is a quiet, native Mac utility with **one** signature element: the **cable map**, where apps are patched to
-the drives that hold their data. Everything else looks like a well-made Apple app, so the cables carry the identity.
+Stowaway looks like a calm instrument panel: graphite surfaces, thin borders, mono numerals and a single lime accent.
+Its **one** signature element is the **cable map**, where apps are patched to the drives that hold their data.
 
 ## De-AI rules (what was removed from the first draft, and stays out)
 
@@ -20,7 +22,7 @@ The D1 draft of Patch Bay had the usual tells of generated UI. These rules keep 
    or the empty state.
 3. **No glow, no fake hardware.** No LED glow shadows, screws, brushed faceplates or segmented VU meters. Status is a
    flat 8 px dot; capacity is a plain bar.
-4. **One accent.** Blue for actions (follows the macOS accent when its contrast passes, see Colour). Status colours
+4. **One accent.** Lime for actions (dark green in the light theme). Status colours
    mean status only. Drive colours appear only on that drive's cable, swatch and capacity bar.
 5. **Real icons or nothing.** App rows use the app's real icon from its bundle (`NSWorkspace.icon(forFile:)`). No
    coloured letter tiles. If there is no icon (a CLI tool such as hermes), show a neutral grey tile.
@@ -35,13 +37,13 @@ The D1 draft of Patch Bay had the usual tells of generated UI. These rules keep 
 ## Foundations
 
 ### Colour
-- Light and dark are equal citizens; the app follows the system unless the user picks one in the View menu.
+- Dark is the default; the user can pick Light or System in the View menu. Both themes pass the same contrast checks.
 - Roles: `bg.*` (content, sidebar vibrancy, surface, inset, raised, overlay), `line.*`, `text.*`
   (primary, secondary, tertiary, disabled, onFill), `accent.*`, `ok.*`, `warn.*`, `danger.*`, each with `fill`
   (bars, buttons, dots), `text` (words) and `tint` (backgrounds). Never put `*.fill` colours behind body text and never
   use `*.text` for large fills.
-- **System accent:** read `NSColor.controlAccentColor`; use it for `accent.fill` only if white text on it is ≥ 4.5:1,
-  otherwise keep the token. `accent.text` stays the token (the system colour is often too light as text).
+- **Accent:** fixed lime `#C8FF3D` with near-black text on it (dark green with white text in light). It does not follow
+  the macOS accent. `ok` is a separate green, so "On Samsung T7" is not read as an action.
 - **Drive colours** (`cable.blue`, `orange`, `violet`, `green`, `pink`, `teal`): assigned in the order drives are
   first used, stored with the drive, never reused while that drive is known. `cable.loose` is the hanging cable.
 - **Contrast:** every text pair in `tokens.json → contrast.text` is ≥ 4.5:1 and every graphic pair ≥ 3:1, in both
@@ -51,24 +53,24 @@ The D1 draft of Patch Bay had the usual tells of generated UI. These rules keep 
 ### Type
 | Token | Use |
 |---|---|
-| `title` 20/24 bold | page titles |
+| `title` 20/24 semibold | page titles |
+| `display` 28/34 semibold | the forecast sentence |
 | `headline` 15/20 semibold | card titles, empty-state titles |
 | `body` 13/18, `emphasis` 13/18 semibold | everything else; row names |
 | `callout` 12/16 | buttons, secondary text |
 | `caption` 11/14, `group` 11/14 semibold | captions, sidebar groups, column headers |
-| `figure` mono 24/28 | the one big number of a card |
+| `figure` mono 28/32, tight tracking | the one big number of a card |
 | `number` mono 13/18, `path` mono 11/14 | sizes, percentages, paths |
 
 SF Pro comes from the system. JetBrains Mono (OFL) is bundled with the app; the prototype loads it from Google Fonts.
-Numbers always use tabular figures. The forecast sentence is SF Pro 22/28 semibold, the only text above 20 pt
-except onboarding headings (26/32).
+Numbers always use tabular figures. Only the forecast sentence and onboarding headings (26/32) go above 20 pt.
 
 ### Space, radius, elevation
 - Spacing on a 4 px grid (`space.1`..`space.10` = 2…40 px). Page padding 24, card padding 16, gaps 12–16.
 - Radius: `xs 4` pills · `sm 6` buttons and nav rows · `md 8` drive modules · `lg 10` cards, tables, banners ·
   `xl 12` window, dialogs, popover.
-- Elevation: `1` buttons and selected segments, `2` raised cards, `3` popover, `4` window and sheets. Cards on the
-  content background use a hairline, not a shadow.
+- Elevation: `1` is a 1 px border, not a shadow (buttons, selected segment). `3` popover, `4` sheets. Cards use a
+  1 px `line.hairline` border. The forecast card gets a 2 px `warn.fill` top edge while memory is strained.
 
 ### Motion
 - Durations: `fast 120` (hover, toggles), `base 200` (fades, highlights), `slow 320` (sheets, progress),
@@ -98,12 +100,12 @@ Window 1200 × 760 default, minimum 960 × 640. Merged title bar, traffic lights
 Each entry: what it is, its states, and its rules. Names match the prototype functions.
 
 ### `sidebar` / nav item
-Row 28 px, icon 16 px in `accent.text`, label `body`. Active: `line.strong` background, `aria-current="page"`.
+Row 28 px, icon 16 px in `accent.text`, label `body`. Active: `bg.inset` background with a 2 px accent bar on the left, `aria-current="page"`.
 Badge on the right: a count in mono `caption`, or a status (`1 missing` in `danger.text`, a warn dot for strained
 memory). No badges for things that need no action.
 
 ### `button`
-Variants: default (raised, `elevation.1`), `primary` (accent fill, white semibold), `danger` (only for actions that
+Variants: default (raised, `elevation.1`), `primary` (accent fill, `text.onFill` semibold), `danger` (only for actions that
 lose data, which v1 has none of), `plain` (accent text, for "Why?" and "Stop"). Sizes: regular 24 px, `large` 30 px
 for onboarding. One primary button per view or dialog. Labels are verbs; an ellipsis means a dialog follows
 ("Move…"). Disabled buttons keep a `title` saying why, and the reason is also shown as text next to them.
@@ -117,7 +119,7 @@ State words only: `accent` "Can move", `neutral` "Use Docker Desktop's setting",
 `ok` "On Samsung T7" / "Allowed", `warn` "Strained". Always followed by a caption with the reason.
 
 ### `capacity` (bar)
-Plain bar, 8 px (14 px large), parts in a fixed order: system, apps, movable (accent) or app data (drive colour),
+Plain bar, 6 px (10 px large), parts in a fixed order: system, apps, movable (accent) or app data (drive colour),
 other, free (track). Always paired with numbers in text; has an `aria-label`.
 
 ### `metric` tile and `sparkline`
