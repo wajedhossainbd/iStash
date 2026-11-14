@@ -405,8 +405,8 @@ export function createMock(scenario: Scenario = 'normal', onboarded = scenario !
     async startHelper() { helperUp = true; emit(); },
     async cleanScan() {
       await ok();
-      s.clean.items = [['caches', 'App caches', 'Files apps keep to start faster. They rebuild them when needed.', 41, 6.4], ['logs', 'Logs', 'Old diagnostic logs from apps.', 18, 0.3],
-        ['derived', 'Xcode build files', 'Xcode rebuilds these the next time a project is built.', 7, 11.2], ['temp', 'Old temporary files', 'Temporary files untouched for more than three days.', 96, 0.8]]
+      s.clean.items = [['caches', 'App caches', 'Apps rebuild them.', 41, 6.4], ['logs', 'Logs', 'Diagnostic logs.', 18, 0.3],
+        ['derived', 'Xcode build files', 'Xcode rebuilds them.', 7, 11.2], ['temp', 'Old temporary files', 'Left behind by apps.', 96, 0.8]]
         .map(([id, name, note, count, size]) => ({ id, name, note, count, size: (size as number) * GB }) as CleanItem);
       emit();
     },

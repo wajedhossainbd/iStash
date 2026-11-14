@@ -75,10 +75,10 @@ pub fn free_memory() -> Result<u64, String> {
 }
 
 pub const KINDS: [(&str, &str, &str); 4] = [
-    ("caches", "App caches", "Files apps keep to start faster. They rebuild them when needed."),
-    ("logs", "Logs", "Old diagnostic logs from apps."),
-    ("derived", "Xcode build files", "Xcode rebuilds these the next time a project is built."),
-    ("temp", "Old temporary files", "Temporary files apps left behind, at least three days old."),
+    ("caches", "App caches", "Apps rebuild them."),
+    ("logs", "Logs", "Diagnostic logs."),
+    ("derived", "Xcode build files", "Xcode rebuilds them."),
+    ("temp", "Old temporary files", "Left behind by apps."),
 ];
 
 /// When anything inside `p` was last changed. Links are not followed.

@@ -28,7 +28,7 @@ const header = (title: string, subtitle: string, right = '') =>
   `<header class="page-header" ${drag}><h1 tabindex="-1" ${drag}>${title}</h1><span class="subtitle" ${drag}>${subtitle}</span><span class="spacer" ${drag}></span>${right}</header>`;
 
 const helperDown = () => empty({ illus: icon('power', 'illus'), title: 'The background helper isn’t running',
-  body: 'Live numbers, memory forecasts and eject warnings come from Stowaway’s helper, which starts at login.',
+  body: 'Live numbers and warnings need it running.',
   actions: button('Start helper', 'start-helper', { kind: 'primary' }) + button('Open Login Items…', 'open', { id: 'login-items' }) });
 
 // ---------- Sidebar ----------
@@ -65,7 +65,7 @@ const runsOut = (f: Forecast) => f.minutesLeft == null ? 'Memory is running shor
 function forecastCard(v: V, { big = false } = {}) {
   const { s, m, ui } = v, f = s.forecast;
   if (!f) return `<section class="card" style="display:grid;gap:10px" aria-busy="true"><span class="skeleton" style="height:14px;width:30%"></span><span class="skeleton" style="height:26px;width:60%"></span><span class="skeleton" style="height:${big ? 200 : 120}px"></span>
-    <p class="secondary">Collecting samples. The memory forecast starts once there are enough to see a trend.</p></section>`;
+    <p class="secondary">Collecting samples for the forecast…</p></section>`;
   const ok = f.condition === 'fine';
   const back = Math.min(20, f.history.length - 1), grew = f.history.at(-1)! - f.history.at(-1 - back)!;
   return `<section class="card${ok ? '' : ' is-alert'}" aria-labelledby="fc-title">
@@ -73,7 +73,7 @@ function forecastCard(v: V, { big = false } = {}) {
       <div style="display:grid;gap:6px">
         <div style="display:flex;gap:8px;align-items:center"><h2 class="secondary" style="font:var(--type-group)">Memory forecast</h2>${ok ? pill('ok', 'Fine') : pill(f.condition === 'critical' ? 'danger' : 'warn', f.condition === 'critical' ? 'Critical' : 'Strained')}</div>
         <p class="sentence" id="fc-title">${ok ? 'Memory looks fine for the next few hours.' : runsOut(f)}</p>
-        <p class="why">${ok ? `Swap is ${gb(f.swap)}${f.swapRate < 0 ? ' and shrinking' : ''}. Stowaway keeps watching and will warn you well before it matters.`
+        <p class="why">${ok ? `Swap ${gb(f.swap)}${f.swapRate < 0 ? ', shrinking' : ''}.`
           : `Swap grew ${gb(grew)} in the last ${back} minute${back === 1 ? '' : 's'}. It has room for ${gb(f.swapLimit - f.swap)} more. When swap can’t grow, macOS shows “Your system has run out of application memory” and pauses apps.`}</p>
         ${ok || !f.suggest ? '' : `<div class="actions">${button(`Quit ${esc(f.suggest.app)}…`, 'quit-app', { kind: 'primary', id: f.suggest.appId })}${ui.route === 'memory' ? '' : button('What’s using memory', 'go', { id: 'memory' })}<span class="tertiary" style="font:var(--type-caption)">Frees about ${gb(f.suggest.frees)}</span></div>`}
       </div>
@@ -163,11 +163,11 @@ export function offload(v: View) {
   const head = '<div class="table-head" role="row"><span></span><span>Folder</span><span>Where it lives</span><span style="text-align:right">Size</span><span>Verdict</span><span></span></div>';
   if (v.down) return h + `<div class="page-body">${helperDown()}</div>`;
   if (!s || s.scan.running) return h + `<div class="page-body"><section class="card" style="display:grid;gap:8px"><div style="display:flex;justify-content:space-between"><h2>Looking for big app folders…</h2>${s ? `<span class="num secondary">${s.scan.checked.toLocaleString('en-GB')} checked</span>` : ''}</div>${progress(0, true, 'Scanning')}
-    <p class="secondary" style="font:var(--type-caption)">Skipping app sandboxes, Documents and Desktop. Nothing is changed while scanning. If macOS asks whether Stowaway may read a drive or folder, choose Allow; the scan waits for your answer.</p></section><div class="table" aria-hidden="true">${head}${skeletonRows(5)}</div></div>`;
+    <p class="secondary" style="font:var(--type-caption)">Read only. If macOS asks for access, choose Allow.</p></section><div class="table" aria-hidden="true">${head}${skeletonRows(5)}</div></div>`;
   if (!s.permissions.volumes) return h + `<div class="page-body">${empty({ illus: icon('lock', 'illus'), title: 'Stowaway can’t see your drives',
     body: 'macOS hasn’t allowed access to removable volumes, so nothing can be moved. Nothing was changed.', actions: button('Allow access…', 'grant', { kind: 'primary', id: 'volumes' }) + button('Open System Settings…', 'open', { id: 'privacy' }) })}</div>`;
   if (!usable(s).length) return h + `<div class="page-body">${empty({ illus: ILLUS_PORT, title: 'Connect a drive to start',
-    body: 'Stowaway moves app data to an external drive formatted as APFS or Mac OS Extended. Plug one in and it appears here.', actions: button('Which drives work?', 'apfs', { kind: 'plain' }) })}</div>`;
+    body: 'Plug in an APFS or Mac OS Extended drive.', actions: button('Which drives work?', 'apfs', { kind: 'plain' }) })}</div>`;
   const busy = s.jobs.map((j) => s.folders.find((i) => i.id === j.folder)!);
   const rows = [...new Set([...busy, ...tabs![v.ui.offloadTab]])];
   const stowable = sum(suggested(s));
@@ -183,7 +183,7 @@ export function offload(v: View) {
       <div style="grid-column:1/-1">${capacity([{ value: s.mac.total - s.mac.free - stowable, color: 'var(--storage-system)', label: 'Used' }, { value: stowable, color: 'var(--accent-fill)', label: `Can move ${gb(stowable)}` }], s.mac.total, true)}</div>
     </section>
     <div class="table" role="table" aria-label="App folders">${head}${rows.length ? rows.map((it) => itemRow(v as V, it)).join('') : '<div class="empty" style="padding:32px"><h2>Nothing here yet</h2><p>Folders you move to a drive show up in this list.</p></div>'}</div>
-    <p class="tertiary" style="font:var(--type-caption)">Stowaway never touches Documents, Desktop or app sandboxes. Every move is written to a journal, so an interrupted move finishes or rolls back the next time Stowaway starts.</p>
+    <p class="tertiary" style="font:var(--type-caption)">Documents, Desktop and app sandboxes are never touched. Interrupted moves are undone safely.</p>
   </div>`;
 }
 
@@ -274,7 +274,7 @@ export function drives(v: View) {
     return header(esc(one.name), `${st.length ? `${st.length} folder${st.length === 1 ? '' : 's'} linked here · ${gb(sum(st))}` : 'No folders linked here yet'}`, button('All drives', 'go', { id: 'drives' })) + `<div class="page-body">
       <div class="modules" style="grid-template-columns:minmax(0,1fr)">${driveModule(s, one)}</div>
       ${st.length ? `<div class="table" role="table" aria-label="Folders on ${esc(one.name)}"><div class="table-head" role="row"><span></span><span>Folder</span><span>Where the link is</span><span style="text-align:right">Size</span><span>State</span><span></span></div>${st.map((it) => itemRow(v as V, it)).join('')}</div>`
-        : empty({ illus: ILLUS_PORT, title: 'Nothing is linked to this drive', body: one.refused ? esc(one.problem ?? '') : `Choose ${esc(one.name)} under Move to on the Offload screen and the folders you move show up here.`, actions: one.refused ? '' : button('Open Offload', 'go', { id: 'offload', kind: 'primary' }) })}
+        : empty({ illus: ILLUS_PORT, title: 'Nothing is linked to this drive', body: one.refused ? esc(one.problem ?? '') : `Pick it under Move to on Offload.`, actions: one.refused ? '' : button('Open Offload', 'go', { id: 'offload', kind: 'primary' }) })}
     </div>`;
   }
   const shown = s.drives.filter((d) => d.connected || stowedOn(s, d.id).length);
@@ -294,7 +294,7 @@ export function drives(v: View) {
   });
   return h + `<div class="page-body">${broken.join('')}
     <div class="modules">${shown.map((d) => driveModule(s, d)).join('')}${mac}</div>
-    ${none ? empty({ illus: ILLUS_PORT, title: 'No app data on drives yet', body: 'When you move a folder to a drive, it shows up here with the app that needs it, so you know what breaks before you unplug.', actions: button('Go to Offload', 'go', { id: 'offload', kind: 'primary' }) }) : cableMap(v as V)}${missing.join('')}
+    ${none ? empty({ illus: ILLUS_PORT, title: 'No app data on drives yet', body: 'Moved folders show up here with the app that needs them.', actions: button('Go to Offload', 'go', { id: 'offload', kind: 'primary' }) }) : cableMap(v as V)}${missing.join('')}
   </div>`;
 }
 
@@ -309,7 +309,7 @@ export function memory(v: View) {
     <section class="table" role="table" aria-label="Apps using memory"><div class="table-head" role="row" ${cols}><span></span><span>App</span><span>Memory</span><span style="text-align:right">Size</span><span></span></div>
     ${s.memApps.map((a) => `<div class="table-row" role="row" ${cols}>${appIcon(v.icon(a.appPath), a.app)}<div class="name"><strong>${esc(a.app)}${s.focus && s.focus === a.appPath ? ' ' + pill('accent', 'In focus') : ''}</strong><span>${esc(a.detail)}</span></div>
       ${capacity([{ value: a.mem, color: 'var(--accent-fill)', label: gb(a.mem) }], max)}<div class="size">${gb(a.mem)}</div><div class="act">${a.appPath ? (s.focus === a.appPath ? button('Stop focus', 'focus', { id: '', kind: 'primary', label: `Stop focusing on ${a.app}` }) : button('Focus', 'focus', { id: a.appPath, label: `Focus on ${a.app}` })) + button('Quit…', 'quit-app', { id: a.id, label: `Quit ${a.app}` }) : ''}</div></div>`).join('')}</section>
-    <p class="tertiary" style="font:var(--type-caption)">${s.focus ? `Focus is on. The other apps run in the background, with less processor and disk time, until you choose Stop focus or quit Stowaway.` : `macOS has no way to cap how much memory an app may use. Focus does what it allows: the app you choose gets the processor and disk first, and the other apps run in the background until you stop it.`}</p></div>`;
+    <p class="tertiary" style="font:var(--type-caption)">${s.focus ? `Focus is on. Other apps run in the background until you stop it.` : `Focus gives one app priority. macOS can’t cap an app’s memory.`}</p></div>`;
 }
 
 // ---------- Clean ----------
@@ -325,7 +325,7 @@ export function clean(v: View) {
   return h + `<div class="page-body">
     <section class="card" style="display:grid;grid-template-columns:1fr auto;gap:8px 32px;align-items:center">
       <div><h2 class="secondary" style="font:var(--type-group)">Memory</h2>${v.m ? `<span class="num" style="font:var(--type-figure)">${gb(v.m.memUsed)}</span> <span class="secondary">of ${Math.round(v.m.memTotal / 2 ** 30)} GB in use${v.m.swap ? ` · swap ${gb(v.m.swap)}` : ''}</span>` : '<span class="secondary">Reading…</span>'}
-        <p class="secondary" style="font:var(--type-callout);margin-top:6px;max-width:640px">${c.memFreed != null ? `<strong style="color:var(--ok-text)">${c.memFreed > 0 ? `${gb(c.memFreed)} of memory became free.` : 'macOS had no cache worth clearing.'}</strong> ` : ''}Makes room for the apps you are using: macOS compresses what idle apps hold and moves it to disk. An idle app can take a moment when you switch back to it. Takes up to 30 seconds, no password needed.</p></div>
+        <p class="secondary" style="font:var(--type-callout);margin-top:6px;max-width:640px">${c.memFreed != null ? `<strong style="color:var(--ok-text)">${c.memFreed > 0 ? `${gb(c.memFreed)} of memory became free.` : 'Nothing more to free right now.'}</strong> ` : ''}Takes up to 30 seconds, no password needed.</p></div>
       <div>${button(c.memBusy ? 'Freeing memory…' : 'Free up memory', 'free-memory', { large: true, disabled: c.memBusy })}</div>
     </section>
     <h2 style="margin-top:4px">Storage</h2>
@@ -341,7 +341,7 @@ export function clean(v: View) {
     <div class="table" role="table" aria-label="What can be cleaned"><div class="table-head" role="row" ${cols}><span></span><span>Kind</span><span>What it is</span><span style="text-align:right">Size</span></div>
       ${c.items ? c.items.map((i) => `<label class="table-row" role="row" ${cols}><input type="checkbox" data-action="clean-kind" data-id="${i.id}" ${st.cleanKinds.includes(i.id) ? 'checked' : ''} aria-label="${esc(i.name)}" style="accent-color:var(--accent-fill)">
         <div class="name"><strong>${esc(i.name)}</strong><span>${i.count} item${i.count === 1 ? '' : 's'}</span></div><div class="secondary" style="font:var(--type-callout)">${esc(i.note)}</div><div class="size">${gb(i.size)}</div></label>`).join('') : skeletonRows(4)}</div>
-    <p class="tertiary" style="font:var(--type-caption)">Folders you moved to a drive, macOS's own caches, Documents, Desktop and app sandboxes are never cleaned. ${st.cleanEvery === 'off' ? '' : 'Automatic cleaning runs while Stowaway is open and removes the kinds ticked above.'}</p>
+    <p class="tertiary" style="font:var(--type-caption)">Moved folders, macOS caches and your documents are never cleaned.</p>
   </div>`;
 }
 
@@ -356,15 +356,15 @@ export function settings(v: View) {
   return h + `<div class="page-body"><div class="form">
     <section><h2>General</h2><div class="group">
       ${row('Appearance', 'System follows the light or dark setting of this Mac.', seg('theme', [['light', 'Light'], ['dark', 'Dark'], ['system', 'System']], st.theme))}
-      ${row('Open at login', s.loginNeedsApproval ? 'macOS is waiting for you to allow Stowaway in System Settings > General > Login Items.' : 'Starts Stowaway when you log in, so drive warnings, cleaning and memory warnings keep working.', sw('login', 'Open at login'))}
+      ${row('Open at login', s.loginNeedsApproval ? 'Allow it in System Settings > Login Items.' : '', sw('login', 'Open at login'))}
       ${row('Show in menu bar', '', toggle('menubar', st.menubar, 'Show in menu bar'))}
-      ${row('Check for updates automatically', 'Looks for a new version at launch and every six hours.', sw('updates', 'Check for updates automatically'))}
-      ${row(`Version ${esc(s.version)}`, s.update.available ? `Version ${esc(s.update.available)} is available. Stowaway restarts to finish.` : s.update.checked ? `This is the latest version. Checked ${ago(s.update.checked)}.` : 'Updates come from the releases on GitHub and are checked against Stowaway’s signature.',
+      ${row('Check for updates automatically', '', sw('updates', 'Check for updates automatically'))}
+      ${row(`Version ${esc(s.version)}`, s.update.available ? `Version ${esc(s.update.available)} is available. Stowaway restarts to finish.` : s.update.checked ? `This is the latest version. Checked ${ago(s.update.checked)}.` : '',
         s.update.available ? button(s.update.busy ? 'Updating…' : `Update to ${esc(s.update.available)}`, 'install-update', { kind: 'primary', disabled: s.update.busy }) : button(s.update.busy ? 'Checking…' : 'Check now', 'check-update', { disabled: s.update.busy }))}
     </div></section>
     <section><h2>Moving</h2><div class="group">
       ${row('Show what will happen before every move', 'Lists each step and the space it needs. Recommended.', toggle('dryRun', st.dryRun, 'Show what will happen before every move'))}
-      ${row('Keep the original until every file is checked', 'Stowaway compares file count, size and content before removing anything.', '<span class="secondary">Always on</span>')}
+      ${row('Keep the original until every file is checked', '', '<span class="secondary">Always on</span>')}
       ${row('Never touched', 'Documents, Desktop, iCloud Drive, app sandboxes, Photos and Mail data.', '')}
     </div></section>
     <section><h2>Memory</h2><div class="group">
@@ -375,7 +375,7 @@ export function settings(v: View) {
       ${row('Warn before I eject a drive that apps still need', 'Names the apps and offers to quit them first.', toggle('ejectGuard', st.ejectGuard, 'Warn before I eject a drive that apps still need'))}
       ${row('Journal', `<span class="mono">${esc(s.journalPath)}</span>`, button('Show in Finder', 'open', { id: 'journal' }))}
     </div></section>
-    <section><h2>Privacy</h2><div class="group">${row('No account, no analytics', 'Stowaway only goes online to check for updates.', '')}</div></section>
+    <section><h2>Privacy</h2><div class="group">${row('No account, no analytics', '', '')}</div></section>
   </div></div>`;
 }
 
