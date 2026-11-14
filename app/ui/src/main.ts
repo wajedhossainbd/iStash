@@ -189,6 +189,15 @@ const actions: Record<string, (id: string) => unknown> = {
   'confirm-clean': () => { ui.dialog = null; return api.clean(s!.settings.cleanKinds); },
   grant: (id) => api.requestPermission(id as 'volumes' | 'notify'),
   'open-main': () => tauri().then((n) => n.showMain()),
+  // Popover quick toggles. Each one flips back with a second click.
+  'pop-dark': () => api.set('theme', root.querySelector('[data-action="pop-dark"]')?.getAttribute('aria-pressed') === 'true' ? 'light' : 'dark'),
+  'pop-awake': () => api.keepAwake(!s!.sys?.awake),
+  'pop-lock': () => api.lockScreen(),
+  'pop-trash': () => { ui.dialog = { type: 'trash' }; },
+  'confirm-trash': () => { ui.dialog = null; return api.emptyTrash(); },
+  'pop-desktop': () => { ui.dialog = { type: 'desktop' }; },
+  'confirm-desktop': () => { ui.dialog = null; return api.desktopIcons(s!.sys?.desktopIcons === false); },
+  'pop-widget': () => api.set('widget', s!.settings.widget === 'off' ? 'auto' : 'off'),
   'onboard-next': () => { ui.onboardStep++; },
   'onboard-back': () => { ui.onboardStep--; },
   'onboard-done': async () => {

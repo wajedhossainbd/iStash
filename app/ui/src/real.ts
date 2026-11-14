@@ -26,6 +26,8 @@ export function toFolder(f: Scanned): Folder {
 export function createReal(invoke: Invoke): Api {
   // The popover and the edge widget only show numbers: they leave scanning, jobs and schedules to the main window.
   const light = /^#\/(popover|widget)/.test(location.hash);
+  const isPopover = location.hash.startsWith('#/popover');
+  let ticks: number[] | null = null, bootDisk = '';
   const saved = read(KEY, { settings: {} as Partial<Settings>, permissions: {} });
   const s: State = {
     version: '0.1.0',
@@ -43,6 +45,8 @@ export function createReal(invoke: Invoke): Api {
   const subs = new Set<(s: State) => void>();
   const emit = () => subs.forEach((fn) => fn(structuredClone(s)));
   const save = () => write(KEY, { settings: s.settings, permissions: s.permissions });
+  // Another window (the popover's toggles) changed a setting: take it, so theme and widget agree everywhere.
+  globalThis.addEventListener?.('storage', (e) => { if (e.key === KEY && e.newValue) { try { Object.assign(s.settings, JSON.parse(e.newValue).settings); emit(); } catch { /* ignore */ } } });
   const folder = (id: string) => s.folders.find((x) => x.id === id);
   let reading: Reading | null = null;
   let warned = false;
@@ -129,12 +133,25 @@ export function createReal(invoke: Invoke): Api {
       if (read + write > 4096) lastActive[v.id] = now;
       out[v.id] = { read, write, avgRead: all ? (b[0] - f.b[0]) / all : 0, avgWrite: all ? (b[1] - f.b[1]) / all : 0, last: lastActive[v.id] ?? null };
     }
+    // This Mac's own disk, keyed 'mac', so the popover can show its read and write speed.
+    const b = io[bootDisk], p = prev.mac;
+    if (b) { prev.mac = { t: now, b }; if (p) { const dt = (now - p.t) / 1000; out.mac = { read: Math.max(0, (b[0] - p.b[0]) / dt), write: Math.max(0, (b[1] - p.b[1]) / dt), avgRead: 0, avgWrite: 0, last: null }; } }
     s.io = out;
+  }, () => {});
+  type Sys = { cpu: number[]; uptime: number; bootDisk: string; awake: boolean; desktopIcons: boolean };
+  const pollSys = () => invoke<Sys>('sys_status').then((r) => {
+    bootDisk = r.bootDisk;
+    // Two tick readings make the split; nice time counts as user, as Activity Monitor does.
+    const d = ticks ? r.cpu.map((x, i) => x - ticks![i]) : null, all = d ? d.reduce((a, b) => a + b, 0) : 0;
+    ticks = r.cpu;
+    const pct = (x: number) => all > 0 ? Math.round((x / all) * 100) : 0;
+    s.sys = { user: d ? pct(d[0] + d[3]) : 0, system: d ? pct(d[1]) : 0, idle: d ? pct(d[2]) : 100, uptime: r.uptime, awake: r.awake, desktopIcons: r.desktopIcons };
   }, () => {});
   const pollNet = () => invoke<NetInfo | null>('net_info').then((info) => { s.net!.info = info; emit(); }, () => {});
   pollNet();
   setInterval(pollNet, 30e3);
   const pollMem = () => invoke<Reading | null>('memory').then(async (r) => {
+    if (isPopover && !document.hidden) await pollSys();
     await pollIo();
     Object.assign(s.net!, read<{ test: SpeedTest | null; history: SpeedTest[] }>('stowaway.net', { test: s.net!.test, history: s.net!.history })); // a test run in another window
     if (!r) return;
@@ -267,6 +284,10 @@ export function createReal(invoke: Invoke): Api {
       catch (e) { throw new Error(String(e)); }
       finally { s.clean.memBusy = false; emit(); }
     },
+    async keepAwake(on) { s.sys!.awake = await invoke<boolean>('keep_awake', { on }).catch((e) => { throw new Error(String(e)); }); emit(); },
+    async lockScreen() { await invoke('lock_screen').catch((e) => { throw new Error(`macOS didn’t lock the screen: ${e}`); }); },
+    async emptyTrash() { await invoke('empty_trash').catch((e) => { throw new Error(`Finder didn’t empty the Trash: ${e}`); }); },
+    async desktopIcons(show) { s.sys!.desktopIcons = await invoke<boolean>('set_desktop_icons', { show }).catch((e) => { throw new Error(String(e)); }); emit(); },
     async focus(appPath) { await invoke('focus', { path: appPath }); s.focus = appPath; emit(); },
     appIcon: (path) => invoke<ArrayBuffer>('app_icon', { path }).then((png) => URL.createObjectURL(new Blob([png], { type: 'image/png' })), () => null),
   };

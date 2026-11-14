@@ -452,3 +452,50 @@ h1:focus { outline: none; } /* focused on navigation so VoiceOver announces the 
 .server-row { grid-template-columns: auto auto minmax(0, 1fr); }
 .server-row label { display: flex; align-items: center; gap: 6px; }
 .server-row label svg { width: 14px; height: 14px; color: var(--text-tertiary); }
+/* ---------- Menu-bar panel: tiles, quick toggles, footer. Fixed dark glass (token dark values), readable over any
+   wallpaper and in either app theme. Text never wraps; numbers are tabular. ---------- */
+.popover.pop { --pop-ink: #F2F4F5; --pop-ink-2: rgba(242, 244, 245, 0.74); --pop-ink-3: rgba(242, 244, 245, 0.56);
+  --pop-ok: #3DDC84; --pop-warn: #FFB020; --pop-bad: #FF5C5C; --pop-blue: #3DD6FF; --pop-accent: #C8FF3D; --pop-track: rgba(255, 255, 255, 0.12);
+  color-scheme: dark; color: var(--pop-ink); padding: 10px; gap: 8px; font: 500 11px/14px var(--font-text); font-variant-numeric: tabular-nums;
+  background: linear-gradient(180deg, rgba(20, 23, 27, 0.80), rgba(14, 16, 20, 0.88)); border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.10); backdrop-filter: blur(40px) saturate(1.8); -webkit-backdrop-filter: blur(40px) saturate(1.8);
+  user-select: none; -webkit-user-select: none; }
+.pop * { white-space: nowrap; }
+.pop-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.pop-tile { display: grid; gap: 5px; align-content: start; min-width: 0; padding: 9px 10px; border-radius: 12px; background: rgba(255, 255, 255, 0.055); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08); }
+.pop-tile header { display: flex; align-items: baseline; gap: 6px; min-width: 0; }
+.pop-tile header span { color: var(--pop-ink-2); font-weight: 600; overflow: hidden; text-overflow: ellipsis; }
+.pop-tile header strong { margin-left: auto; font: 600 15px/18px var(--font-text); letter-spacing: -0.01em; }
+.pop-line { margin: 0; display: flex; gap: 7px; min-width: 0; overflow: hidden; color: var(--pop-ink-3); }
+.pop-line span { display: inline-flex; align-items: center; gap: 3px; }
+.pop-line i { width: 6px; height: 6px; border-radius: 50%; }
+.pop-line b { color: var(--pop-ink); font-weight: 600; }
+.pop-dim { color: var(--pop-ink-3); overflow: hidden; text-overflow: ellipsis; }
+.pop-spark { width: 100%; height: 30px; display: block; }
+.pop-bar { height: 5px; border-radius: 3px; background: var(--pop-track); overflow: hidden; }
+.pop-bar i { display: block; height: 100%; border-radius: inherit; transition: width var(--duration-slow) var(--easing-standard); }
+.pop-btn { margin-top: 2px; border: 0; border-radius: 7px; padding: 4px 8px; font: 600 11px/14px var(--font-text); color: var(--pop-ink); cursor: default;
+  background: rgba(255, 255, 255, 0.10); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.10); }
+.pop-btn:hover:not(:disabled) { background: rgba(255, 255, 255, 0.16); }
+.pop-btn:disabled { color: var(--pop-ink-3); }
+.pop-drives { display: grid; gap: 2px; padding: 2px 4px; }
+.pop-drive { display: flex; align-items: center; gap: 8px; min-width: 0; padding: 3px 0; font-size: 12px; }
+.pop-drive i { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+.pop-drive.is-missing i { box-shadow: inset 0 0 0 1.5px var(--pop-bad); }
+.pop-drive.is-missing .pop-dim { color: #FF8A8A; }
+.pop-name { overflow: hidden; text-overflow: ellipsis; font-weight: 600; }
+.pop-drive .pop-dim { margin-left: auto; flex: none; }
+.pop-quick { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
+.pop-q { display: grid; justify-items: center; gap: 4px; padding: 7px 0 6px; border: 0; border-radius: 10px; cursor: default; color: var(--pop-ink-2);
+  background: rgba(255, 255, 255, 0.055); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08); font: 500 10px/12px var(--font-text);
+  transition: background-color var(--duration-fast) var(--easing-standard); }
+.pop-q svg { width: 16px; height: 16px; }
+.pop-q span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+.pop-q:hover:not(:disabled) { background: rgba(255, 255, 255, 0.11); color: var(--pop-ink); }
+.pop-q[aria-pressed="true"] { background: var(--pop-accent); color: #0C0D0F; box-shadow: none; }
+.pop-q:disabled { opacity: 0.4; }
+.pop-q:focus-visible, .pop-btn:focus-visible { outline: 2px solid var(--pop-accent); outline-offset: 1px; }
+.pop-confirm { display: flex; align-items: center; gap: 6px; min-width: 0; padding: 6px 6px 6px 10px; border-radius: 10px; background: rgba(255, 176, 32, 0.14); }
+.pop-confirm span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; font-size: 12px; }
+.pop-foot { display: flex; align-items: center; gap: 8px; padding: 0 2px 0 4px; }
+.pop-foot .btn { margin-left: auto; }

@@ -3,7 +3,7 @@ import type { Drive, Folder, Forecast, Metrics, Plan, State } from './api';
 import { esc, gb, tb, day, clock, ago, list, icon, appIcon, button, pill, seg, capacity, sparkline, banner, empty, skeletonRows, progress, steps, toggle, forecastChart, dialog } from './ui';
 
 export type Route = 'overview' | 'offload' | 'drives' | 'memory' | 'clean' | 'settings' | 'onboarding' | 'popover' | 'widget';
-export type Dialog = { type: 'move' | 'back' | 'how' | 'why' | 'apfs' | 'eject' | 'quit-app' | 'clean'; id?: string; drive?: string; plan?: Plan };
+export type Dialog = { type: 'move' | 'back' | 'how' | 'why' | 'apfs' | 'eject' | 'quit-app' | 'clean' | 'trash' | 'desktop'; id?: string; drive?: string; plan?: Plan };
 export interface Ui { route: Route; dialog: Dialog | null; offloadTab: 'suggested' | 'stowed' | 'all'; onboardStep: number; onboardDrive: string | null; busy: boolean; drive: string | null; customServer?: boolean }
 /** s is null while the first state is loading; down when the helper can't be reached. */
 export interface View { s: State | null; m: Metrics | null; ui: Ui; down: boolean; icon: (path?: string) => string | null }
@@ -501,26 +501,69 @@ export function widget(v: View) {
   </div>`;
 }
 
+const uptime = (sec: number) => {
+  const d = Math.floor(sec / 86400), h = Math.floor((sec % 86400) / 3600), mi = Math.floor((sec % 3600) / 60);
+  return d ? `Up ${d} d ${h} h` : h ? `Up ${h} h ${mi} min` : `Up ${mi} min`;
+};
+const popSpark = (vals: number[], max: number, color: string) => {
+  const pts = vals.slice(-30), n = Math.max(1, pts.length - 1);
+  const d = pts.map((y, i) => `${((i / n) * 100).toFixed(1)},${(30 - (Math.min(y, max) / max) * 28).toFixed(1)}`).join(' ');
+  return `<svg class="pop-spark" viewBox="0 0 100 32" preserveAspectRatio="none" aria-hidden="true"><polyline points="0,32 ${d} 100,32" fill="${color}" fill-opacity="0.16" stroke="none"/><polyline points="${d}" fill="none" stroke="${color}" stroke-width="1.5" vector-effect="non-scaling-stroke"/></svg>`;
+};
+const popBar = (pct: number, color: string, label: string) => `<div class="pop-bar" role="img" aria-label="${esc(label)}"><i style="width:${Math.min(100, Math.max(2, pct))}%;background:${color}"></i></div>`;
+const tone = (pct: number, warn: number, bad: number) => pct >= bad ? 'var(--pop-bad)' : pct >= warn ? 'var(--pop-warn)' : 'var(--pop-ok)';
+
+/** The menu-bar panel: live tiles, quick toggles, and a way into the app. Always dark glass, whatever sits behind it. */
 export function popover(v: View) {
-  const { s, m } = v;
-  if (v.down) return `<div class="popover">${helperDown()}</div>`;
-  if (!s) return `<div class="popover" aria-busy="true"><span class="skeleton" style="height:120px"></span></div>`;
-  const f = s.forecast, ok = !strained(s);
-  const sentence = !f ? 'Collecting memory samples.' : ok ? 'Memory looks fine for the next few hours.' : runsOut(f);
-  const advice = !f ? 'The forecast starts once there are enough to see a trend.' : ok ? `Swap ${gb(f.swap)}${f.swapRate < 0 ? ' and falling' : ''}.` : f.suggest ? `Quitting ${esc(f.suggest.app)} frees about ${gb(f.suggest.frees)}.` : '';
-  const mini = (label: string, value: string, frac: number, color: string) => `<div><span>${label}</span><strong class="num">${value}</strong>${capacity([{ value: frac, color, label: `${label} ${value}` }], 1)}</div>`;
-  const cpu = m?.cpu.at(-1) ?? 0, net = (m?.netIn.at(-1) ?? 0) / 1e6;
-  return `<div class="popover" role="dialog" aria-label="Stowaway">
-    <div style="display:flex;gap:8px;align-items:flex-start"><span class="dot ${ok ? 'ok' : 'warn'}" style="margin-top:5px"></span><div><p class="sentence">${sentence}</p>
-      <p class="secondary" style="font:var(--type-caption)">${advice}</p></div></div>
-    <div class="grid">${mini('CPU', cpu + '%', cpu / 100, 'var(--text-secondary)')}${mini('Memory', (m?.pressure ?? 0) + '%', (m?.pressure ?? 0) / 100, ok ? 'var(--ok-fill)' : 'var(--warn-fill)')}
-      ${mini('Disk', gb(s.mac.free) + ' free', 1 - s.mac.free / s.mac.total, s.mac.free < 40 * GB ? 'var(--danger-fill)' : 'var(--text-secondary)')}${mini('Network', net.toFixed(1) + ' MB/s', net / 6, 'var(--ok-fill)')}</div>
-    ${usable(s).length ? `<hr>${usable(s).map((d) => {
-      const on = stowedOn(s, d.id), apps = appsOn(on);
-      return `<div class="drive"><span class="dot ${d.connected ? 'ok' : 'hollow'}"></span>${esc(d.name)}<span class="tertiary">${d.connected ? `${apps.length} app${apps.length === 1 ? '' : 's'} rely on it` : `missing · ${esc(list(apps))} held`}</span></div>`;
-    }).join('')}` : ''}
-    <hr>
-    <div class="buttons">${ok || !f?.suggest ? '<span></span>' : button(`Quit ${esc(f.suggest.app)}`, 'quit-now', { id: f.suggest.appId })}${button('Open Stowaway', 'open-main', { kind: 'primary' })}</div>
+  const { s, m, ui } = v;
+  if (v.down) return `<div class="popover pop">${helperDown()}</div>`;
+  if (!s) return `<div class="popover pop" aria-busy="true"><span class="skeleton" style="height:240px"></span></div>`;
+  const sys = s.sys, cpu = m?.cpu.at(-1) ?? 0, pressure = m?.pressure ?? 0;
+  const tile = (label: string, value: string, body: string) => `<section class="pop-tile"><header><span>${label}</span><strong>${value}</strong></header>${body}</section>`;
+  const line = (...xs: string[]) => `<p class="pop-line">${xs.join('')}</p>`;
+  const kv = (k: string, val: string, dot = '') => `<span>${dot ? `<i style="background:${dot}"></i>` : ''}${k} <b>${val}</b></span>`;
+
+  const cpuTile = tile('CPU', `${cpu}%`, popSpark(m?.cpu ?? [], 100, tone(cpu, 70, 90)) +
+    line(kv('User', `${sys?.user ?? 0}%`), kv('Sys', `${sys?.system ?? 0}%`), kv('Idle', `${sys?.idle ?? 0}%`)));
+  const freed = s.clean.memFreed;
+  const memTile = tile('Memory', m ? gb(m.memUsed) : '–', line(kv('of', m ? gb(m.memTotal) : '–'), m?.swap ? kv('swap', gb(m.swap)) : '') +
+    popBar(pressure, tone(pressure, 60, 80), `Memory pressure ${pressure}%`) +
+    `<button class="pop-btn" data-action="free-memory" ${s.clean.memBusy ? 'disabled' : ''}>${s.clean.memBusy ? 'Freeing…' : freed ? `Freed ${gb(freed)}` : 'Free up memory'}</button>`);
+  const used = s.mac.total - s.mac.free, macIo = s.io?.mac, usedPct = Math.round((used / s.mac.total) * 100);
+  const diskTile = tile('Macintosh HD', gb(used), line(kv('of', gb(s.mac.total)), kv('free', gb(s.mac.free))) +
+    popBar(usedPct, tone(usedPct, 80, 92), `${usedPct}% used`) +
+    line(kv('R', macIo ? rate(macIo.read) : '–'), kv('W', macIo ? rate(macIo.write) : '–')));
+  const t = s.net?.test, netIn = m?.netIn ?? [];
+  const netTile = tile('Internet', `↓ ${rate(netIn.at(-1) ?? 0)}`, line(kv('↑', rate(m?.netOut ?? 0))) + popSpark(netIn, Math.max(...netIn, 250e3), 'var(--pop-blue)') +
+    line(kv('IP', esc(s.net?.info?.ip || 'offline'))) +
+    line(t ? kv('Test', `${Math.round(t.down)} Mbps`) + `<span class="pop-dim">${ago(t.at)}</span>` : '<span class="pop-dim">No speed test yet</span>'));
+
+  const drives = usable(s).map((d) => `<div class="pop-drive ${d.connected ? '' : 'is-missing'}"><i style="background:${d.connected ? cableVar(d) : 'transparent'}"></i><span class="pop-name">${esc(d.name)}</span>
+    <span class="pop-dim">${d.connected ? `${gb(d.free)} free` : 'Missing'}</span></div>`).join('');
+
+  const dark = s.settings.theme === 'dark' || (s.settings.theme === 'system' && globalThis.matchMedia?.('(prefers-color-scheme: dark)').matches);
+  const q = (action: string, ic: string, label: string, title: string, on: boolean | null, disabled = false) =>
+    `<button class="pop-q" data-action="${action}" title="${esc(title)}" ${on === null ? '' : `aria-pressed="${on}"`} ${disabled ? 'disabled' : ''}>${icon(ic)}<span>${label}</span></button>`;
+  const d = ui.dialog, err = d?.type === 'move' && d.plan && !d.plan.ok ? d.plan : null;
+  const confirm = (text: string, label: string, action: string) => `<div class="pop-confirm" role="alertdialog" aria-label="${esc(text)}"><span>${esc(text)}</span>${button('Cancel', 'close')}${button(label, action, { kind: 'primary' })}</div>`;
+  const quick = err ? `<div class="pop-confirm" role="alert"><span title="${esc(err.reason)}">${esc(err.reason)}</span>${button('OK', 'close', { kind: 'primary' })}</div>`
+    : d?.type === 'trash' ? confirm('Empty the Trash for good?', 'Empty', 'confirm-trash')
+    : d?.type === 'desktop' ? confirm(`Finder restarts to ${sys?.desktopIcons === false ? 'show' : 'hide'} icons.`, sys?.desktopIcons === false ? 'Show' : 'Hide', 'confirm-desktop')
+    : `<div class="pop-quick">${[
+      q('pop-dark', 'moon', 'Dark', 'Dark mode for Stowaway', dark),
+      q('pop-awake', 'cup', 'Awake', 'Keep this Mac awake', !!sys?.awake, !sys),
+      q('pop-lock', 'lock', 'Lock', 'Lock screen', null),
+      q('pop-trash', 'trash', 'Trash', 'Empty Trash', null),
+      q('pop-desktop', 'desktop', 'Icons', sys?.desktopIcons === false ? 'Show desktop icons' : 'Hide desktop icons', sys?.desktopIcons === false, !sys),
+      q('pop-widget', 'sidebar', 'Widget', 'Edge widget', s.settings.widget !== 'off'),
+      q('focus', 'target', 'Focus', s.focus ? 'Turn Focus off' : 'Focus is off', !!s.focus, !s.focus),
+    ].join('')}</div>`;
+
+  return `<div class="popover pop" role="dialog" aria-label="Stowaway">
+    <div class="pop-grid">${cpuTile}${memTile}${diskTile}${netTile}</div>
+    ${drives ? `<div class="pop-drives">${drives}</div>` : ''}
+    ${quick}
+    <footer class="pop-foot"><span class="pop-dim">${sys ? uptime(sys.uptime) : ''}</span>${button('Open Stowaway', 'open-main', { kind: 'primary' })}</footer>
   </div>`;
 }
 

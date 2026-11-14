@@ -44,6 +44,12 @@ const P: Record<string, string> = {
   pulse: '<path d="M1.5 8h3l1.5-4 3 8 1.5-4h4"/>',
   history: '<path d="M2.5 8a5.5 5.5 0 1 0 1.6-3.9M2.5 2.5v2.4h2.4"/><path d="M8 5v3l2 1.5"/>',
   cable: '<circle cx="4" cy="4.5" r="1.8"/><circle cx="12" cy="11.5" r="1.8"/><path d="M5.6 5.4c4 .5 1.8 5.6 4.8 5.9"/>',
+  moon: '<path d="M13 9.6A5.5 5.5 0 1 1 6.4 3a4.4 4.4 0 0 0 6.6 6.6z"/>',
+  cup: '<path d="M3 6h8v4a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3zM11 7h1a1.5 1.5 0 0 1 0 3h-1M5.5 2.5v1.5M8.5 2.5v1.5"/>',
+  trash: '<path d="M2.5 4.5h11M6 4.5V3h4v1.5M4 4.5l.7 8.5h6.6l.7-8.5"/>',
+  desktop: '<rect x="2" y="2.5" width="12" height="8.5" rx="1.2"/><path d="M6 13.5h4M8 11v2.5M4.5 5h1.5M4.5 7h1.5"/>',
+  sidebar: '<rect x="2" y="2.5" width="12" height="11" rx="1.5"/><path d="M10.5 2.5v11"/>',
+  target: '<circle cx="8" cy="8" r="5.5"/><circle cx="8" cy="8" r="2"/>',
 };
 export const icon = (name: string, cls = '') =>
   `<svg class="${cls}" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${P[name]}</svg>`;

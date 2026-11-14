@@ -139,6 +139,8 @@ export interface State {
   /** App bundle path Focus is on, or null. */
   focus: string | null;
   clean: { items: CleanItem[] | null; busy: boolean; freed: number | null; last: number | null; memBusy: boolean; memFreed: number | null };
+  /** Popover only: CPU split (percent, last 2 s), seconds since boot, and the quick toggles macOS reports. */
+  sys?: { user: number; system: number; idle: number; uptime: number; awake: boolean; desktopIcons: boolean };
   loginNeedsApproval?: boolean; // macOS waits for the user to allow Stowaway in Login Items
   unsupported?: (keyof Settings)[]; // settings this build cannot act on; shown as such instead of a dead switch
 }
@@ -192,6 +194,14 @@ export interface Api {
   freeMemory(): Promise<void>;
   /** Runs every other app in the background so this one gets the processor and disk first; null turns it off. */
   focus(appPath: string | null): Promise<void>;
+  /** Keeps the Mac and display awake (caffeinate) until turned off or Stowaway quits. */
+  keepAwake(on: boolean): Promise<void>;
+  /** Sleeps the display, which locks the Mac when a password is required after sleep. */
+  lockScreen(): Promise<void>;
+  /** Empties the Trash for good, through Finder. */
+  emptyTrash(): Promise<void>;
+  /** Shows or hides desktop icons; restarts Finder. */
+  desktopIcons(show: boolean): Promise<void>;
   /** Data URL of an app's real icon, or null (CLI tools, missing apps, not running in the app). */
   appIcon(appPath: string): Promise<string | null>;
 }
@@ -304,6 +314,8 @@ export function mockState(now = Date.now()): State {
     update: { available: null, busy: false, checked: null },
     net: { info: { iface: 'en0', kind: 'Wi-Fi', ip: '192.168.1.24', gateway: '192.168.1.1' }, test: null, testing: false, history: [], server: '' },
     focus: null, clean: { items: null, busy: false, freed: null, last: null, memBusy: false, memFreed: null },
+    io: { mac: { read: 42e6, write: 8e6, avgRead: 20e6, avgWrite: 5e6, last: now } },
+    sys: { user: 18, system: 9, idle: 73, uptime: 55260, awake: false, desktopIcons: true },
   };
 }
 
@@ -433,6 +445,10 @@ export function createMock(scenario: Scenario = 'normal', onboarded = scenario !
       emit();
     },
     async focus(appPath) { await ok(); s.focus = appPath; emit(); },
+    async keepAwake(on) { await ok(); s.sys!.awake = on; emit(); },
+    async lockScreen() { await ok(); },
+    async emptyTrash() { await ok(); },
+    async desktopIcons(show) { await ok(); s.sys!.desktopIcons = show; emit(); },
     async freeMemory() { await ok(); s.clean.memFreed = 1.8 * GB; emit(); },
     async speedTest() { await ok(); const t = { down: 182.4, up: 41.7, ping: 12, jitter: 2, ip: '203.0.113.7', isp: 'Example Fibre', city: 'Dhaka', country: 'BD', at: Date.now(), server: 'Cloudflare' }; s.net = { ...s.net!, testing: false, test: t, history: [t, ...s.net!.history].slice(0, 20) }; emit(); },
     async setSpeedServer(url) { await ok(); s.net!.server = url; emit(); },
