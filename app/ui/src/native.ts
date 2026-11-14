@@ -34,7 +34,7 @@ export async function fitPopover(el: HTMLElement | null) {
   const h = el?.offsetHeight ?? 0;
   if (!h || h === height) return;
   height = h;
-  await getCurrentWindow().setSize(new LogicalSize(340, h));
+  await getCurrentWindow().setSize(new LogicalSize(380, h));
 }
 
 // Updates: signed releases on GitHub. The plugin verifies the signature against the key in tauri.conf.json.

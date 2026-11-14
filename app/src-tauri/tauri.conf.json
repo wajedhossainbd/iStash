@@ -38,7 +38,7 @@
         "label": "popover",
         "title": "iStash",
         "url": "index.html#/popover",
-        "width": 340,
+        "width": 380,
         "height": 320,
         "decorations": false,
         "transparent": true,

@@ -8,6 +8,7 @@ mod icon;
 mod login;
 mod mem;
 mod net;
+mod quick;
 mod tune;
 mod widget;
 
@@ -19,6 +20,8 @@ use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent}
 use tauri_plugin_window_state::StateFlags;
 use tauri::{AppHandle, Emitter, Manager, PhysicalPosition, RunEvent, WindowEvent, Wry};
 
+/// The popover's width in points; the UI sizes its height (native.ts `fitPopover`).
+const POP_W: f64 = 380.0;
 const THEMES: [(&str, &str); 3] = [("system", "System"), ("light", "Light"), ("dark", "Dark")];
 
 /// PNG of an app's real icon, read from its bundle. Only `.app` bundles; never sandbox containers.
@@ -175,7 +178,7 @@ fn main() {
         )
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
-        .invoke_handler(tauri::generate_handler![net::net_info, net::speed_test, net::speed_servers, disk_io, widget::widget_mode, widget::widget_hover, login::login_status, login::set_login, tune::focus, tune::clean_scan, tune::clean_run, tune::free_memory, app_icon, open_target, notify, appearance_checked, volumes, mem::memory, mem::quit_app, engine::scan_home, engine::plan, engine::start_job, engine::jobs, engine::stop_job, engine::eject, engine::quit_drive_users, engine::set_guard])
+        .invoke_handler(tauri::generate_handler![net::net_info, net::speed_test, net::speed_servers, disk_io, widget::widget_mode, widget::widget_hover, login::login_status, login::set_login, tune::focus, tune::clean_scan, tune::clean_run, tune::free_memory, app_icon, open_target, notify, appearance_checked, volumes, mem::memory, mem::quit_app, engine::scan_home, engine::plan, engine::start_job, engine::jobs, engine::stop_job, engine::eject, engine::quit_drive_users, engine::set_guard, quick::sys_status, quick::keep_awake, quick::lock_screen, quick::empty_trash, quick::set_desktop_icons])
         .setup(|app| {
             mem::start();
             engine::start();
@@ -191,6 +194,7 @@ fn main() {
                     show_main(app);
                 } else if id == "tray:quit" {
                     tune::restore();
+                    quick::stop_awake();
                     app.exit(0);
                 }
             });
@@ -222,7 +226,7 @@ fn main() {
                     }
                     let scale = pop.scale_factor().unwrap_or(2.0);
                     let (pos, size) = (rect.position.to_physical::<f64>(scale), rect.size.to_physical::<f64>(scale));
-                    let x = pos.x + size.width / 2.0 - 170.0 * scale;
+                    let x = pos.x + size.width / 2.0 - POP_W / 2.0 * scale;
                     let _ = pop.set_position(PhysicalPosition::new(x, pos.y + size.height + 4.0 * scale));
                     let _ = pop.show();
                     let _ = pop.set_focus();
