@@ -5,6 +5,10 @@ updates installed copies through the app itself.
 
 ## Unreleased
 
+Nothing yet.
+
+## 0.1.20 — 15 Nov 2026
+
 ### Changed
 - **Releases are signed with iStash's own certificate**, the same one every time, so macOS recognises each update as
   the same app and keeps its permissions (camera, external drives, Finder). Before, each update looked like a new app:
