@@ -249,13 +249,13 @@ export function createReal(invoke: Invoke): Api {
       s.net!.server = u; s.net!.serverLabel = label; saveNet(); emit();
     },
     async setSpeedMode(mode) { s.net!.mode = mode; saveNet(); emit(); },
-    async findServers(query) { s.net!.servers = await invoke<SpeedServer[]>('speed_servers', { query: query || null }); emit(); },
+    async findServers(query) { s.net!.servers = await invoke<SpeedServer[]>('speed_servers', { query: query || null }); },
     async speedTest() {
       s.net!.testing = true; s.net!.live = { phase: 'ping', mbps: 0, ping: null, pct: 0 }; emit();
       const stop = await (await native()).onSpeedProgress((p) => { s.net!.live = p as SpeedLive; emit(); });
       try {
         const t = await invoke<SpeedTest>('speed_test', { server: s.net!.server || null, mode: s.net!.mode });
-        t.server = s.net!.serverLabel || t.server;
+        t.server = s.net!.serverLabel || t.server; t.key = s.net!.server;
         s.net!.test = t; s.net!.history = [t, ...s.net!.history].slice(0, 200); saveNet();
       }
       catch (e) { throw new Error(String(e)); }

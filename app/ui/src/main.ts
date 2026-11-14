@@ -184,7 +184,7 @@ const actions: Record<string, (id: string) => unknown> = {
   'free-memory': () => api.freeMemory(),
   'speed-test': () => api.speedTest(),
   'speed-mode': (id) => api.setSpeedMode(id as 'full'),
-  'toggle-results': () => { ui.allResults = !ui.allResults; },
+  'pick-server': (id) => pickServer(+id),
   'check-update': () => api.checkUpdate(),
   'install-update': () => api.installUpdate(),
   'clean-ask': () => { ui.dialog = { type: 'clean' }; },
@@ -222,10 +222,7 @@ document.addEventListener('change', async (e) => {
   else if (a === 'setting-select') await api.set('warnAt', +el.value);
   else if (a === 'pick-drive') ui.onboardDrive = id;
   else if (a === 'speed-server') await api.setSpeedServer(el.value);
-  else if (a === 'speed-server-pick') {
-    ui.customServer = el.value === 'custom';
-    if (!ui.customServer) await api.setSpeedServer(el.value, (el as unknown as HTMLSelectElement).selectedOptions[0]?.textContent ?? '');
-  }
+
   else if (a === 'clean-every') await api.set('cleanEvery', el.value as 'off');
   else if (a === 'clean-age') await api.set('cleanAge', +el.value);
   else if (a === 'clean-kind') await api.set('cleanKinds', el.checked ? [...s!.settings.cleanKinds, id] : s!.settings.cleanKinds.filter((k) => k !== id));
@@ -261,11 +258,40 @@ route();
 load().then(poll);
 
 
-// Server search: as you type (after a pause), the list fills with matching Speedtest servers.
+// Server picker: typing filters at once and searches the Speedtest list after a pause; arrows move, Enter picks.
 let searchTimer: ReturnType<typeof setTimeout> | undefined;
+async function pickServer(i: number) {
+  const o = screens.serverOptions[i];
+  ui.serverOpen = false; ui.serverQuery = '';
+  if (o) await api.setSpeedServer(o.value, o.value === '' ? 'Cloudflare' : `${o.title}${o.sub && !o.value.startsWith('http') ? ` — ${o.sub}` : ''}`);
+}
+const openPicker = () => { if (!ui.serverOpen) { ui.serverOpen = true; ui.serverQuery = ''; ui.serverIndex = 0; render(); } };
+document.addEventListener('focusin', (e) => { if ((e.target as HTMLElement).dataset?.action === 'server-box') openPicker(); });
 document.addEventListener('input', (e) => {
   const el = e.target as HTMLInputElement;
-  if (el.dataset.action !== 'speed-search') return;
+  if (el.dataset.action !== 'server-box') return;
+  ui.serverOpen = true; ui.serverQuery = el.value; ui.serverIndex = 0; render();
   clearTimeout(searchTimer);
-  searchTimer = setTimeout(() => api.findServers(el.value.trim()).then(render, () => {}), 400);
+  const q = el.value.trim();
+  if (/^https?:\/\//i.test(q)) return;
+  searchTimer = setTimeout(async () => {
+    ui.searching = true; render();
+    try { await api.findServers(q); } catch { /* keep the last list */ }
+    ui.searching = false; render();
+  }, 350);
+});
+document.addEventListener('keydown', (e) => {
+  if ((e.target as HTMLElement).dataset?.action !== 'server-box' || !ui.serverOpen) return;
+  const n = screens.serverOptions.length;
+  if (e.key === 'ArrowDown') ui.serverIndex = Math.min(n - 1, (ui.serverIndex ?? 0) + 1);
+  else if (e.key === 'ArrowUp') ui.serverIndex = Math.max(0, (ui.serverIndex ?? 0) - 1);
+  else if (e.key === 'Enter') { pickServer(ui.serverIndex ?? 0).then(render); (e.target as HTMLElement).blur(); }
+  else if (e.key === 'Escape') { ui.serverOpen = false; (e.target as HTMLElement).blur(); }
+  else return;
+  e.preventDefault(); render();
+  root.querySelector('.pick-row.is-hi')?.scrollIntoView({ block: 'nearest' });
+});
+// A click anywhere else closes the list.
+document.addEventListener('mousedown', (e) => {
+  if (ui.serverOpen && !(e.target as Element).closest('.pick')) { ui.serverOpen = false; render(); }
 });

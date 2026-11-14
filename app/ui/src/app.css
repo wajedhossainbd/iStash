@@ -482,3 +482,30 @@ h1:focus { outline: none; } /* focused on navigation so VoiceOver announces the 
 .mini-figs > span { display: flex; align-items: center; gap: 6px; white-space: nowrap; }
 .mini-figs svg { width: 14px; height: 14px; color: var(--text-tertiary); }
 .mini-figs b { font: 600 20px/22px var(--font-text); color: var(--text-primary); }
+/* Server picker: one box, a rich list underneath */
+.pick { position: relative; }
+.pick-box { display: flex; align-items: center; gap: 8px; padding: 0 10px; height: 36px; border-radius: var(--radius-md);
+  background: var(--glass-fill); box-shadow: inset 0 0 0 1px var(--glass-line); transition: box-shadow var(--duration-fast) var(--easing-standard); }
+.pick.is-open .pick-box, .pick-box:focus-within { box-shadow: inset 0 0 0 1.5px var(--accent-fill), 0 0 0 4px color-mix(in srgb, var(--accent-fill) 18%, transparent); }
+.pick-box > svg { width: 15px; height: 15px; color: var(--text-tertiary); flex: none; }
+.pick-input { flex: 1; min-width: 0; border: 0; outline: none; background: none; font: var(--type-emphasis); color: var(--text-primary); padding: 0; }
+.pick-input::placeholder { color: var(--text-secondary); font-weight: 500; }
+.pick-caret { color: var(--text-tertiary); font-size: 14px; width: 14px; display: grid; place-items: center; }
+.pick-spin { width: 12px; height: 12px; border-radius: 50%; border: 2px solid var(--text-tertiary); border-top-color: transparent; animation: spin 0.8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.pick-panel { position: absolute; z-index: 30; left: 0; right: 0; top: calc(100% + 6px); max-height: 360px; overflow: auto; padding: 6px;
+  background: var(--glass-strong); border-radius: var(--radius-lg); box-shadow: inset 0 0 0 1px var(--glass-line), var(--elevation-3);
+  backdrop-filter: blur(30px) saturate(1.6); -webkit-backdrop-filter: blur(30px) saturate(1.6); animation: drop var(--duration-base) var(--easing-standard); }
+.pick-group { font: var(--type-caption); font-weight: 600; color: var(--text-tertiary); padding: 10px 10px 4px; }
+.pick-row { display: grid; grid-template-columns: 28px minmax(0, 1fr) auto 16px; gap: 10px; align-items: center; padding: 7px 10px; border-radius: var(--radius-sm); cursor: default;
+  transition: background-color var(--duration-fast) var(--easing-standard); }
+.pick-row:hover, .pick-row.is-hi { background: color-mix(in srgb, var(--accent-fill) 16%, transparent); }
+.pick-ic { width: 28px; height: 28px; border-radius: 8px; display: grid; place-items: center; background: var(--bg-inset); color: var(--text-secondary); }
+.pick-ic svg { width: 15px; height: 15px; }
+.pick-text { display: grid; min-width: 0; }
+.pick-text strong { font: var(--type-emphasis); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pick-text small { font: var(--type-caption); color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pick-meta { font: var(--type-caption); color: var(--text-tertiary); white-space: nowrap; }
+.pick-check { width: 14px; height: 14px; color: var(--accent-text); }
+.pick-empty { padding: 16px; color: var(--text-secondary); font: var(--type-callout); }
+.pick-panel { background: color-mix(in srgb, var(--bg-raised) 96%, transparent); }

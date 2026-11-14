@@ -205,7 +205,7 @@ export interface Volume { id: string; name: string; format: string; bus: string;
 export interface NetInfo { iface: string; kind: string; ip: string; gateway: string }
 export interface SpeedServer { host: string; sponsor: string; city: string; cc: string; km?: number }
 export interface SpeedLive { phase: 'ping' | 'down' | 'up' | 'done'; mbps: number; ping: number | null; pct: number }
-export interface SpeedTest { mode?: 'full' | 'down' | 'up'; down: number | null; up: number | null; ping: number; jitter: number; ip: string; isp: string; city: string; country: string; at: number; server: string }
+export interface SpeedTest { key?: string; mode?: 'full' | 'down' | 'up'; down: number | null; up: number | null; ping: number; jitter: number; ip: string; isp: string; city: string; country: string; at: number; server: string }
 export interface DriveIo { read: number; write: number; avgRead: number; avgWrite: number; last: number | null }
 
 const CABLES: Cable[] = ['blue', 'orange', 'violet', 'green', 'pink', 'teal'];

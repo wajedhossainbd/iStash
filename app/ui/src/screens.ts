@@ -4,7 +4,7 @@ import { esc, gb, tb, day, clock, ago, list, icon, appIcon, button, pill, seg, c
 
 export type Route = 'overview' | 'offload' | 'drives' | 'memory' | 'internet' | 'clean' | 'settings' | 'onboarding' | 'popover' | 'widget';
 export type Dialog = { type: 'move' | 'back' | 'how' | 'why' | 'apfs' | 'eject' | 'quit-app' | 'clean'; id?: string; drive?: string; plan?: Plan };
-export interface Ui { route: Route; dialog: Dialog | null; offloadTab: 'suggested' | 'stowed' | 'all'; onboardStep: number; onboardDrive: string | null; busy: boolean; drive: string | null; customServer?: boolean; allResults?: boolean }
+export interface Ui { route: Route; dialog: Dialog | null; offloadTab: 'suggested' | 'stowed' | 'all'; onboardStep: number; onboardDrive: string | null; busy: boolean; drive: string | null; serverOpen?: boolean; serverQuery?: string; serverIndex?: number; searching?: boolean }
 /** s is null while the first state is loading; down when the helper can't be reached. */
 export interface View { s: State | null; m: Metrics | null; ui: Ui; down: boolean; icon: (path?: string) => string | null }
 type V = View & { s: State };
@@ -148,6 +148,37 @@ function internetSummary(s: State) {
   </section>`;
 }
 
+// The server picker: one box that shows the current server; typing searches. Rows are built here and kept in
+// `serverOptions` so a click or Enter picks by index.
+export type ServerOption = { value: string; title: string; sub: string; meta: string; group: string };
+export let serverOptions: ServerOption[] = [];
+function serverPicker(n: NonNullable<State['net']>, ui: Ui) {
+  const q = (ui.serverQuery ?? '').trim(), ql = q.toLowerCase();
+  const match = (o: ServerOption) => !ql || `${o.title} ${o.sub}`.toLowerCase().includes(ql);
+  const seen = new Set<string>();
+  const recent: ServerOption[] = n.history.filter((h) => h.key != null && !seen.has(h.key) && seen.add(h.key)).slice(0, 4)
+    .map((h) => ({ value: h.key!, title: h.server, sub: `last ${ago(h.at)}`, meta: `${h.down != null ? Math.round(h.down) : '–'}↓ ${h.up != null ? Math.round(h.up) : '–'}↑`, group: 'Recently used' }));
+  const ookla: ServerOption[] = n.servers.map((v) => ({ value: `ookla:${v.host}`, title: v.sponsor, sub: `${v.city}, ${v.cc}`, meta: v.km != null ? `${Math.round(v.km).toLocaleString('en-GB')} km` : '', group: q ? `Speedtest servers matching “${q}”` : 'Speedtest servers near you' }));
+  const files: ServerOption[] = FILES.map(([u, l]) => ({ value: u, title: l.replace(' (file)', ''), sub: 'download file', meta: '↓ only', group: 'Download files' }));
+  const url = /^https?:\/\/\S+$/i.test(q) ? [{ value: q, title: 'Use this file', sub: q, meta: '↓ only', group: 'Custom file' }] : [];
+  serverOptions = [...url, { value: '', title: 'Nearest server', sub: 'Cloudflare picks the closest of its sites', meta: 'Auto', group: '' }, ...recent.filter(match), ...ookla, ...files.filter(match)];
+  const cur = n.server === '' ? 'Nearest server — Cloudflare' : n.serverLabel || n.server.replace(/^ookla:/, '');
+  const hi = Math.min(ui.serverIndex ?? 0, serverOptions.length - 1);
+  let last = '';
+  const rows = serverOptions.map((o, i) => {
+    const head = o.group && o.group !== last ? `<div class="pick-group">${esc(o.group)}</div>` : '';
+    last = o.group;
+    return `${head}<div class="pick-row ${i === hi ? 'is-hi' : ''} ${o.value === n.server ? 'is-cur' : ''}" data-action="pick-server" data-id="${i}" role="option" aria-selected="${o.value === n.server}">
+      <span class="pick-ic">${icon(o.value === '' ? 'pulse' : o.value.startsWith('ookla:') ? 'router' : o.group === 'Recently used' ? 'history' : 'down')}</span>
+      <span class="pick-text"><strong>${esc(o.title)}</strong><small>${esc(o.sub)}</small></span><span class="pick-meta num">${esc(o.meta)}</span>${o.value === n.server ? icon('check', 'pick-check') : ''}</div>`;
+  }).join('');
+  return `<div class="pick ${ui.serverOpen ? 'is-open' : ''}">
+    <div class="pick-box">${icon('globe')}<input class="pick-input" data-action="server-box" role="combobox" aria-expanded="${!!ui.serverOpen}" aria-label="Test server" spellcheck="false" autocomplete="off"
+      placeholder="${esc(cur)}" value="${esc(ui.serverOpen ? ui.serverQuery ?? '' : cur)}" ${n.testing ? 'disabled' : ''}><span class="pick-caret">${ui.searching ? '<i class="pick-spin"></i>' : '⌄'}</span></div>
+    ${ui.serverOpen ? `<div class="pick-panel" role="listbox">${rows || '<div class="pick-empty">No servers found. Try a city or country, or paste a link to a large file.</div>'}</div>` : ''}
+  </div>`;
+}
+
 // The Internet page: speed test with gauge, servers, the connection, and every past result.
 export function internet(v: View) {
   const h = header('Internet', 'Speed, connection and past tests.');
@@ -161,10 +192,6 @@ function internetCard(s: State, ui: Ui) {
   const t = n.test, i = n.info, mbps = (v: number | null | undefined) => v == null ? '–' : v.toFixed(v < 10 ? 1 : 0);
   const fig = (ic: string, label: string, value: string, unit: string) => `<div><span class="label">${icon(ic)}${label}</span><span class="figure num">${value}<small>${unit}</small></span></div>`;
   const fact = (ic: string, label: string, value: string) => value ? `<div class="fact">${icon(ic)}<span>${label}</span><strong class="num" title="${esc(value)}">${esc(value)}</strong></div>` : '';
-  const sel = n.server, custom = ui.customServer || (!!sel && !sel.startsWith('ookla:') && !FILES.some(([u]) => u === sel));
-  const opt = (v: string, label: string) => `<option value="${esc(v)}" ${!custom && v === sel ? 'selected' : ''}>${esc(label)}</option>`;
-  const near = n.servers.map((v) => opt(`ookla:${v.host}`, `${v.sponsor} — ${v.city}${v.km != null ? ` (${v.km} km)` : ''}`)).join('');
-  const picked = sel.startsWith('ookla:') && !n.servers.some((v) => `ookla:${v.host}` === sel) ? opt(sel, n.serverLabel || sel.slice(6)) : '';
   const rows = n.history;
   return `<section class="card internet">
     <div class="card-head"><h2>Speed test</h2><span class="secondary" style="font:var(--type-caption)">${t ? `Last ${ago(t.at)} · ${esc(t.server)}` : 'Not tested yet'}</span><span class="spacer"></span>
@@ -172,12 +199,7 @@ function internetCard(s: State, ui: Ui) {
     <div class="speed-grid">
       ${gauge(n)}
       <div class="speed-side">
-        <div class="server-row"><label for="speed-server-pick" class="secondary">${icon('globe')}Server</label>
-          <select class="select" id="speed-server-pick" data-action="speed-server-pick" ${n.testing ? 'disabled' : ''}>
-            ${opt('', 'Nearest — Cloudflare')}${picked}${near ? `<optgroup label="Speedtest servers">${near}</optgroup>` : ''}<optgroup label="Download files (no upload)">${FILES.map(([u, l]) => opt(u, l)).join('')}</optgroup><option value="custom" ${custom ? 'selected' : ''}>Custom file…</option>
-          </select></div>
-        <input class="input" data-action="speed-search" placeholder="Search servers: city, country or provider" spellcheck="false" ${n.testing ? 'disabled' : ''}>
-        ${custom ? `<input class="input" data-action="speed-server" placeholder="https://… link to a large file" value="${esc(sel.startsWith('ookla:') ? '' : sel)}" spellcheck="false">` : ''}
+        ${serverPicker(n, ui)}
         ${button(n.testing ? 'Testing…' : t ? 'Test again' : 'Start test', 'speed-test', { kind: 'primary', large: true, disabled: n.testing || !i })}
         <div class="internet-figs">${fig('down', 'Download', mbps(t?.down), 'Mbps')}${fig('up', 'Upload', mbps(t?.up), 'Mbps')}${fig('pulse', 'Ping', t ? Math.round(t.ping).toString() : '–', 'ms')}${fig('pulse', 'Jitter', t ? Math.round(t.jitter).toString() : '–', 'ms')}</div>
       </div>
