@@ -12,7 +12,7 @@ tests it is the sample data in `api.ts`, so every screen can be designed and che
 | `mem.rs` | Live CPU, memory, swap, network and the memory forecast |
 | `away.rs` | Notices a drive with moved folders going away, and an app used while its drive is missing |
 | `net.rs` | Connection details, the Speedtest server list, and the speed test with live progress events |
-| `tune.rs` | Focus, the cleaner, and freeing memory without a password |
+| `tune.rs` | Focus, the cleaner (what each kind would free, and what the age rule keeps back), and freeing memory without a password |
 | `quick.rs` | The menu-bar panel's toggles: keep awake, lock, empty Trash, desktop icons, uptime |
 | `widget.rs` | The edge widget: side, show on hover (follows the pointer), always on |
 | `login.rs` | Open at login through macOS's Login Items |

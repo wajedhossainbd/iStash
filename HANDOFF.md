@@ -82,6 +82,9 @@ Changing any of these breaks existing installs or moved data:
 - A window that isn't in front gets no hover events; the edge widget follows the pointer from Rust instead.
 - `pmset displaysleepnow` doesn't lock unless "require password immediately" is set; Lock uses
   `SACLockScreenImmediate` from `login.framework`, as the Apple menu does.
+- Clean's orb (`orb()` in `screens.ts`, `.bloom` in `app.css`): petals drift on different periods so the motion
+  never visibly repeats; the busy ring fills once (needs a length with a unit, `--len: …px`); the result shows for
+  8 s, then the live figure returns. Any rule that turns the ring's svg must not reach the tick's icon inside it.
 - Freeing memory without a password works by applying memory pressure (`memory_pressure`), which pushes idle memory
   to swap. `purge` needs an administrator.
 - macOS can't cap another app's memory; Focus lowers other apps' priority (`taskpolicy -b`) instead.
