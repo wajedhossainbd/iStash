@@ -61,6 +61,10 @@ pub const SKIP: &[&str] = &[
     "Library/Application Support/FileProvider",
     "Library/Application Support/MobileSync",
     "Library/Application Support/CloudDocs",
+    // macOS's own data, never moved; some of it (Music, TV, Photos, media services) is behind a privacy prompt.
+    "Library/Application Support/com.apple.*",
+    "Library/Caches/com.apple.*",
+    "Library/Application Support/iLifeMediaBrowser",
     ".Trash",
 ];
 
@@ -314,6 +318,9 @@ mod tests {
         assert!(never_read("Library/Containers/com.docker.docker"));
         assert!(never_read("Library/Group Containers/x"));
         assert!(!never_read("Library/Caches/x"));
+        // Reading these makes macOS ask for Apple Music and media library access.
+        assert!(skipped("Library/Application Support/com.apple.AMPLibraryAgent") && skipped("Library/Caches/com.apple.Music"));
+        assert!(!skipped("Library/Caches/Google"));
     }
 
     #[test]

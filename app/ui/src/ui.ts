@@ -34,6 +34,15 @@ const P: Record<string, string> = {
   lock: '<rect x="3.5" y="7" width="9" height="6.5" rx="1.5"/><path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2"/>',
   app: '<rect x="3" y="3" width="10" height="10" rx="2.5"/>',
   power: '<path d="M8 2v5"/><path d="M4.6 4.4a5 5 0 1 0 6.8 0"/>',
+  globe: '<circle cx="8" cy="8" r="6"/><path d="M2 8h12M8 2c1.8 1.7 2.6 3.7 2.6 6S9.8 12.3 8 14M8 2C6.2 3.7 5.4 5.7 5.4 8s.8 4.3 2.6 6"/>',
+  wifi: '<path d="M2 6.2a8.6 8.6 0 0 1 12 0M4.2 8.6a5.4 5.4 0 0 1 7.6 0M6.4 11a2.2 2.2 0 0 1 3.2 0"/><circle cx="8" cy="13" r=".6" fill="currentColor"/>',
+  router: '<rect x="2" y="9" width="12" height="4" rx="1.2"/><path d="M5 9V6M11 9V6M4.5 11h.01M7 11h.01"/>',
+  pin: '<path d="M8 14s4.5-4.2 4.5-7.5a4.5 4.5 0 0 0-9 0C3.5 9.8 8 14 8 14z"/><circle cx="8" cy="6.5" r="1.6"/>',
+  building: '<rect x="3" y="2.5" width="10" height="11" rx="1"/><path d="M6 5.5h1M9 5.5h1M6 8h1M9 8h1M7 13.5V11h2v2.5"/>',
+  down: '<path d="M8 2.5v10M4 8.5l4 4 4-4"/>',
+  up: '<path d="M8 13.5v-10M4 7.5l4-4 4 4"/>',
+  pulse: '<path d="M1.5 8h3l1.5-4 3 8 1.5-4h4"/>',
+  history: '<path d="M2.5 8a5.5 5.5 0 1 0 1.6-3.9M2.5 2.5v2.4h2.4"/><path d="M8 5v3l2 1.5"/>',
   cable: '<circle cx="4" cy="4.5" r="1.8"/><circle cx="12" cy="11.5" r="1.8"/><path d="M5.6 5.4c4 .5 1.8 5.6 4.8 5.9"/>',
 };
 export const icon = (name: string, cls = '') =>
@@ -91,7 +100,11 @@ export const toggle = (key: string, on: boolean, label: string) =>
 export function forecastChart(f: Forecast, { height = 150, now = Date.now() } = {}) {
   const calm = f.condition === 'fine';
   const W = 880, H = height, top = 18, bottom = H - 22;
-  const limit = f.swapLimit / GB, max = Math.ceil((limit * 1.1) / 10) * 10;
+  // Scale to what matters: the swap line itself when all is fine, up to the limit only when swap is heading there.
+  const limit = f.swapLimit / GB, peak = Math.max(...f.history.map((b) => b / GB), 1);
+  const span = calm ? Math.max(4, peak * 1.5) : limit * 1.1;
+  const step = [1, 2, 5, 10, 20, 50, 100].find((st) => span / st <= 5) ?? 200, max = Math.ceil(span / step) * step;
+  const showLimit = !calm && limit <= max;
   const y = (g: number) => bottom - (g / max) * (bottom - top);
   const xNow = 40 + 55 * 8.2;
   const x = (m: number) => xNow + m * 8.2;
@@ -103,15 +116,15 @@ export function forecastChart(f: Forecast, { height = 150, now = Date.now() } = 
     ? `M${xNow} ${y(cur)} L ${x(45)} ${y(cur)}` // no shortage: the forecast is "about where it is", not an invented curve
     : `M${xNow} ${y(cur)} C ${x(m * 0.37)} ${y(cur + (limit - cur) * 0.28)} ${x(m * 0.74)} ${y(cur + (limit - cur) * 0.53)} ${x(m)} ${y(limit)}`;
   const band = calm ? '' : `<path d="M${xNow} ${y(cur)} C ${x(m * 0.26)} ${y(cur + (limit - cur) * 0.4)} ${x(m * 0.58)} ${y(cur + (limit - cur) * 0.6)} ${x(m * 0.79)} ${y(limit)} L${x(45)} ${y(limit)} L${x(45)} ${y(cur + (limit - cur) * 0.45)} C ${x(30)} ${y(cur + (limit - cur) * 0.29)} ${x(15)} ${y(cur + (limit - cur) * 0.13)} ${xNow} ${y(cur)}Z" fill="var(--warn-tint)"/>`;
-  const grid = Array.from({ length: max / 10 + 1 }, (_, i) => i * 10).filter((g) => g <= max);
+  const grid = Array.from({ length: max / step + 1 }, (_, i) => i * step);
   const ticks = [-54, -34, -14, 16, 36].map((mm) => [mm, clock(now + mm * 60e3)] as const);
   const label = calm ? `Swap is ${gb(f.swap)}; no shortage expected`
     : `Swap rose from ${gb(f.history[0])} to ${gb(f.swap)} in the last hour and is forecast to reach the ${gb(f.swapLimit)} limit around ${clock(f.at!)}`;
   return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(label)}">
     <g stroke="var(--line-hairline)">${grid.map((g) => `<line x1="40" x2="${W - 20}" y1="${y(g)}" y2="${y(g)}" ${g === 0 ? 'stroke="var(--line-strong)"' : ''}/>`).join('')}</g>
     <g font-size="10" fill="var(--text-tertiary)" font-family="var(--font-num)" text-anchor="end">${grid.map((g, i) => `<text x="32" y="${y(g) + 3}">${g}${i === grid.length - 1 ? ' GB' : ''}</text>`).join('')}</g>
-    <line x1="40" x2="${W - 20}" y1="${y(limit)}" y2="${y(limit)}" stroke="var(--danger-fill)" stroke-dasharray="3 3"/>
-    <text x="${W - 20}" y="${y(limit) - 5}" text-anchor="end" font-size="10" fill="var(--danger-text)">No room left for swap (<tspan font-family="var(--font-num)">${gb(f.swapLimit)}</tspan>)</text>
+    ${showLimit ? `<line x1="40" x2="${W - 20}" y1="${y(limit)}" y2="${y(limit)}" stroke="var(--danger-fill)" stroke-dasharray="3 3"/>
+    <text x="${W - 20}" y="${y(limit) - 5}" text-anchor="end" font-size="10" fill="var(--danger-text)">Disk full at <tspan font-family="var(--font-num)">${gb(f.swapLimit)}</tspan> of swap</text>` : ''}
     ${band}
     <polyline points="${hist}" fill="none" stroke="var(--text-primary)" stroke-width="2"/>
     <path d="${fc}" fill="none" stroke="${calm ? 'var(--ok-fill)' : 'var(--warn-fill)'}" stroke-width="2" stroke-dasharray="5 4"/>

@@ -50,6 +50,8 @@ Stowaway does the move safely, keeps track of every link, and tells you when a d
 
 ## Screenshots
 
+<p align="center"><img src="docs/screenshots/cables.gif" alt="The drive map: data flows along each cable, hovering lifts one, and a drive plugs in and out" width="760"><br><sub><b>The drive map</b> · data flows along each cable; hover to follow one, and watch a drive plug in and out</sub></p>
+
 <table>
   <tr>
     <td width="50%"><img src="docs/screenshots/offload.png" alt="Offload: big app folders and where they can go"><br><sub><b>Offload</b> · big app folders, and the drive they move to</sub></td>

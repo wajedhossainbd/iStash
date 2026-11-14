@@ -104,7 +104,9 @@ export interface Settings {
   updates: boolean;
   defaultDrive: string | null;
   cleanEvery: 'off' | 'daily' | 'weekly' | 'monthly' | 'over2' | 'over5' | 'over10'; // overN: when the ticked kinds pass N GB
-  cleanAge: number; // days an item must be untouched before it may be removed; 0 = any age
+  cleanAge: number;
+  widget: 'off' | 'auto' | 'pinned'; // the glass panel on a screen edge
+  widgetSide: 'left' | 'right'; // days an item must be untouched before it may be removed; 0 = any age
   cleanKinds: string[]; // which kinds the Clean screen has ticked; the schedule cleans the same ones
 }
 
@@ -130,6 +132,10 @@ export interface State {
   journalPath: string;
   /** available: a newer version's number once a check found one. */
   update: { available: string | null; busy: boolean; checked: number | null };
+  /** The active connection, and the last speed test (run only when asked). */
+  net?: { info: NetInfo | null; test: SpeedTest | null; testing: boolean; history: SpeedTest[]; server: string };
+  /** Read and write activity per drive id. */
+  io?: Record<string, DriveIo>;
   /** App bundle path Focus is on, or null. */
   focus: string | null;
   clean: { items: CleanItem[] | null; busy: boolean; freed: number | null; last: number | null; memBusy: boolean; memFreed: number | null };
@@ -174,6 +180,10 @@ export interface Api {
   cleanScan(): Promise<void>;
   /** Removes the given kinds of temporary files for good. */
   clean(kinds: string[]): Promise<void>;
+  /** Measures internet speed against Cloudflare and looks up the public address and provider. */
+  speedTest(): Promise<void>;
+  /** '' for Cloudflare, or a download URL on a server of the user's choice. */
+  setSpeedServer(url: string): Promise<void>;
   /** Looks for a newer release. */
   checkUpdate(): Promise<void>;
   /** Downloads the release found by checkUpdate, installs it and restarts the app. */
@@ -187,7 +197,11 @@ export interface Api {
 }
 
 /** One mounted external volume, as the app shell's read-only `volumes` command reports it. */
-export interface Volume { id: string; name: string; format: string; bus: string; total: number; free: number; writable: boolean }
+export interface Volume { id: string; name: string; format: string; bus: string; total: number; free: number; writable: boolean; disk?: string }
+/** Bytes per second now and averaged since Stowaway started, and when the drive last read or wrote. */
+export interface NetInfo { iface: string; kind: string; ip: string; gateway: string }
+export interface SpeedTest { down: number; up: number | null; ping: number; jitter: number; ip: string; isp: string; city: string; country: string; at: number; server: string }
+export interface DriveIo { read: number; write: number; avgRead: number; avgWrite: number; last: number | null }
 
 const CABLES: Cable[] = ['blue', 'orange', 'violet', 'green', 'pink', 'teal'];
 const HOLDS_LINKS = /^(APFS|Mac OS Extended)/;
@@ -283,11 +297,12 @@ export function mockState(now = Date.now()): State {
     mac: { model: 'MacBook Pro', total: 494 * GB, free: 31.2 * GB, system: 104 * GB, apps: 153 * GB, reserve: 10 * GB },
     drives, folders, jobs: [], memApps,
     forecast: strained(now),
-    settings: { onboarded: false, theme: 'dark', login: true, menubar: true, dryRun: true, warnAt: 30, ejectGuard: true, updates: true, defaultDrive: null, cleanEvery: 'off', cleanAge: 7, cleanKinds: ['caches', 'logs', 'temp'] },
+    settings: { onboarded: false, theme: 'dark', login: true, menubar: true, dryRun: true, warnAt: 30, ejectGuard: true, updates: true, defaultDrive: null, cleanEvery: 'off', cleanAge: 7, widget: 'off', widgetSide: 'right', cleanKinds: ['caches', 'logs', 'temp'] },
     permissions: { volumes: false, notify: false },
     scan: { running: false, checked: 0 },
     journalPath: '~/Library/Application Support/Stowaway/journal.jsonl',
     update: { available: null, busy: false, checked: null },
+    net: { info: { iface: 'en0', kind: 'Wi-Fi', ip: '192.168.1.24', gateway: '192.168.1.1' }, test: null, testing: false, history: [], server: '' },
     focus: null, clean: { items: null, busy: false, freed: null, last: null, memBusy: false, memFreed: null },
   };
 }
@@ -419,6 +434,8 @@ export function createMock(scenario: Scenario = 'normal', onboarded = scenario !
     },
     async focus(appPath) { await ok(); s.focus = appPath; emit(); },
     async freeMemory() { await ok(); s.clean.memFreed = 1.8 * GB; emit(); },
+    async speedTest() { await ok(); const t = { down: 182.4, up: 41.7, ping: 12, jitter: 2, ip: '203.0.113.7', isp: 'Example Fibre', city: 'Dhaka', country: 'BD', at: Date.now(), server: 'Cloudflare' }; s.net = { ...s.net!, testing: false, test: t, history: [t, ...s.net!.history].slice(0, 20) }; emit(); },
+    async setSpeedServer(url) { await ok(); s.net!.server = url; emit(); },
     async checkUpdate() { await ok(); s.update = { available: '0.2.0', busy: false, checked: Date.now() }; emit(); },
     async installUpdate() { await ok(); s.version = s.update.available ?? s.version; s.update.available = null; emit(); },
     async appIcon(path) {

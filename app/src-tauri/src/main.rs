@@ -7,7 +7,9 @@ mod engine;
 mod icon;
 mod login;
 mod mem;
+mod net;
 mod tune;
+mod widget;
 
 use std::path::Path;
 use std::process::Command;
@@ -76,9 +78,45 @@ fn volumes() -> Vec<serde_json::Value> {
             Some(serde_json::json!({
                 "id": s("VolumeUUID"), "name": s("VolumeName"), "format": s("FilesystemUserVisibleName"),
                 "bus": s("BusProtocol"), "total": n("TotalSize"), "free": free, "writable": b("WritableVolume"),
+                "disk": s("ParentWholeDisk"),
             }))
         })
         .collect()
+}
+
+/// Bytes read and written since boot, per whole disk ("disk9" -> [read, written]), from the storage drivers'
+/// counters. The UI turns two readings into speeds.
+#[tauri::command(async)]
+fn disk_io() -> std::collections::HashMap<String, [u64; 2]> {
+    let out = Command::new("/usr/sbin/ioreg").args(["-r", "-c", "IOBlockStorageDriver", "-l", "-w0"]).output().map(|o| String::from_utf8_lossy(&o.stdout).into_owned()).unwrap_or_default();
+    parse_io(&out)
+}
+
+fn parse_io(text: &str) -> std::collections::HashMap<String, [u64; 2]> {
+    let num = |line: &str, key: &str| line.split(key).nth(1).map(|r| r.chars().take_while(|c| c.is_ascii_digit()).collect::<String>()).and_then(|d| d.parse::<u64>().ok());
+    let mut map = std::collections::HashMap::new();
+    let mut pending: Option<[u64; 2]> = None;
+    for line in text.lines() {
+        if let (Some(r), Some(w)) = (num(line, "\"Bytes (Read)\"="), num(line, "\"Bytes (Write)\"=")) {
+            pending = Some([r, w]);
+        } else if let Some(name) = line.split("\"BSD Name\" = \"").nth(1).map(|r| r.trim_end_matches('"')) {
+            // The first disk under a driver is the whole disk its counters belong to.
+            if let Some(io) = pending.take() {
+                map.insert(name.to_string(), io);
+            }
+        }
+    }
+    map
+}
+
+#[cfg(test)]
+mod io_tests {
+    #[test]
+    fn reads_driver_counters() {
+        let t = "  |   \"Statistics\" = {\"Bytes (Read)\"=500,\"Bytes (Write)\"=70,\"Errors (Read)\"=0}\n  |   \"BSD Name\" = \"disk9\"\n  \"BSD Name\" = \"disk9s1\"\n";
+        assert_eq!(super::parse_io(t).get("disk9"), Some(&[500, 70]));
+        assert_eq!(super::parse_io(t).len(), 1);
+    }
 }
 
 /// Keeps the View > Appearance checkmarks in step with the saved setting.
@@ -131,17 +169,18 @@ fn main() {
         // Size and position only: closing hides the window, and a remembered "hidden" would launch with no window.
         .plugin(
             tauri_plugin_window_state::Builder::default()
-                .with_denylist(&["popover"])
+                .with_denylist(&["popover", "widget"])
                 .with_state_flags(StateFlags::SIZE | StateFlags::POSITION | StateFlags::MAXIMIZED | StateFlags::FULLSCREEN)
                 .build(),
         )
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
-        .invoke_handler(tauri::generate_handler![login::login_status, login::set_login, tune::focus, tune::clean_scan, tune::clean_run, tune::free_memory, app_icon, open_target, notify, appearance_checked, volumes, mem::memory, mem::quit_app, engine::scan_home, engine::plan, engine::start_job, engine::jobs, engine::stop_job, engine::eject, engine::quit_drive_users, engine::set_guard])
+        .invoke_handler(tauri::generate_handler![net::net_info, net::speed_test, disk_io, widget::widget_mode, widget::widget_hover, login::login_status, login::set_login, tune::focus, tune::clean_scan, tune::clean_run, tune::free_memory, app_icon, open_target, notify, appearance_checked, volumes, mem::memory, mem::quit_app, engine::scan_home, engine::plan, engine::start_job, engine::jobs, engine::stop_job, engine::eject, engine::quit_drive_users, engine::set_guard])
         .setup(|app| {
             mem::start();
             engine::start();
             away::start();
+            widget::start(app.handle().clone());
             let handle = app.handle();
             app.set_menu(menu(handle)?)?;
             app.on_menu_event(|app, e| {

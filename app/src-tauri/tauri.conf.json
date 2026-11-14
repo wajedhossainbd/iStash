@@ -47,6 +47,29 @@
         "alwaysOnTop": true,
         "skipTaskbar": true,
         "shadow": true
+      },
+      {
+        "label": "widget",
+        "title": "Stowaway",
+        "url": "index.html#/widget",
+        "width": 140,
+        "height": 560,
+        "decorations": false,
+        "transparent": true,
+        "resizable": false,
+        "visible": false,
+        "alwaysOnTop": true,
+        "skipTaskbar": true,
+        "shadow": true,
+        "focus": false,
+        "visibleOnAllWorkspaces": true,
+        "windowEffects": {
+          "effects": [
+            "hudWindow"
+          ],
+          "state": "active",
+          "radius": 18
+        }
       }
     ],
     "security": {

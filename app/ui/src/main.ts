@@ -19,8 +19,10 @@ let m: Metrics | null = null;
 let down = false;
 const ui: Ui = { route: 'overview', dialog: null, offloadTab: 'suggested', onboardStep: 0, onboardDrive: null, busy: false, drive: null };
 const isPopover = location.hash === '#/popover';
+const isWidget = location.hash === '#/widget';
 document.documentElement.classList.toggle('native', native);
 document.documentElement.classList.toggle('popover-window', isPopover);
+document.documentElement.classList.toggle('widget-window', isWidget);
 
 // ---------- App icons, cached per bundle path ----------
 const icons = new Map<string, string | null>();
@@ -43,6 +45,7 @@ function render() {
   const v: View = { s, m, ui, down, icon: iconFor };
   let html: string;
   if (ui.route === 'popover') html = screens.popover(v);
+  else if (ui.route === 'widget') html = screens.widget(v);
   else if (ui.route === 'onboarding') html = `<div class="window no-sidebar">${screens.onboarding(v)}</div>`;
   else html = `<div class="window">${screens.sidebar(v)}<main class="content">${screens[ui.route](v)}</main>${screens.dialogFor(v)}</div>`;
   morphdom(root, `<div id="root">${html}</div>`, {
@@ -54,6 +57,10 @@ function render() {
   if (!dlg && hadDialog && lastTrigger) root.querySelector<HTMLElement>(lastTrigger)?.focus();
   hadDialog = !!dlg;
   if (isPopover && native) tauri().then((n) => n.fitPopover(root.firstElementChild as HTMLElement));
+  if (isWidget) {
+    const e = root.querySelector<HTMLElement>('.edge');
+    if (e) { e.style.zoom = ''; const k = Math.min(1, e.clientHeight / e.scrollHeight); if (k < 1) e.style.zoom = String(Math.max(0.6, k)); }
+  }
 }
 
 // ---------- Data ----------
@@ -62,14 +69,14 @@ function onState(next: State) {
   const prev = s;
   s = next;
   down = false;
-  if (!s.settings.onboarded && !isPopover) ui.route = 'onboarding';
+  if (!s.settings.onboarded && !isPopover && !isWidget) ui.route = 'onboarding';
   ui.onboardDrive ??= s.settings.defaultDrive ?? s.drives.find((d) => d.connected && !d.refused && !d.problem)?.id ?? null;
   if (s.settings.theme !== theme) {
     theme = s.settings.theme;
     if (theme === 'system') delete document.documentElement.dataset.theme; else document.documentElement.dataset.theme = theme;
     if (native) tauri().then((n) => n.setTheme(theme!));
   }
-  if (native && !isPopover) tauri().then((n) => n.setTrayTitle(s!.forecast && s!.forecast.condition !== 'fine' ? `${s!.forecast.minutesLeft}m` : ''));
+  if (native && !isPopover && !isWidget) tauri().then((n) => n.setTrayTitle(s!.forecast && s!.forecast.condition !== 'fine' ? `${s!.forecast.minutesLeft}m` : ''));
   render();
   if (prev) for (const d of next.drives) {
     const was = prev.drives.find((x) => x.id === d.id)?.connected;
@@ -111,7 +118,8 @@ function animateCable(id: string, on: boolean) {
     const t = on ? easeOutBack(k) : 1 - easeOutBounce(k);
     L.cables.forEach((c, i) => {
       if (c.d.id !== id) return;
-      root.querySelector(`[data-cable="${i}"]`)?.setAttribute('d', screens.cablePath(c, t, L.jackX, L.portX));
+      const d = screens.cablePath(c, t, L.jackX, L.portX);
+      root.querySelectorAll(`[data-cable="${i}"]`).forEach((p) => p.setAttribute('d', d));
       const plug = root.querySelector(`[data-plug="${i}"]`);
       plug?.setAttribute('x', String(L.jackX + 180 + (L.portX - L.jackX - 180) * t - 8));
       plug?.setAttribute('y', String(c.floor + (c.yp - c.floor) * t - 5));
@@ -128,6 +136,7 @@ function applyHot() {
   bay.classList.toggle('has-hot', !!hot);
   root.querySelectorAll<SVGGElement>('.cable-group').forEach((g) => {
     const on = hot && (hot === `app:${g.dataset.app}` || hot === `drive:${g.dataset.drive}`);
+    g.classList.toggle('is-hot', !!on);
     g.querySelector('.cable')!.classList.toggle('is-hot', !!on);
   });
 }
@@ -147,6 +156,8 @@ const actions: Record<string, (id: string) => unknown> = {
   go: (id) => { location.hash = `#/${id}`; },
   tab: (id) => { ui.offloadTab = id as Ui['offloadTab']; },
   theme: (id) => api.set('theme', id as Theme),
+  'widget-mode': (id) => api.set('widget', id as 'off'),
+  'widget-side': (id) => api.set('widgetSide', id as 'right'),
   scan: () => api.scan(),
   close: () => { ui.dialog = null; },
   'start-helper': async () => { await api.startHelper(); await load(); },
@@ -170,6 +181,7 @@ const actions: Record<string, (id: string) => unknown> = {
   focus: (id) => api.focus(id || null),
   'clean-scan': () => api.cleanScan(),
   'free-memory': () => api.freeMemory(),
+  'speed-test': () => api.speedTest(),
   'check-update': () => api.checkUpdate(),
   'install-update': () => api.installUpdate(),
   'clean-ask': () => { ui.dialog = { type: 'clean' }; },
@@ -206,6 +218,7 @@ document.addEventListener('change', async (e) => {
   if (a === 'setting') await api.set(id as 'login', el.checked);
   else if (a === 'setting-select') await api.set('warnAt', +el.value);
   else if (a === 'pick-drive') ui.onboardDrive = id;
+  else if (a === 'speed-server') await api.setSpeedServer(el.value);
   else if (a === 'clean-every') await api.set('cleanEvery', el.value as 'off');
   else if (a === 'clean-age') await api.set('cleanAge', +el.value);
   else if (a === 'clean-kind') await api.set('cleanKinds', el.checked ? [...s!.settings.cleanKinds, id] : s!.settings.cleanKinds.filter((k) => k !== id));
@@ -228,7 +241,7 @@ function route() {
   const [r, sub] = location.hash.replace('#/', '').split('/') as [Route, string?];
   ui.drive = r === 'drives' && sub ? decodeURIComponent(sub) : null;
   if (r === 'clean') api.cleanScan().catch(() => {});
-  ui.route = isPopover ? 'popover' : s && !s.settings.onboarded ? 'onboarding' : ROUTES.includes(r) && r !== 'popover' && r !== 'onboarding' ? r : 'overview';
+  ui.route = isPopover ? 'popover' : isWidget ? 'widget' : s && !s.settings.onboarded ? 'onboarding' : ROUTES.includes(r) && r !== 'popover' && r !== 'onboarding' ? r : 'overview';
   ui.dialog = null;
   const show = () => { render(); root.querySelector<HTMLElement>('.page-header h1')?.focus({ preventScroll: true }); };
   // A short cross-fade between pages where the webview supports it.
@@ -239,3 +252,4 @@ window.addEventListener('hashchange', route);
 if (native) tauri().then((n) => n.onAppearance((t) => api.set('theme', t)));
 route();
 load().then(poll);
+

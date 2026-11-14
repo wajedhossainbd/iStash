@@ -2,7 +2,7 @@
 // Same `Api` as the mock, so screens don't know the difference.
 // shortcut: polls the shell (drives 5 s, memory 2 s, jobs 1 s); becomes pushes from the agent socket later.
 import { ApiError, toDrives, toForecast, toMemApps } from './api.ts';
-import type { Api, CleanItem, Drive, Folder, Job, Plan, Reading, Settings, State, Verdict, Volume } from './api.ts';
+import type { Api, CleanItem, Drive, DriveIo, NetInfo, SpeedTest, Folder, Job, Plan, Reading, Settings, State, Verdict, Volume } from './api.ts';
 
 type Invoke = <T>(cmd: string, args?: Record<string, unknown>) => Promise<T>;
 interface Scanned { path: string; show: string; app: string; appPath: string | null; verdict: Verdict; note: string; size: number; drive: string | null; since: number | null; running: boolean; users: string[] }
@@ -24,17 +24,20 @@ export function toFolder(f: Scanned): Folder {
 }
 
 export function createReal(invoke: Invoke): Api {
+  // The popover and the edge widget only show numbers: they leave scanning, jobs and schedules to the main window.
+  const light = /^#\/(popover|widget)/.test(location.hash);
   const saved = read(KEY, { settings: {} as Partial<Settings>, permissions: {} });
   const s: State = {
     version: '0.1.0',
     mac: { model: 'This Mac', total: 1, free: 0, system: 0, apps: 0, reserve: 10 * 2 ** 30 },
     drives: [], folders: [], jobs: [], forecast: null, memApps: [],
-    settings: { onboarded: false, theme: 'dark', login: false, menubar: true, dryRun: true, warnAt: 30, ejectGuard: true, updates: false, defaultDrive: null, cleanEvery: 'off', cleanAge: 7, cleanKinds: ['caches', 'logs', 'temp'], ...saved.settings },
+    settings: { onboarded: false, theme: 'dark', login: false, menubar: true, dryRun: true, warnAt: 30, ejectGuard: true, updates: false, defaultDrive: null, cleanEvery: 'off', cleanAge: 7, widget: 'off', widgetSide: 'right', cleanKinds: ['caches', 'logs', 'temp'], ...saved.settings },
     // macOS asks for these itself the first time they are needed; there is nothing to pre-grant.
     permissions: { volumes: true, notify: false, ...saved.permissions },
     scan: { running: true, checked: 0 },
     journalPath: '~/Library/Application Support/Stowaway/journal.jsonl',
     update: { available: null, busy: false, checked: null },
+    net: { info: null, testing: false, ...read<{ test: SpeedTest | null; history: SpeedTest[]; server: string }>('stowaway.net', { test: null, history: [], server: '' }) },
     focus: null, clean: { items: null, busy: false, freed: null, memBusy: false, memFreed: null, last: read<{ last: number | null }>('stowaway.clean', { last: null }).last },
   };
   const subs = new Set<(s: State) => void>();
@@ -108,10 +111,32 @@ export function createReal(invoke: Invoke): Api {
   // Start: show the last scan at once, then refresh it.
   const cached = read<Partial<ScanResult>>('stowaway.scan', {});
   if (cached.folders) { s.folders = cached.folders.map(toFolder); s.mac = { ...s.mac, ...cached.mac }; s.scan = { running: false, checked: cached.checked ?? 0 }; }
-  scan(!!cached.folders);
+  if (!light) scan(!!cached.folders);
   pollDrives();
   setInterval(pollDrives, 5000);
-  const pollMem = () => invoke<Reading | null>('memory').then((r) => {
+  // Drive activity: two readings of the counters make a speed; the first reading is the baseline for averages.
+  const first: Record<string, { t: number; b: [number, number] }> = {}, prev: Record<string, { t: number; b: [number, number] }> = {}, lastActive: Record<string, number> = {};
+  const pollIo = () => invoke<Record<string, [number, number]>>('disk_io').then((io) => {
+    const now = Date.now(), out: Record<string, DriveIo> = {};
+    for (const v of vols) {
+      const b = v.disk ? io[v.disk] : undefined;
+      if (!b) continue;
+      const p = prev[v.id], f = (first[v.id] ??= { t: now, b });
+      prev[v.id] = { t: now, b };
+      if (!p) continue;
+      const dt = (now - p.t) / 1000, all = (now - f.t) / 1000;
+      const read = Math.max(0, (b[0] - p.b[0]) / dt), write = Math.max(0, (b[1] - p.b[1]) / dt);
+      if (read + write > 4096) lastActive[v.id] = now;
+      out[v.id] = { read, write, avgRead: all ? (b[0] - f.b[0]) / all : 0, avgWrite: all ? (b[1] - f.b[1]) / all : 0, last: lastActive[v.id] ?? null };
+    }
+    s.io = out;
+  }, () => {});
+  const pollNet = () => invoke<NetInfo | null>('net_info').then((info) => { s.net!.info = info; emit(); }, () => {});
+  pollNet();
+  setInterval(pollNet, 30e3);
+  const pollMem = () => invoke<Reading | null>('memory').then(async (r) => {
+    await pollIo();
+    Object.assign(s.net!, read<{ test: SpeedTest | null; history: SpeedTest[] }>('stowaway.net', { test: s.net!.test, history: s.net!.history })); // a test run in another window
     if (!r) return;
     reading = r;
     s.forecast = toForecast(r);
@@ -127,8 +152,11 @@ export function createReal(invoke: Invoke): Api {
   }, () => { /* keep the last reading */ });
   pollMem();
   setInterval(pollMem, 2000);
-  pollJobs().then(() => { if (s.jobs.length) jobTimer ??= setInterval(() => pollJobs().catch(() => {}), 1000); }, () => {});
-  invoke('set_guard', { on: s.settings.ejectGuard }).catch(() => {});
+  if (!light) pollJobs().then(() => { if (s.jobs.length) jobTimer ??= setInterval(() => pollJobs().catch(() => {}), 1000); }, () => {});
+  if (!light) {
+    invoke('set_guard', { on: s.settings.ejectGuard }).catch(() => {});
+    invoke('widget_mode', { mode: s.settings.widget, left: s.settings.widgetSide === 'left' }).catch(() => {});
+  }
 
   const cleanScan = async () => { s.clean.items = await invoke<CleanItem[]>('clean_scan', { days: s.settings.cleanAge }); emit(); };
   const clean = async (kinds: string[]) => {
@@ -150,8 +178,7 @@ export function createReal(invoke: Invoke): Api {
     await cleanScan();
     if ((s.clean.items ?? []).filter((i) => kinds.includes(i.id)).reduce((n, i) => n + i.size, 0) >= +every.slice(4) * GB) await clean(kinds);
   };
-  setTimeout(() => cleanIfDue().catch(() => {}), 60e3);
-  setInterval(() => cleanIfDue().catch(() => {}), 36e5);
+  if (!light) { setTimeout(() => cleanIfDue().catch(() => {}), 60e3); setInterval(() => cleanIfDue().catch(() => {}), 36e5); }
 
   // The switch shows what macOS has, not what was last saved: the user can also change it in System Settings.
   invoke<string>('login_status').then((now) => { s.settings.login = now !== 'off'; s.loginNeedsApproval = now === 'approve'; emit(); }, () => {});
@@ -169,8 +196,7 @@ export function createReal(invoke: Invoke): Api {
   };
   // Automatic checks: shortly after launch, then every six hours, when the setting is on. Offline is not an error.
   const autoCheck = () => { if (s.settings.updates) checkUpdate().catch(() => {}); };
-  setTimeout(autoCheck, 20e3);
-  setInterval(autoCheck, 6 * 36e5);
+  if (!light) { setTimeout(autoCheck, 20e3); setInterval(autoCheck, 6 * 36e5); }
 
   return {
     async state() { return structuredClone(s); },
@@ -208,12 +234,28 @@ export function createReal(invoke: Invoke): Api {
       }
       // Turning a schedule on starts the clock now, so the first cleaning is one interval away, not at once.
       if (key === 'cleanAge') cleanScan().catch(() => {});
+      if (key === 'widget' || key === 'widgetSide') await invoke('widget_mode', { mode: s.settings.widget, left: s.settings.widgetSide === 'left' });
       if (key === 'cleanEvery' && value !== 'off' && s.clean.last == null) { s.clean.last = Date.now(); write('stowaway.clean', { last: s.clean.last }); }
       emit();
     },
     async requestPermission(p) { s.permissions[p] = true; save(); emit(); },
     async startHelper() { /* the engine runs inside the app in this build */ },
     cleanScan, clean, checkUpdate,
+    async setSpeedServer(url) {
+      const u = url.trim();
+      if (u && !/^https?:\/\/[^\s]+$/.test(u)) throw new Error('Enter a full web address starting with https://, pointing to a large file to download.');
+      s.net!.server = u; write('stowaway.net', { test: s.net!.test, history: s.net!.history, server: u }); emit();
+    },
+    async speedTest() {
+      s.net!.testing = true; emit();
+      try {
+        const t = await invoke<SpeedTest>('speed_test', { server: s.net!.server || null });
+        s.net!.test = t; s.net!.history = [t, ...s.net!.history].slice(0, 20);
+        write('stowaway.net', { test: t, history: s.net!.history, server: s.net!.server });
+      }
+      catch (e) { throw new Error(String(e)); }
+      finally { s.net!.testing = false; emit(); }
+    },
     async installUpdate() {
       if (s.jobs.length) throw new Error('A folder is being moved. Wait for it to finish, then update. Nothing was changed.');
       s.update.busy = true; emit();

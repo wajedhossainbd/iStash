@@ -1,8 +1,8 @@
 // Screens, ported from design/prototype/screens.js. Each takes the view and returns HTML; data comes only from api.ts.
 import type { Drive, Folder, Forecast, Metrics, Plan, State } from './api';
-import { esc, gb, tb, day, ago, list, icon, appIcon, button, pill, seg, capacity, sparkline, banner, empty, skeletonRows, progress, steps, toggle, forecastChart, dialog } from './ui';
+import { esc, gb, tb, day, clock, ago, list, icon, appIcon, button, pill, seg, capacity, sparkline, banner, empty, skeletonRows, progress, steps, toggle, forecastChart, dialog } from './ui';
 
-export type Route = 'overview' | 'offload' | 'drives' | 'memory' | 'clean' | 'settings' | 'onboarding' | 'popover';
+export type Route = 'overview' | 'offload' | 'drives' | 'memory' | 'clean' | 'settings' | 'onboarding' | 'popover' | 'widget';
 export type Dialog = { type: 'move' | 'back' | 'how' | 'why' | 'apfs' | 'eject' | 'quit-app' | 'clean'; id?: string; drive?: string; plan?: Plan };
 export interface Ui { route: Route; dialog: Dialog | null; offloadTab: 'suggested' | 'stowed' | 'all'; onboardStep: number; onboardDrive: string | null; busy: boolean; drive: string | null }
 /** s is null while the first state is loading; down when the helper can't be reached. */
@@ -73,7 +73,7 @@ function forecastCard(v: V, { big = false } = {}) {
       <div style="display:grid;gap:6px">
         <div style="display:flex;gap:8px;align-items:center"><h2 class="secondary" style="font:var(--type-group)">Memory forecast</h2>${ok ? pill('ok', 'Fine') : pill(f.condition === 'critical' ? 'danger' : 'warn', f.condition === 'critical' ? 'Critical' : 'Strained')}</div>
         <p class="sentence" id="fc-title">${ok ? 'Memory looks fine for the next few hours.' : runsOut(f)}</p>
-        <p class="why">${ok ? `Swap ${gb(f.swap)}${f.swapRate < 0 ? ', shrinking' : ''}.`
+        <p class="why">${ok ? `Swap (memory macOS moved to disk): ${gb(f.swap)}${f.swapRate < 0 ? ', shrinking' : ''}.`
           : `Swap grew ${gb(grew)} in the last ${back} minute${back === 1 ? '' : 's'}. It has room for ${gb(f.swapLimit - f.swap)} more. When swap can’t grow, macOS shows “Your system has run out of application memory” and pauses apps.`}</p>
         ${ok || !f.suggest ? '' : `<div class="actions">${button(`Quit ${esc(f.suggest.app)}…`, 'quit-app', { kind: 'primary', id: f.suggest.appId })}${ui.route === 'memory' ? '' : button('What’s using memory', 'go', { id: 'memory' })}<span class="tertiary" style="font:var(--type-caption)">Frees about ${gb(f.suggest.frees)}</span></div>`}
       </div>
@@ -83,7 +83,7 @@ function forecastCard(v: V, { big = false } = {}) {
       </dl>
     </div>
     <div class="forecast-chart" style="margin-top:12px">
-      <div class="chart-key" aria-hidden="true"><span><i style="background:var(--text-primary)"></i>Swap used</span><span><i style="background:repeating-linear-gradient(90deg,${ok ? 'var(--ok-fill)' : 'var(--warn-fill)'} 0 4px,transparent 4px 7px)"></i>Forecast</span></div>
+      <div class="chart-key" aria-hidden="true"><span><i style="background:var(--text-primary)"></i>Swap, last hour</span><span><i style="background:repeating-linear-gradient(90deg,${ok ? 'var(--ok-fill)' : 'var(--warn-fill)'} 0 4px,transparent 4px 7px)"></i>Forecast</span></div>
       ${forecastChart(f, { height: big ? 220 : 150 })}
     </div></section>`;
 }
@@ -96,15 +96,34 @@ function metrics(v: V) {
     <div class="metric"><span class="label">CPU</span><span class="figure num">${cpu.at(-1)}<small>%</small></span><span class="detail">${esc(m.cores)}</span>${sparkline(cpu, 'var(--accent-text)', 100)}</div>
     <div class="metric"><span class="label">Memory</span><span class="figure num">${(m.memUsed / GB).toFixed(1)}<small>of ${Math.round(m.memTotal / GB)} GB</small></span><span class="detail">Swap ${gb(m.swap)} · compressed ${gb(m.compressed)}</span>${capacity([{ value: m.memUsed, color: strained(s) ? 'var(--warn-fill)' : 'var(--ok-fill)', label: `${gb(m.memUsed)} used` }], m.memTotal)}</div>
     <div class="metric ${low ? 'is-danger' : ''}"><span class="label">Disk</span><span class="figure num">${(s.mac.free / GB).toFixed(1)}<small>GB free</small></span><span class="detail">of ${Math.round(s.mac.total / GB)} GB on Macintosh HD</span>${capacity([{ value: s.mac.total - s.mac.free, color: 'var(--text-secondary)', label: `${gb(s.mac.total - s.mac.free)} used` }], s.mac.total)}</div>
-    <div class="metric"><span class="label">Network</span><span class="figure num">${(net.at(-1)! / 1e6).toFixed(1)}<small>MB/s in</small></span><span class="detail">${Math.round(m.netOut / 1e3)} KB/s out${m.netName ? ` · ${esc(m.netName)}` : ''}</span>${sparkline(net, 'var(--ok-fill)', 6e6)}</div>
-  </div>`;
+    <div class="metric"><span class="label">Network</span><span class="figure num">${(net.at(-1)! / 1e6).toFixed(1)}<small>MB/s in</small></span><span class="detail">${Math.round(m.netOut / 1e3)} KB/s out${s.net?.info ? ` · ${esc(s.net.info.kind)}` : ''}</span>${sparkline(net, 'var(--ok-fill)', Math.max(...net, 1e6))}</div>
+  </div>${internet(s)}`;
+}
+
+// Internet: the connection now, the last speed test, its history and the server it used. Tests only run when asked.
+function internet(s: State) {
+  const n = s.net;
+  if (!n) return '';
+  const t = n.test, i = n.info, mbps = (v: number) => v.toFixed(v < 10 ? 1 : 0);
+  const fig = (ic: string, label: string, value: string, unit: string) => `<div><span class="label">${icon(ic)}${label}</span><span class="figure num">${value}<small>${unit}</small></span></div>`;
+  const fact = (ic: string, label: string, value: string) => value ? `<div class="fact">${icon(ic)}<span>${label}</span><strong class="num" title="${esc(value)}">${esc(value)}</strong></div>` : '';
+  const hist = n.history.length > 1 ? `<details class="history"><summary>${icon('history')}History <span class="tertiary">${n.history.length} tests</span></summary>
+    <div class="history-rows">${n.history.map((h) => `<div><span>${day(h.at)} ${clock(h.at)}</span><span class="num">↓ ${mbps(h.down)}</span><span class="num">${h.up == null ? '–' : `↑ ${mbps(h.up)}`}</span><span class="num">${Math.round(h.ping)} ms</span><span class="tertiary">${esc(h.server)}</span></div>`).join('')}</div></details>` : '';
+  return `<section class="card internet">
+    <div class="card-head"><h2>Internet</h2><span class="secondary" style="font:var(--type-caption)">${t ? `Tested ${ago(t.at)} · ${esc(t.server)}` : 'Not tested yet'}</span><span class="spacer"></span>
+      ${button(n.testing ? 'Testing…' : t ? 'Test again' : 'Test speed', 'speed-test', { disabled: n.testing || !i, kind: t ? '' : 'primary' })}</div>
+    <div class="internet-figs ${n.testing ? 'is-testing' : ''}">${fig('down', 'Download', t ? mbps(t.down) : '–', 'Mbps')}${fig('up', 'Upload', t?.up != null ? mbps(t.up) : '–', 'Mbps')}${fig('pulse', 'Ping', t ? Math.round(t.ping).toString() : '–', 'ms')}${fig('pulse', 'Jitter', t ? Math.round(t.jitter).toString() : '–', 'ms')}</div>
+    <div class="facts">${fact('globe', 'Public IP', t?.ip ?? '')}${fact('building', 'Provider', t?.isp ?? '')}${fact('pin', 'Location', t?.city ? `${t.city}, ${t.country}` : '')}${fact('wifi', i?.kind ?? 'Network', i ? i.ip : 'Not connected')}${fact('router', 'Router', i?.gateway ?? '')}</div>
+    <div class="server-row"><label for="speed-server" class="secondary">Test server</label><input id="speed-server" class="input" data-action="speed-server" placeholder="Cloudflare (default), or a link to a large file" value="${esc(n.server)}" spellcheck="false"></div>
+    ${hist}
+  </section>`;
 }
 
 const loadingPage = () => `<div class="page-body" aria-busy="true"><div class="card" style="display:grid;gap:10px"><span class="skeleton" style="height:14px;width:30%"></span><span class="skeleton" style="height:26px;width:60%"></span><span class="skeleton" style="height:120px"></span></div>
   <div class="metrics">${'<div class="metric"><span class="skeleton" style="height:12px;width:40%"></span><span class="skeleton" style="height:26px;width:60%;margin-top:6px"></span></div>'.repeat(4)}</div></div>`;
 
 export function overview(v: View) {
-  const h = header('Overview', `${v.s ? esc(v.s.mac.model) + ' · ' : ''}updates every 2 seconds`);
+  const h = header('Overview', v.s ? esc(v.s.mac.model) : '');
   if (v.down) return h + `<div class="page-body">${helperDown()}</div>`;
   if (!v.s) return h + loadingPage();
   const s = v.s, stowable = sum(suggested(s));
@@ -191,7 +210,11 @@ export function offload(v: View) {
 export type Cable = { app: Folder; d: Drive; ya: number; yp: number; floor: number };
 export function cableLayout(s: State) {
   const linked = s.folders.filter((i) => i.verdict === 'stowed');
-  const apps = [...new Map(linked.map((i) => [i.app, i])).values()];
+  // Apps are listed drive by drive, biggest first, so cables run in bands instead of crossing.
+  const order = usable(s).map((d) => d.id);
+  const rank = (app: string) => Math.min(...linked.filter((i) => i.app === app).map((i) => order.indexOf(i.drive!)).map((r) => (r < 0 ? 99 : r)));
+  const weight = (app: string) => linked.filter((i) => i.app === app).reduce((n, i) => n + i.size, 0);
+  const apps = [...new Map(linked.map((i) => [i.app, i])).values()].sort((a, b) => rank(a.app) - rank(b.app) || weight(b.app) - weight(a.app));
   const rowY = (i: number) => 34 + i * 54;
   const jackX = 300, portX = 640;
   const blocks: { d: Drive; y: number; h: number }[] = []; let y = 10;
@@ -233,16 +256,21 @@ function cableMap(v: V) {
   }).join('');
   const blocks = L.blocks.map(({ d, y, h }) => {
     const on = d.connected, ports = L.cables.filter((c) => c.d.id === d.id);
-    return `<g data-hot="drive:${d.id}"><rect x="${L.portX - 22}" y="${y}" width="${880 - L.portX + 22}" height="${h}" rx="8" fill="${on ? 'var(--bg-inset)' : 'none'}" stroke="${on ? 'var(--line-strong)' : 'var(--danger-fill)'}" ${on ? '' : 'stroke-dasharray="4 4"'}/>
+    return `<g data-hot="drive:${d.id}" class="drive-block ${on ? '' : 'is-missing'}" data-action="go" data-id="drives/${encodeURIComponent(d.id)}" role="link" aria-label="Open ${esc(d.name)}"><rect x="${L.portX - 22}" y="${y}" width="${880 - L.portX + 22}" height="${h}" rx="8" fill="${on ? 'var(--bg-inset)' : 'none'}" stroke="${on ? 'var(--line-strong)' : 'var(--danger-fill)'}" ${on ? '' : 'stroke-dasharray="4 4"'}/>
       <rect x="866" y="${y + 14}" width="8" height="8" rx="2" fill="${cableVar(d)}"/>
       <text x="858" y="${y + 22}" text-anchor="end" style="font-weight:600">${esc(d.name)}</text>
       <text x="858" y="${y + 38}" text-anchor="end" class="sub ${on ? '' : 'bad'}">${on ? `${gb(d.free)} free` : `not connected · seen ${ago(d.lastSeen)}`}</text>
-      ${ports.map((c) => `<circle cx="${L.portX}" cy="${c.yp}" r="8" fill="var(--jack-hole)" stroke="${on ? 'var(--jack-ring)' : 'var(--danger-fill)'}" stroke-width="2"/>`).join('')}</g>`;
+      ${ports.map((c) => `${on ? '' : `<circle class="port-pulse" cx="${L.portX}" cy="${c.yp}" r="8"/>`}<circle class="port" cx="${L.portX}" cy="${c.yp}" r="8" fill="var(--jack-hole)" stroke="${on ? 'var(--jack-ring)' : 'var(--danger-fill)'}" stroke-width="2"/>`).join('')}</g>`;
   }).join('');
   const cables = L.cables.map((c, i) => {
     const on = c.d.connected;
-    return `<g class="cable-group" data-app="${esc(c.app.app)}" data-drive="${c.d.id}">
-      <path class="cable" data-cable="${i}" d="${cablePath(c, on ? 1 : 0, L.jackX, L.portX)}" stroke="${cableVar(c.d)}" stroke-width="4.5"/>
+    const d = cablePath(c, on ? 1 : 0, L.jackX, L.portX), busy = s.jobs.some((j) => j.drive === c.d.id && L.linked.some((f) => f.id === j.folder && f.app === c.app.app));
+    // Shadow, body, sheen and moving data: four strokes on one path, so the cable reads as a tube with something in it.
+    return `<g class="cable-group ${on ? 'is-on' : 'is-loose'} ${busy ? 'is-busy' : ''}" data-app="${esc(c.app.app)}" data-drive="${c.d.id}" style="--c:${cableVar(c.d)};--i:${i};transform-origin:${L.jackX}px ${c.ya}px" data-hot="app:${esc(c.app.app)}">
+      <path class="cable-shadow" data-cable="${i}" d="${d}"/>
+      <path class="cable" data-cable="${i}" d="${d}" stroke="${cableVar(c.d)}" stroke-width="4.5"/>
+      <path class="cable-sheen" data-cable="${i}" d="${d}"/>
+      ${on ? `<path class="cable-flow" data-cable="${i}" d="${d}"/>` : ''}
       <rect class="plug" data-plug="${i}" x="${(on ? L.portX : L.jackX + 180) - 8}" y="${(on ? c.yp : c.floor) - 5}" width="16" height="10" rx="3" fill="${cableVar(c.d)}"/>
       <rect x="${L.jackX - 8}" y="${c.ya - 5}" width="16" height="10" rx="3" fill="${cableVar(c.d)}"/></g>`;
   }).join('');
@@ -257,6 +285,8 @@ function driveModule(s: State, d: Drive) {
       ${d.refused ? pill('neutral', 'Can’t hold links') : !st.length ? '' : on ? button(icon('eject'), 'eject', { id: d.id, disabled: busy, title: busy ? `A folder is being copied. Stop it or wait before ejecting ${d.name}.` : `Eject ${d.name}`, label: `Eject ${d.name}` }) : pill('danger', 'Missing')}</header>
     ${capacity(on ? [{ value: d.total - d.free - stowed, color: 'var(--storage-apps)', label: 'Other files' }, { value: stowed, color: cableVar(d), label: `App data ${gb(stowed)}` }] : [], d.total)}
     <div class="stats"><span>${on ? `<span class="num">${gb(d.free)}</span> free of ${tb(d.total)}` : `Last seen ${ago(d.lastSeen)}`}</span><span>${st.length ? `<span class="num">${st.length}</span> folder${st.length === 1 ? '' : 's'} · <span class="num">${gb(stowed)}</span>` : 'Nothing moved here'}</span></div>
+    ${on && s.io?.[d.id] ? (() => { const io = s.io![d.id], r = (b: number) => b >= 1e6 ? `${(b / 1e6).toFixed(1)} MB/s` : `${Math.round(b / 1e3)} KB/s`;
+      return `<div class="stats"><span>Read <span class="num">${r(io.read)}</span> · write <span class="num">${r(io.write)}</span></span><span>avg ${r(io.avgRead + io.avgWrite)} · ${io.last ? `active ${ago(io.last)}` : 'idle'}</span></div>`; })() : ''}
     ${d.refused && d.problem ? `<p class="secondary" style="font:var(--type-caption)">${esc(d.problem)}</p>` : ''}
   </article>`;
 }
@@ -358,6 +388,8 @@ export function settings(v: View) {
       ${row('Appearance', 'System follows the light or dark setting of this Mac.', seg('theme', [['light', 'Light'], ['dark', 'Dark'], ['system', 'System']], st.theme))}
       ${row('Open at login', s.loginNeedsApproval ? 'Allow it in System Settings > Login Items.' : '', sw('login', 'Open at login'))}
       ${row('Show in menu bar', '', toggle('menubar', st.menubar, 'Show in menu bar'))}
+      ${row('Edge widget', 'CPU, memory, disk and drives on the right edge of the screen.', seg('widget-mode', [['off', 'Off'], ['auto', 'Show on hover'], ['pinned', 'Always']], st.widget))}
+      ${st.widget === 'off' ? '' : row('Widget edge', '', seg('widget-side', [['left', 'Left'], ['right', 'Right']], st.widgetSide))}
       ${row('Check for updates automatically', '', sw('updates', 'Check for updates automatically'))}
       ${row(`Version ${esc(s.version)}`, s.update.available ? `Version ${esc(s.update.available)} is available. Stowaway restarts to finish.` : s.update.checked ? `This is the latest version. Checked ${ago(s.update.checked)}.` : '',
         s.update.available ? button(s.update.busy ? 'Updating…' : `Update to ${esc(s.update.available)}`, 'install-update', { kind: 'primary', disabled: s.update.busy }) : button(s.update.busy ? 'Checking…' : 'Check now', 'check-update', { disabled: s.update.busy }))}
@@ -419,6 +451,39 @@ export function onboarding(v: View) {
 }
 
 // ---------- Menu-bar popover ----------
+// ---------- Edge widget ----------
+// A thin, tall glass column: each block is a label, a big number and a live trace or bar.
+const rate = (b: number) => b >= 1e6 ? `${(b / 1e6).toFixed(1)} MB/s` : `${Math.round(b / 1e3)} KB/s`;
+export function widget(v: View) {
+  const { s, m } = v;
+  if (!s || !m) return '<div class="edge" aria-busy="true"><span class="skeleton" style="height:320px"></span></div>';
+  const cpu = m.cpu.at(-1) ?? 0, mem = m.pressure, disk = Math.round(((s.mac.total - s.mac.free) / s.mac.total) * 100);
+  const spark = (vals: number[], max: number, color: string) => {
+    const pts = vals.slice(-24), n = Math.max(1, pts.length - 1);
+    const d = pts.map((y, i) => `${((i / n) * 100).toFixed(1)},${(26 - (Math.min(y, max) / max) * 24).toFixed(1)}`).join(' ');
+    return `<svg class="edge-spark" viewBox="0 0 100 28" preserveAspectRatio="none" aria-hidden="true"><polyline points="0,28 ${d} 100,28" fill="${color}" fill-opacity="0.18" stroke="none"/><polyline points="${d}" fill="none" stroke="${color}" stroke-width="1.6" vector-effect="non-scaling-stroke"/></svg>`;
+  };
+  const bar = (pct: number, color: string) => `<div class="edge-bar"><i style="width:${Math.min(100, Math.max(3, pct))}%;background:${color}"></i></div>`;
+  const tone = (pct: number, warn: number, bad: number) => pct >= bad ? '#FF6B6B' : pct >= warn ? '#FFB547' : '#C8FF3D';
+  const netMax = Math.max(...m.netIn, 250e3);
+  const drives = usable(s).map((d) => {
+    const io = s.io?.[d.id], used = d.connected ? Math.round(((d.total - d.free) / d.total) * 100) : 0;
+    return `<div class="edge-block edge-drive ${d.connected ? '' : 'is-missing'}" title="${esc(d.name)}">
+      <span class="edge-label"><i class="edge-dot"></i>${esc(d.name)}</span>
+      <span class="edge-num">${d.connected ? gb(d.free) : 'Missing'}</span>
+      ${d.connected ? bar(used, cableVar(d)) + (io && io.read + io.write > 4096 ? `<span class="edge-sub">↓${rate(io.read)} ↑${rate(io.write)}</span>` : '<span class="edge-sub">idle</span>') : '<span class="edge-sub">Connect it</span>'}
+    </div>`;
+  }).join('');
+  return `<div class="edge" data-action="open-main" title="Open Stowaway">
+    <div class="edge-head"><i class="edge-live"></i><strong>Stowaway</strong></div>
+    <div class="edge-block"><span class="edge-label">CPU</span><span class="edge-num">${cpu}<small>%</small></span>${spark(m.cpu, 100, tone(cpu, 70, 90))}</div>
+    <div class="edge-block"><span class="edge-label">Memory</span><span class="edge-num">${mem}<small>%</small></span>${bar(mem, tone(mem, 60, 80))}${m.swap ? `<span class="edge-sub">swap ${gb(m.swap)}</span>` : ''}</div>
+    <div class="edge-block"><span class="edge-label">Network</span><span class="edge-num edge-small">↓ ${rate(m.netIn.at(-1) ?? 0)}</span><span class="edge-sub">↑ ${rate(m.netOut)}</span>${s.net?.test ? `<span class="edge-sub">test ${Math.round(s.net.test.down)}/${s.net.test.up == null ? '–' : Math.round(s.net.test.up)} Mbps</span>` : ''}${spark(m.netIn, netMax, '#5AC8FA')}</div>
+    <div class="edge-block"><span class="edge-label">Disk</span><span class="edge-num edge-small">${gb(s.mac.free)}</span><span class="edge-sub">free</span>${bar(disk, tone(disk, 80, 90))}</div>
+    ${drives ? `<div class="edge-rule"></div>${drives}` : ''}
+  </div>`;
+}
+
 export function popover(v: View) {
   const { s, m } = v;
   if (v.down) return `<div class="popover">${helperDown()}</div>`;

@@ -4,7 +4,8 @@
   "description": "Main window and menu-bar popover.",
   "windows": [
     "main",
-    "popover"
+    "popover",
+    "widget"
   ],
   "permissions": [
     "core:default",
