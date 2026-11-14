@@ -67,4 +67,11 @@ jobs:
           cp "$B/macos/iStash.app.tar.gz" out/
           cp install.sh out/
           node app/latest-json.mjs "$VERSION" "$B/macos/iStash.app.tar.gz.sig" "$GITHUB_REPOSITORY" > out/latest.json
-          gh release create "v$VERSION" out/* --latest --title "iStash $VERSION" --generate-notes
+          # Notes come from CHANGELOG.md: the section for this version, or "Unreleased" if it has no section yet.
+          SECTION=$(grep -q "^## $VERSION " CHANGELOG.md && echo "$VERSION" || echo Unreleased)
+          awk -v v="$SECTION" '/^## /{p = ($2 == v); next} p' CHANGELOG.md > notes.md
+          if grep -q '[^[:space:]]' notes.md && ! grep -qx 'Nothing yet.' notes.md; then
+            gh release create "v$VERSION" out/* --latest --title "iStash $VERSION" --notes-file notes.md
+          else
+            gh release create "v$VERSION" out/* --latest --title "iStash $VERSION" --generate-notes
+          fi

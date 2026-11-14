@@ -13,7 +13,7 @@ so your apps carry on as if nothing moved.
 ![Download 3 MB](https://img.shields.io/badge/download-3%20MB-F2F4F5?labelColor=15171B)
 [![License: GPL 3.0](https://img.shields.io/badge/license-GPL%203.0-F2F4F5?labelColor=15171B)](LICENSE)
 
-[**Download for Mac**](https://github.com/wajedhossainbd/iStash/releases/latest/download/iStash.dmg) · [Install with one command](#install) · [Features](#features)
+[**Download for Mac**](https://github.com/wajedhossainbd/iStash/releases/latest/download/iStash.dmg) · [Install with one command](#install) · [Features](#features) · [Changelog](CHANGELOG.md)
 
 [![Buy me a coffee](https://img.shields.io/badge/Buy%20me%20a%20coffee-FFDD00?style=for-the-badge&logo=buymeacoffee&logoColor=000000)](https://supportkori.com/wajed)
 
@@ -41,10 +41,16 @@ iStash does the move safely, keeps track of every link, and tells you when a dri
 | **Which app needs which drive** | A drive map shows each app's data and where it lives. Open a drive to see every folder on it. |
 | **Eject guard** | macOS asks iStash before any eject. If an app still needs the drive, the eject is refused and the app named. |
 | **Missing-drive warnings** | A notification when a drive with app data disappears, and a prompt to connect it if you open an app that needs it. |
+| **Menu-bar panel** | A control-centre panel: live CPU, memory, disk and internet tiles, your drives, and quick toggles for dark mode, keep awake, lock, empty Trash, desktop icons, the edge widget and Focus. |
+| **Edge widget** | A thin glass column on the left or right edge of the screen with CPU, memory, network, disk and drives. Always on, or slides out when you touch the edge. |
+| **Internet** | A live speed gauge with download, upload, ping and jitter; your public IP, provider and location; every past test in one table. |
+| **Any test server** | Search Speedtest's servers by city, country or provider, pick a recently used one, or test against any file. |
+| **Drive activity** | Read and write speed for each drive, its average, and when it was last busy. |
 | **Memory forecast** | Live CPU, memory, disk and network, with a warning before macOS runs out of memory. |
 | **Focus** | Give one app priority: the other apps run in the background until you stop it. |
 | **Clean** | Free up memory with no password, and clear caches, logs, Xcode build files and old temporary files. |
 | **Scheduled cleaning** | Clean daily, weekly, monthly, or once the files pass a size such as 5 GB, and only files older than you choose. |
+| **Open at login** | Starts with your Mac, so warnings and schedules keep working. |
 | **Updates built in** | New versions install from inside the app, each one checked against iStash's signature. |
 | **Light and dark** | Follows your Mac's appearance, or pick one. |
 
@@ -60,6 +66,14 @@ iStash does the move safely, keeps track of every link, and tells you when a dri
   <tr>
     <td><img src="docs/screenshots/drives.png" alt="Drives: which app needs which drive"><br><sub><b>Drives</b> · which app needs which drive</sub></td>
     <td><img src="docs/screenshots/overview.png" alt="Overview with the memory forecast"><br><sub><b>Overview</b> · live numbers and the memory forecast</sub></td>
+  </tr>
+  <tr>
+    <td><img src="docs/screenshots/internet.png" alt="Internet: live speed gauge and test history"><br><sub><b>Internet</b> · live speed gauge, connection details and every past test</sub></td>
+    <td><img src="docs/screenshots/servers.png" alt="Searching test servers"><br><sub><b>Test servers</b> · search by city, country or provider</sub></td>
+  </tr>
+  <tr>
+    <td><img src="docs/screenshots/menubar.png" alt="The menu-bar panel"><br><sub><b>Menu-bar panel</b> · live tiles and quick toggles</sub></td>
+    <td align="center"><img src="docs/screenshots/widget.png" alt="The edge widget" width="170"><br><sub><b>Edge widget</b> · on the edge of your screen</sub></td>
   </tr>
   <tr>
     <td><img src="docs/screenshots/memory.png" alt="Memory: what is using it, and Focus"><br><sub><b>Memory</b> · what's using it, and Focus</sub></td>
@@ -134,6 +148,10 @@ repository secret `TAURI_SIGNING_PRIVATE_KEY`; the matching public key is in `ap
 | `docs/screenshots/` | The pictures on this page, taken on sample data |
 
 </details>
+
+## Changelog
+
+What changed in each version is in [CHANGELOG.md](CHANGELOG.md), and on each [release](https://github.com/wajedhossainbd/iStash/releases).
 
 ## Support
 
