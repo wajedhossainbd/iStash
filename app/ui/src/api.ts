@@ -133,7 +133,7 @@ export interface State {
   /** available: a newer version's number once a check found one. */
   update: { available: string | null; busy: boolean; checked: number | null };
   /** The active connection, and the last speed test (run only when asked). */
-  net?: { info: NetInfo | null; test: SpeedTest | null; testing: boolean; history: SpeedTest[]; server: string };
+  net?: { info: NetInfo | null; test: SpeedTest | null; testing: boolean; history: SpeedTest[]; server: string; serverLabel?: string; mode: 'full' | 'down' | 'up'; servers: SpeedServer[]; live: SpeedLive | null };
   /** Read and write activity per drive id. */
   io?: Record<string, DriveIo>;
   /** App bundle path Focus is on, or null. */
@@ -183,7 +183,10 @@ export interface Api {
   /** Measures internet speed against Cloudflare and looks up the public address and provider. */
   speedTest(): Promise<void>;
   /** '' for Cloudflare, or a download URL on a server of the user's choice. */
-  setSpeedServer(url: string): Promise<void>;
+  setSpeedServer(url: string, label?: string): Promise<void>;
+  setSpeedMode(mode: 'full' | 'down' | 'up'): Promise<void>;
+  /** Nearest Speedtest servers, or those matching a search. */
+  findServers(query: string): Promise<void>;
   /** Looks for a newer release. */
   checkUpdate(): Promise<void>;
   /** Downloads the release found by checkUpdate, installs it and restarts the app. */
@@ -200,7 +203,9 @@ export interface Api {
 export interface Volume { id: string; name: string; format: string; bus: string; total: number; free: number; writable: boolean; disk?: string }
 /** Bytes per second now and averaged since Stowaway started, and when the drive last read or wrote. */
 export interface NetInfo { iface: string; kind: string; ip: string; gateway: string }
-export interface SpeedTest { down: number; up: number | null; ping: number; jitter: number; ip: string; isp: string; city: string; country: string; at: number; server: string }
+export interface SpeedServer { host: string; sponsor: string; city: string; cc: string; km?: number }
+export interface SpeedLive { phase: 'ping' | 'down' | 'up' | 'done'; mbps: number; ping: number | null; pct: number }
+export interface SpeedTest { mode?: 'full' | 'down' | 'up'; down: number | null; up: number | null; ping: number; jitter: number; ip: string; isp: string; city: string; country: string; at: number; server: string }
 export interface DriveIo { read: number; write: number; avgRead: number; avgWrite: number; last: number | null }
 
 const CABLES: Cable[] = ['blue', 'orange', 'violet', 'green', 'pink', 'teal'];
@@ -302,7 +307,8 @@ export function mockState(now = Date.now()): State {
     scan: { running: false, checked: 0 },
     journalPath: '~/Library/Application Support/Stowaway/journal.jsonl',
     update: { available: null, busy: false, checked: null },
-    net: { info: { iface: 'en0', kind: 'Wi-Fi', ip: '192.168.1.24', gateway: '192.168.1.1' }, test: null, testing: false, history: [], server: '' },
+    net: { info: { iface: 'en0', kind: 'Wi-Fi', ip: '192.168.1.24', gateway: '192.168.1.1' }, test: null, testing: false, history: [], server: '', mode: 'full', live: null,
+      servers: [{ host: 'speedtest.example.net:8080', sponsor: 'Example Fibre', city: 'Dhaka', cc: 'BD', km: 4 }, { host: 'st2.example.net:8080', sponsor: 'Metro Net', city: 'Narayanganj', cc: 'BD', km: 12 }] },
     focus: null, clean: { items: null, busy: false, freed: null, last: null, memBusy: false, memFreed: null },
   };
 }
@@ -434,8 +440,10 @@ export function createMock(scenario: Scenario = 'normal', onboarded = scenario !
     },
     async focus(appPath) { await ok(); s.focus = appPath; emit(); },
     async freeMemory() { await ok(); s.clean.memFreed = 1.8 * GB; emit(); },
-    async speedTest() { await ok(); const t = { down: 182.4, up: 41.7, ping: 12, jitter: 2, ip: '203.0.113.7', isp: 'Example Fibre', city: 'Dhaka', country: 'BD', at: Date.now(), server: 'Cloudflare' }; s.net = { ...s.net!, testing: false, test: t, history: [t, ...s.net!.history].slice(0, 20) }; emit(); },
-    async setSpeedServer(url) { await ok(); s.net!.server = url; emit(); },
+    async speedTest() { await ok(); const t: SpeedTest = { mode: 'full', down: 182.4, up: 41.7, ping: 12, jitter: 2, ip: '203.0.113.7', isp: 'Example Fibre', city: 'Dhaka', country: 'BD', at: Date.now(), server: 'Cloudflare' }; s.net = { ...s.net!, testing: false, test: t, history: [t, ...s.net!.history].slice(0, 20) }; emit(); },
+    async setSpeedServer(url, label) { await ok(); s.net!.server = url; s.net!.serverLabel = label; emit(); },
+    async setSpeedMode(mode) { await ok(); s.net!.mode = mode; emit(); },
+    async findServers() { await ok(); },
     async checkUpdate() { await ok(); s.update = { available: '0.2.0', busy: false, checked: Date.now() }; emit(); },
     async installUpdate() { await ok(); s.version = s.update.available ?? s.version; s.update.available = null; emit(); },
     async appIcon(path) {

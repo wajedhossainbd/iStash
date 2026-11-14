@@ -12,6 +12,7 @@ import type { Theme } from './api';
 
 export const setTheme = (t: Theme) => Promise.all([setAppTheme(t === 'system' ? null : t), invoke('appearance_checked', { theme: t })]);
 export const openTarget = (target: string) => invoke('open_target', { target });
+export const onSpeedProgress = (fn: (p: unknown) => void) => listen('speed-progress', (e) => fn(e.payload));
 export const onAppearance = (fn: (t: Theme) => void) => listen<Theme>('appearance', (e) => fn(e.payload));
 
 let title: string | null = null;

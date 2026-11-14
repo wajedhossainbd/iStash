@@ -2,9 +2,9 @@
 import type { Drive, Folder, Forecast, Metrics, Plan, State } from './api';
 import { esc, gb, tb, day, clock, ago, list, icon, appIcon, button, pill, seg, capacity, sparkline, banner, empty, skeletonRows, progress, steps, toggle, forecastChart, dialog } from './ui';
 
-export type Route = 'overview' | 'offload' | 'drives' | 'memory' | 'clean' | 'settings' | 'onboarding' | 'popover' | 'widget';
+export type Route = 'overview' | 'offload' | 'drives' | 'memory' | 'internet' | 'clean' | 'settings' | 'onboarding' | 'popover' | 'widget';
 export type Dialog = { type: 'move' | 'back' | 'how' | 'why' | 'apfs' | 'eject' | 'quit-app' | 'clean'; id?: string; drive?: string; plan?: Plan };
-export interface Ui { route: Route; dialog: Dialog | null; offloadTab: 'suggested' | 'stowed' | 'all'; onboardStep: number; onboardDrive: string | null; busy: boolean; drive: string | null; customServer?: boolean }
+export interface Ui { route: Route; dialog: Dialog | null; offloadTab: 'suggested' | 'stowed' | 'all'; onboardStep: number; onboardDrive: string | null; busy: boolean; drive: string | null; customServer?: boolean; allResults?: boolean }
 /** s is null while the first state is loading; down when the helper can't be reached. */
 export interface View { s: State | null; m: Metrics | null; ui: Ui; down: boolean; icon: (path?: string) => string | null }
 type V = View & { s: State };
@@ -41,6 +41,7 @@ export function sidebar(v: View) {
     ['offload', 'Offload', s ? `<span class="badge">${suggested(s).length}</span>` : '', s ? `, ${suggested(s).length} folders can move` : ''],
     ['drives', 'Drives', missing ? `<span class="badge is-danger">${missing} missing</span>` : '', missing ? `, ${missing} missing` : ''],
     ['memory', 'Memory', '', ''],
+    ['internet', 'Internet', '', ''],
     ['clean', 'Clean', '', ''],
   ];
   const item = ([r, label, extra, spoken]: [Route, string, string, string]) =>
@@ -97,42 +98,94 @@ function metrics(v: V) {
     <div class="metric"><span class="label">Memory</span><span class="figure num">${(m.memUsed / GB).toFixed(1)}<small>of ${Math.round(m.memTotal / GB)} GB</small></span><span class="detail">Swap ${gb(m.swap)} · compressed ${gb(m.compressed)}</span>${capacity([{ value: m.memUsed, color: strained(s) ? 'var(--warn-fill)' : 'var(--ok-fill)', label: `${gb(m.memUsed)} used` }], m.memTotal)}</div>
     <div class="metric ${low ? 'is-danger' : ''}"><span class="label">Disk</span><span class="figure num">${(s.mac.free / GB).toFixed(1)}<small>GB free</small></span><span class="detail">of ${Math.round(s.mac.total / GB)} GB on Macintosh HD</span>${capacity([{ value: s.mac.total - s.mac.free, color: 'var(--text-secondary)', label: `${gb(s.mac.total - s.mac.free)} used` }], s.mac.total)}</div>
     <div class="metric"><span class="label">Network</span><span class="figure num">${(net.at(-1)! / 1e6).toFixed(1)}<small>MB/s in</small></span><span class="detail">${Math.round(m.netOut / 1e3)} KB/s out${s.net?.info ? ` · ${esc(s.net.info.kind)}` : ''}</span>${sparkline(net, 'var(--ok-fill)', Math.max(...net, 1e6))}</div>
-  </div>${internet(s, v.ui)}`;
+  </div>${internetSummary(s)}`;
 }
 
-// Speed test servers. Cloudflare picks the nearest of its sites and also measures upload; the regional ones are
-// public test files, so they measure download and ping only.
-export const SERVERS: [string, string][] = [
-  ['', 'Nearest (Cloudflare)'],
-  ['https://ash-speed.hetzner.com/100MB.bin', 'Washington DC, USA'],
-  ['https://hil-speed.hetzner.com/100MB.bin', 'Oregon, USA'],
-  ['https://proof.ovh.ca/files/100Mb.dat', 'Montréal, Canada'],
-  ['https://sin-speed.hetzner.com/100MB.bin', 'Singapore'],
-  ['https://fsn1-speed.hetzner.com/100MB.bin', 'Falkenstein, Germany'],
-  ['https://hel1-speed.hetzner.com/100MB.bin', 'Helsinki, Finland'],
-  ['https://proof.ovh.net/files/100Mb.dat', 'Roubaix, France'],
+// Speed test. Servers: Cloudflare (nearest), Speedtest servers near you or found by search, a few regional
+// download files (download and ping only), or any file the user links to.
+export const FILES: [string, string][] = [
+  ['https://ash-speed.hetzner.com/100MB.bin', 'Washington DC, USA (file)'],
+  ['https://hil-speed.hetzner.com/100MB.bin', 'Oregon, USA (file)'],
+  ['https://sin-speed.hetzner.com/100MB.bin', 'Singapore (file)'],
+  ['https://fsn1-speed.hetzner.com/100MB.bin', 'Falkenstein, Germany (file)'],
+  ['https://proof.ovh.net/files/100Mb.dat', 'Roubaix, France (file)'],
 ];
-const serverName = (host: string | undefined) => !host ? '' : host === 'Cloudflare' ? 'Cloudflare' : SERVERS.find(([u]) => u.includes(`//${host}/`))?.[1] ?? host;
+const GAUGE = [0, 5, 10, 50, 100, 250, 500, 750, 1000];
+// Equal angle per scale step, linear inside a step, across a 240° arc.
+const gaugeAngle = (v: number) => {
+  const k = GAUGE.findIndex((g) => v < g);
+  const i = k < 0 ? GAUGE.length - 1 : Math.max(1, k);
+  const f = k < 0 ? 1 : (v - GAUGE[i - 1]) / (GAUGE[i] - GAUGE[i - 1]);
+  return -120 + ((i - 1 + f) / (GAUGE.length - 1)) * 240;
+};
+function gauge(n: NonNullable<State['net']>) {
+  const l = n.live, t = n.test;
+  const phase = l ? l.phase : t ? 'done' : 'idle';
+  const val = l ? (l.phase === 'ping' ? l.ping ?? 0 : l.mbps) : t ? t.down ?? t.up ?? 0 : 0;
+  const color = phase === 'up' ? '#B57BFF' : phase === 'ping' ? '#FFB547' : '#3FC8FF';
+  const label = { idle: 'READY', ping: 'PING', down: 'DOWNLOAD', up: 'UPLOAD', done: 'DONE' }[phase];
+  const r = 92, cx = 120, cy = 116, pt = (deg: number, rr = r) => [cx + rr * Math.sin((deg * Math.PI) / 180), cy - rr * Math.cos((deg * Math.PI) / 180)];
+  const arc = (a: number, b: number) => { const [x1, y1] = pt(a), [x2, y2] = pt(b); return `M${x1.toFixed(1)} ${y1.toFixed(1)} A${r} ${r} 0 ${b - a > 180 ? 1 : 0} 1 ${x2.toFixed(1)} ${y2.toFixed(1)}`; };
+  const ang = phase === 'ping' ? -120 + Math.min(val / 200, 1) * 240 : gaugeAngle(val);
+  return `<div class="gauge" style="--g:${color}"><svg viewBox="0 0 240 200" aria-hidden="true">
+    <defs><linearGradient id="gauge-grad" x1="0" x2="1"><stop offset="0" stop-color="${color}" stop-opacity="0.35"/><stop offset="1" stop-color="${color}"/></linearGradient></defs>
+    <path d="${arc(-120, 120)}" class="gauge-track"/>
+    ${phase === 'idle' ? '' : `<path d="${arc(-120, Math.max(-119.5, ang))}" class="gauge-fill" stroke="url(#gauge-grad)"/>`}
+    ${GAUGE.map((g, i) => { const [x, y] = pt(-120 + (i / (GAUGE.length - 1)) * 240, r - 22); return `<text x="${x.toFixed(1)}" y="${(y + 4).toFixed(1)}" class="gauge-tick">${g}</text>`; }).join('')}
+    <g class="gauge-needle" style="transform:rotate(${ang.toFixed(1)}deg)"><path d="M${cx - 4} ${cy} L${cx} ${cy - r + 14} L${cx + 4} ${cy} Z"/><circle cx="${cx}" cy="${cy}" r="7"/></g>
+  </svg><div class="gauge-read"><span class="gauge-phase">${label}</span><span class="gauge-val num">${phase === 'ping' ? Math.round(val) : val.toFixed(val < 10 ? 1 : 0)}</span><span class="gauge-unit">${phase === 'ping' ? 'ms' : phase === 'up' ? '↑ Mbps' : '↓ Mbps'}</span></div></div>`;
+}
 
-// Internet: the connection now, the last speed test, its history and the server it used. Tests only run when asked.
-function internet(s: State, ui: Ui) {
+// Overview: the last test in one line of figures, and where to go for more.
+function internetSummary(s: State) {
+  const n = s.net, t = n?.test, i = n?.info;
+  if (!n) return '';
+  const mbps = (v: number | null | undefined) => v == null ? '–' : v.toFixed(v < 10 ? 1 : 0);
+  return `<section class="card internet-mini">
+    <div class="card-head"><h2>Internet</h2><span class="secondary" style="font:var(--type-caption)">${t ? `${ago(t.at)} · ${esc(t.server)}` : 'Not tested yet'}</span><span class="spacer"></span>${button('Open', 'go', { id: 'internet' })}</div>
+    <div class="mini-figs"><span>${icon('down')}<b class="num">${mbps(t?.down)}</b> Mbps</span><span>${icon('up')}<b class="num">${mbps(t?.up)}</b> Mbps</span><span>${icon('pulse')}<b class="num">${t ? Math.round(t.ping) : '–'}</b> ms</span>
+      <span class="tertiary">${[t?.isp, t?.ip, i ? `${i.kind} ${i.ip}` : ''].filter(Boolean).map((v) => esc(v!)).join(' · ')}</span></div>
+  </section>`;
+}
+
+// The Internet page: speed test with gauge, servers, the connection, and every past result.
+export function internet(v: View) {
+  const h = header('Internet', 'Speed, connection and past tests.');
+  if (!v.s?.net) return h + loadingPage();
+  return h + `<div class="page-body">${internetCard(v.s, v.ui)}</div>`;
+}
+
+function internetCard(s: State, ui: Ui) {
   const n = s.net;
   if (!n) return '';
-  const t = n.test, i = n.info, mbps = (v: number) => v.toFixed(v < 10 ? 1 : 0);
+  const t = n.test, i = n.info, mbps = (v: number | null | undefined) => v == null ? '–' : v.toFixed(v < 10 ? 1 : 0);
   const fig = (ic: string, label: string, value: string, unit: string) => `<div><span class="label">${icon(ic)}${label}</span><span class="figure num">${value}<small>${unit}</small></span></div>`;
   const fact = (ic: string, label: string, value: string) => value ? `<div class="fact">${icon(ic)}<span>${label}</span><strong class="num" title="${esc(value)}">${esc(value)}</strong></div>` : '';
-  const hist = n.history.length > 1 ? `<details class="history"><summary>${icon('history')}History <span class="tertiary">${n.history.length} tests</span></summary>
-    <div class="history-rows">${n.history.map((h) => `<div><span>${day(h.at)} ${clock(h.at)}</span><span class="num">↓ ${mbps(h.down)}</span><span class="num">${h.up == null ? '–' : `↑ ${mbps(h.up)}`}</span><span class="num">${Math.round(h.ping)} ms</span><span class="tertiary">${esc(serverName(h.server))}</span></div>`).join('')}</div></details>` : '';
+  const sel = n.server, custom = ui.customServer || (!!sel && !sel.startsWith('ookla:') && !FILES.some(([u]) => u === sel));
+  const opt = (v: string, label: string) => `<option value="${esc(v)}" ${!custom && v === sel ? 'selected' : ''}>${esc(label)}</option>`;
+  const near = n.servers.map((v) => opt(`ookla:${v.host}`, `${v.sponsor} — ${v.city}${v.km != null ? ` (${v.km} km)` : ''}`)).join('');
+  const picked = sel.startsWith('ookla:') && !n.servers.some((v) => `ookla:${v.host}` === sel) ? opt(sel, n.serverLabel || sel.slice(6)) : '';
+  const rows = n.history;
   return `<section class="card internet">
-    <div class="card-head"><h2>Internet</h2><span class="secondary" style="font:var(--type-caption)">${t ? `Tested ${ago(t.at)}${t.server ? ` · ${esc(serverName(t.server))}` : ''}` : 'Not tested yet'}</span><span class="spacer"></span>
-      ${button(n.testing ? 'Testing…' : t ? 'Test again' : 'Test speed', 'speed-test', { disabled: n.testing || !i, kind: t ? '' : 'primary' })}</div>
-    <div class="internet-figs ${n.testing ? 'is-testing' : ''}">${fig('down', 'Download', t ? mbps(t.down) : '–', 'Mbps')}${fig('up', 'Upload', t?.up != null ? mbps(t.up) : '–', 'Mbps')}${fig('pulse', 'Ping', t ? Math.round(t.ping).toString() : '–', 'ms')}${fig('pulse', 'Jitter', t ? Math.round(t.jitter).toString() : '–', 'ms')}</div>
+    <div class="card-head"><h2>Speed test</h2><span class="secondary" style="font:var(--type-caption)">${t ? `Last ${ago(t.at)} · ${esc(t.server)}` : 'Not tested yet'}</span><span class="spacer"></span>
+      ${seg('speed-mode', [['full', 'Full'], ['down', '↓ only'], ['up', '↑ only']], n.mode)}</div>
+    <div class="speed-grid">
+      ${gauge(n)}
+      <div class="speed-side">
+        <div class="server-row"><label for="speed-server-pick" class="secondary">${icon('globe')}Server</label>
+          <select class="select" id="speed-server-pick" data-action="speed-server-pick" ${n.testing ? 'disabled' : ''}>
+            ${opt('', 'Nearest — Cloudflare')}${picked}${near ? `<optgroup label="Speedtest servers">${near}</optgroup>` : ''}<optgroup label="Download files (no upload)">${FILES.map(([u, l]) => opt(u, l)).join('')}</optgroup><option value="custom" ${custom ? 'selected' : ''}>Custom file…</option>
+          </select></div>
+        <input class="input" data-action="speed-search" placeholder="Search servers: city, country or provider" spellcheck="false" ${n.testing ? 'disabled' : ''}>
+        ${custom ? `<input class="input" data-action="speed-server" placeholder="https://… link to a large file" value="${esc(sel.startsWith('ookla:') ? '' : sel)}" spellcheck="false">` : ''}
+        ${button(n.testing ? 'Testing…' : t ? 'Test again' : 'Start test', 'speed-test', { kind: 'primary', large: true, disabled: n.testing || !i })}
+        <div class="internet-figs">${fig('down', 'Download', mbps(t?.down), 'Mbps')}${fig('up', 'Upload', mbps(t?.up), 'Mbps')}${fig('pulse', 'Ping', t ? Math.round(t.ping).toString() : '–', 'ms')}${fig('pulse', 'Jitter', t ? Math.round(t.jitter).toString() : '–', 'ms')}</div>
+      </div>
+    </div>
     <div class="facts">${fact('globe', 'Public IP', t?.ip ?? '')}${fact('building', 'Provider', t?.isp ?? '')}${fact('pin', 'Location', t?.city ? `${t.city}, ${t.country}` : '')}${fact('wifi', i?.kind ?? 'Network', i ? i.ip : 'Not connected')}${fact('router', 'Router', i?.gateway ?? '')}</div>
-    ${(() => { const preset = SERVERS.some(([u]) => u === n.server), custom = ui.customServer || !preset;
-      return `<div class="server-row"><label for="speed-server-pick" class="secondary">${icon('globe')}Test server</label>
-      <select class="select" id="speed-server-pick" data-action="speed-server-pick">${SERVERS.map(([u, label]) => `<option value="${esc(u)}" ${!custom && u === n.server ? 'selected' : ''}>${esc(label)}</option>`).join('')}<option value="custom" ${custom ? 'selected' : ''}>Custom file…</option></select>
-      ${custom ? `<input id="speed-server" class="input" data-action="speed-server" placeholder="https://… link to a large file" value="${preset ? '' : esc(n.server)}" spellcheck="false">` : ''}</div>`; })()}
-    ${hist}
+    ${rows.length ? `<div class="results"><div class="results-head"><span>${icon('history')}Recent results</span><span class="tertiary" style="font-weight:400">${n.history.length} test${n.history.length === 1 ? '' : 's'}</span></div>
+      <div class="results-row results-cols"><span>When</span><span>↓ Mbps</span><span>↑ Mbps</span><span>Ping</span><span>Server</span></div>
+      ${rows.map((h) => `<div class="results-row"><span>${day(h.at)}, ${clock(h.at)}</span><span class="num dl">${mbps(h.down)}</span><span class="num ul">${mbps(h.up)}</span><span class="num">${Math.round(h.ping)} ms</span><span class="tertiary" title="${esc(h.server)}">${esc(h.server)}</span></div>`).join('')}</div>` : ''}
   </section>`;
 }
 

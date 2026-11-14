@@ -24,6 +24,7 @@ const P: Record<string, string> = {
   offload: '<path d="M8 2.5v7M5 6.8 8 9.8l3-3M3 13h10"/>',
   drives: '<rect x="2" y="4.5" width="12" height="7" rx="2"/><circle cx="11" cy="8" r=".9" fill="currentColor"/>',
   memory: '<rect x="2.5" y="4" width="11" height="8" rx="1.5"/><path d="M5 4V2.5M8 4V2.5M11 4V2.5M5 13.5V12M8 13.5V12M11 13.5V12"/>',
+  internet: '<circle cx="8" cy="8" r="6"/><path d="M2 8h12M8 2c1.8 1.7 2.6 3.7 2.6 6S9.8 12.3 8 14M8 2C6.2 3.7 5.4 5.7 5.4 8s.8 4.3 2.6 6"/>',
   clean: '<path d="M10.5 2.5 6.5 8.5"/><path d="M4.2 8.2 9 10.6c-.6 1.8-2 3-3.9 3.2H2.6c1-1.200 1.500-2.900 1.600-5.600z"/>',
   settings: '<circle cx="8" cy="8" r="2.2"/><path d="M8 1.8v2M8 12.2v2M1.8 8h2M12.2 8h2M3.6 3.6l1.4 1.4M11 11l1.4 1.4M3.6 12.4 5 11M11 5l1.4-1.4"/>',
   warning: '<path d="M8 2.2 14 13H2z"/><path d="M8 6.5v3"/><circle cx="8" cy="11.3" r=".5" fill="currentColor"/>',

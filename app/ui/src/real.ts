@@ -2,7 +2,7 @@
 // Same `Api` as the mock, so screens don't know the difference.
 // shortcut: polls the shell (drives 5 s, memory 2 s, jobs 1 s); becomes pushes from the agent socket later.
 import { ApiError, toDrives, toForecast, toMemApps } from './api.ts';
-import type { Api, CleanItem, Drive, DriveIo, NetInfo, SpeedTest, Folder, Job, Plan, Reading, Settings, State, Verdict, Volume } from './api.ts';
+import type { Api, CleanItem, Drive, DriveIo, NetInfo, SpeedLive, SpeedServer, SpeedTest, Folder, Job, Plan, Reading, Settings, State, Verdict, Volume } from './api.ts';
 
 type Invoke = <T>(cmd: string, args?: Record<string, unknown>) => Promise<T>;
 interface Scanned { path: string; show: string; app: string; appPath: string | null; verdict: Verdict; note: string; size: number; drive: string | null; since: number | null; running: boolean; users: string[] }
@@ -37,7 +37,7 @@ export function createReal(invoke: Invoke): Api {
     scan: { running: true, checked: 0 },
     journalPath: '~/Library/Application Support/Stowaway/journal.jsonl',
     update: { available: null, busy: false, checked: null },
-    net: { info: null, testing: false, ...read<{ test: SpeedTest | null; history: SpeedTest[]; server: string }>('stowaway.net', { test: null, history: [], server: '' }) },
+    net: { info: null, testing: false, servers: [], live: null, ...read<{ test: SpeedTest | null; history: SpeedTest[]; server: string; serverLabel?: string; mode: 'full' | 'down' | 'up' }>('stowaway.net', { test: null, history: [], server: '', mode: 'full' }) },
     focus: null, clean: { items: null, busy: false, freed: null, memBusy: false, memFreed: null, last: read<{ last: number | null }>('stowaway.clean', { last: null }).last },
   };
   const subs = new Set<(s: State) => void>();
@@ -131,6 +131,8 @@ export function createReal(invoke: Invoke): Api {
     }
     s.io = out;
   }, () => {});
+  const saveNet = () => write('stowaway.net', { test: s.net!.test, history: s.net!.history, server: s.net!.server, serverLabel: s.net!.serverLabel, mode: s.net!.mode });
+  if (!light) invoke<SpeedServer[]>('speed_servers', { query: null }).then((v) => { s.net!.servers = v; emit(); }, () => {});
   const pollNet = () => invoke<NetInfo | null>('net_info').then((info) => { s.net!.info = info; emit(); }, () => {});
   pollNet();
   setInterval(pollNet, 30e3);
@@ -241,20 +243,23 @@ export function createReal(invoke: Invoke): Api {
     async requestPermission(p) { s.permissions[p] = true; save(); emit(); },
     async startHelper() { /* the engine runs inside the app in this build */ },
     cleanScan, clean, checkUpdate,
-    async setSpeedServer(url) {
+    async setSpeedServer(url, label) {
       const u = url.trim();
-      if (u && !/^https?:\/\/[^\s]+$/.test(u)) throw new Error('Enter a full web address starting with https://, pointing to a large file to download.');
-      s.net!.server = u; write('stowaway.net', { test: s.net!.test, history: s.net!.history, server: u }); emit();
+      if (u && !u.startsWith('ookla:') && !/^https?:\/\/[^\s']+$/.test(u)) throw new Error('Enter a full web address starting with https://, pointing to a large file to download.');
+      s.net!.server = u; s.net!.serverLabel = label; saveNet(); emit();
     },
+    async setSpeedMode(mode) { s.net!.mode = mode; saveNet(); emit(); },
+    async findServers(query) { s.net!.servers = await invoke<SpeedServer[]>('speed_servers', { query: query || null }); emit(); },
     async speedTest() {
-      s.net!.testing = true; emit();
+      s.net!.testing = true; s.net!.live = { phase: 'ping', mbps: 0, ping: null, pct: 0 }; emit();
+      const stop = await (await native()).onSpeedProgress((p) => { s.net!.live = p as SpeedLive; emit(); });
       try {
-        const t = await invoke<SpeedTest>('speed_test', { server: s.net!.server || null });
-        s.net!.test = t; s.net!.history = [t, ...s.net!.history].slice(0, 20);
-        write('stowaway.net', { test: t, history: s.net!.history, server: s.net!.server });
+        const t = await invoke<SpeedTest>('speed_test', { server: s.net!.server || null, mode: s.net!.mode });
+        t.server = s.net!.serverLabel || t.server;
+        s.net!.test = t; s.net!.history = [t, ...s.net!.history].slice(0, 200); saveNet();
       }
       catch (e) { throw new Error(String(e)); }
-      finally { s.net!.testing = false; emit(); }
+      finally { stop(); s.net!.testing = false; s.net!.live = null; emit(); }
     },
     async installUpdate() {
       if (s.jobs.length) throw new Error('A folder is being moved. Wait for it to finish, then update. Nothing was changed.');

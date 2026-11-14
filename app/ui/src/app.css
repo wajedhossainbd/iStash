@@ -452,3 +452,33 @@ h1:focus { outline: none; } /* focused on navigation so VoiceOver announces the 
 .server-row { grid-template-columns: auto auto minmax(0, 1fr); }
 .server-row label { display: flex; align-items: center; gap: 6px; }
 .server-row label svg { width: 14px; height: 14px; color: var(--text-tertiary); }
+/* Speed test: gauge with a live needle beside the controls and figures, then recent results */
+.speed-grid { display: grid; grid-template-columns: 260px minmax(0, 1fr); gap: 20px; align-items: center; margin-bottom: 6px; }
+.speed-side { display: grid; gap: 10px; }
+.speed-side .btn-large { justify-self: start; }
+.gauge { position: relative; width: 240px; }
+.gauge svg { width: 240px; height: 200px; display: block; overflow: visible; }
+.gauge-track { fill: none; stroke: color-mix(in srgb, var(--text-primary) 10%, transparent); stroke-width: 14; stroke-linecap: round; }
+.gauge-fill { fill: none; stroke-width: 14; stroke-linecap: round; filter: drop-shadow(0 0 6px color-mix(in srgb, var(--g) 60%, transparent)); transition: d var(--duration-slow) var(--easing-standard); }
+.gauge-tick { font: 500 10px var(--font-text); fill: var(--text-tertiary); text-anchor: middle; }
+.gauge-needle { transform-origin: 120px 116px; transform-box: view-box; transition: transform 0.6s cubic-bezier(0.34, 1.3, 0.64, 1); }
+.gauge-needle path { fill: var(--g); }
+.gauge-needle circle { fill: var(--bg-surface); stroke: var(--g); stroke-width: 3; }
+.gauge-read { position: absolute; left: 0; right: 0; top: 128px; display: grid; justify-items: center; gap: 0; }
+.gauge-phase { font: 600 10px var(--font-text); letter-spacing: 0.08em; color: var(--g); }
+.gauge-val { font: 600 30px/34px var(--font-text); }
+.gauge-unit { font: var(--type-caption); color: var(--text-secondary); }
+.results { display: grid; margin-top: 4px; font: var(--type-callout); }
+.results-head { display: flex; align-items: center; justify-content: space-between; font-weight: 600; margin-bottom: 4px; }
+.results-head span { display: flex; align-items: center; gap: 6px; }
+.results-head svg { width: 14px; height: 14px; color: var(--text-tertiary); }
+.results-row { display: grid; grid-template-columns: 1.4fr 0.8fr 0.8fr 0.8fr 2.2fr; gap: 10px; padding: 7px 0; border-top: 1px solid var(--glass-line); animation: settle var(--duration-slow) var(--easing-standard) backwards; }
+.results-row span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.results-cols { font: var(--type-caption); color: var(--text-tertiary); border-top: 0; }
+.results-row .dl { color: #2AA8E0; font-weight: 600; } .results-row .ul { color: #9B6BE8; font-weight: 600; }
+@media (max-width: 1040px) { .speed-grid { grid-template-columns: minmax(0, 1fr); justify-items: center; } }
+.internet-mini .card-head { margin-bottom: 8px; }
+.mini-figs { display: flex; align-items: center; gap: 20px; font: var(--type-callout); color: var(--text-secondary); flex-wrap: wrap; }
+.mini-figs > span { display: flex; align-items: center; gap: 6px; white-space: nowrap; }
+.mini-figs svg { width: 14px; height: 14px; color: var(--text-tertiary); }
+.mini-figs b { font: 600 20px/22px var(--font-text); color: var(--text-primary); }

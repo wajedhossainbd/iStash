@@ -9,7 +9,7 @@ import * as screens from './screens';
 import type { Route, Ui, View } from './screens';
 
 const native = '__TAURI_INTERNALS__' in window;
-const ROUTES: Route[] = ['overview', 'offload', 'drives', 'memory', 'clean', 'settings', 'onboarding', 'popover'];
+const ROUTES: Route[] = ['overview', 'offload', 'drives', 'memory', 'internet', 'clean', 'settings', 'onboarding', 'popover'];
 const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const root = document.getElementById('root')!;
 const tauri = () => import('./native');
@@ -183,6 +183,8 @@ const actions: Record<string, (id: string) => unknown> = {
   'clean-scan': () => api.cleanScan(),
   'free-memory': () => api.freeMemory(),
   'speed-test': () => api.speedTest(),
+  'speed-mode': (id) => api.setSpeedMode(id as 'full'),
+  'toggle-results': () => { ui.allResults = !ui.allResults; },
   'check-update': () => api.checkUpdate(),
   'install-update': () => api.installUpdate(),
   'clean-ask': () => { ui.dialog = { type: 'clean' }; },
@@ -220,7 +222,10 @@ document.addEventListener('change', async (e) => {
   else if (a === 'setting-select') await api.set('warnAt', +el.value);
   else if (a === 'pick-drive') ui.onboardDrive = id;
   else if (a === 'speed-server') await api.setSpeedServer(el.value);
-  else if (a === 'speed-server-pick') { ui.customServer = el.value === 'custom'; if (!ui.customServer) await api.setSpeedServer(el.value); }
+  else if (a === 'speed-server-pick') {
+    ui.customServer = el.value === 'custom';
+    if (!ui.customServer) await api.setSpeedServer(el.value, (el as unknown as HTMLSelectElement).selectedOptions[0]?.textContent ?? '');
+  }
   else if (a === 'clean-every') await api.set('cleanEvery', el.value as 'off');
   else if (a === 'clean-age') await api.set('cleanAge', +el.value);
   else if (a === 'clean-kind') await api.set('cleanKinds', el.checked ? [...s!.settings.cleanKinds, id] : s!.settings.cleanKinds.filter((k) => k !== id));
@@ -255,3 +260,12 @@ if (native) tauri().then((n) => n.onAppearance((t) => api.set('theme', t)));
 route();
 load().then(poll);
 
+
+// Server search: as you type (after a pause), the list fills with matching Speedtest servers.
+let searchTimer: ReturnType<typeof setTimeout> | undefined;
+document.addEventListener('input', (e) => {
+  const el = e.target as HTMLInputElement;
+  if (el.dataset.action !== 'speed-search') return;
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(() => api.findServers(el.value.trim()).then(render, () => {}), 400);
+});
