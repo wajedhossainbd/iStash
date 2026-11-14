@@ -506,6 +506,9 @@ export function settings(v: View) {
       ${row('Show in menu bar', '', toggle('menubar', st.menubar, 'Show in menu bar'))}
       ${row('Edge widget', 'CPU, memory, network and drives on the edge of the screen.', seg('widget-mode', [['off', 'Off'], ['auto', 'Show on hover'], ['pinned', 'Always']], st.widget))}
       ${st.widget === 'off' ? '' : row('Widget edge', '', seg('widget-side', [['left', 'Left'], ['right', 'Right']], st.widgetSide))}
+      ${row('Notch island', 'iStash notifications drop from the top of the screen.', toggle('island', st.island, 'Notch island'))}
+      ${st.island ? row('Island glow', '', seg('island-glow', [['amber', 'Amber'], ['blue', 'Blue'], ['pink', 'Pink'], ['green', 'Green'], ['white', 'White']], st.islandGlow)) : ''}
+      ${st.island ? row('Island stays for', '', `${seg('island-secs', [['3', '3 s'], ['5', '5 s'], ['8', '8 s']], String(st.islandSecs))} ${button('Show it', 'island-test')}`) : ''}
       ${row('Check for updates automatically', '', sw('updates', 'Check for updates automatically'))}
       ${row(`Version ${esc(s.version)}`, s.update.available ? `Version ${esc(s.update.available)} is available. iStash restarts to finish.` : s.update.checked ? `This is the latest version. Checked ${ago(s.update.checked)}.` : '',
         s.update.available ? button(s.update.busy ? 'Updating…' : `Update to ${esc(s.update.available)}`, 'install-update', { kind: 'primary', disabled: s.update.busy }) : button(s.update.busy ? 'Checking…' : 'Check now', 'check-update', { disabled: s.update.busy }))}
@@ -637,6 +640,15 @@ export function popover(v: View) {
     line(kv('IP', esc(s.net?.info?.ip || 'offline'))) +
     line(t ? kv('Test', `${Math.round(t.down ?? 0)} Mbps`) + `<span class="pop-dim">${ago(t.at)}</span>` : '<span class="pop-dim">No speed test yet</span>'));
 
+  // Fan and temperatures. macOS sets the fan speed itself; iStash only reads it.
+  const sn = s.sensors, fan = sn?.fans[0], hot = sn?.cpu?.max ?? 0;
+  const fanTile = sn && (fan || sn.cpu) ? tile(fan ? 'Fan' : 'Temperature', fan ? `${Math.round(fan.rpm).toLocaleString('en-GB')} rpm` : `${Math.round(sn.cpu!.avg)}°C`,
+    (fan && fan.max ? popBar(Math.round(((fan.rpm - (fan.min ?? 0)) / (fan.max - (fan.min ?? 0))) * 100), 'var(--pop-blue)', `Fan at ${Math.round(fan.rpm)} rpm`) : '') +
+    line(sn.cpu ? kv('CPU', `${Math.round(sn.cpu.avg)}°`, tone(hot, 80, 95)) + kv('peak', `${Math.round(sn.cpu.max)}°`) : '', sn.gpu ? kv('GPU', `${Math.round(sn.gpu.avg)}°`) : '') +
+    line(fan ? `<span class="pop-dim">${fan.min && fan.rpm <= fan.min + 50 ? 'Idle speed' : 'Cooling'} · set by macOS</span>` : '<span class="pop-dim">No fan in this Mac</span>')) : '';
+  const appsRow = `<div class="pop-apps">${([['system-settings', '/System/Applications/System Settings.app', 'System Settings'], ['disk-utility', '/System/Applications/Utilities/Disk Utility.app', 'Disk Utility'],
+    ['activity-monitor', '/System/Applications/Utilities/Activity Monitor.app', 'Activity Monitor'], ['system-information', '/System/Applications/Utilities/System Information.app', 'System Information']] as const)
+    .map(([id, path, name]) => `<button class="pop-app" data-action="open-app" data-id="${id}" title="Open ${name}">${appIcon(v.icon(path), name)}<span>${name.replace('System ', '')}</span></button>`).join('')}<button class="pop-app" data-action="pop-camera" title="See the camera's picture"><span class="pop-cam">${icon('camera')}</span><span>Camera</span></button></div>`;
   const drives = usable(s).map((d) => `<div class="pop-drive ${d.connected ? '' : 'is-missing'}"><i style="background:${d.connected ? cableVar(d) : 'transparent'}"></i><span class="pop-name">${esc(d.name)}</span>
     <span class="pop-dim">${d.connected ? `${gb(d.free)} free` : 'Missing'}</span></div>`).join('');
 
@@ -651,6 +663,7 @@ export function popover(v: View) {
     : `<div class="pop-quick">${[
       q('pop-dark', 'moon', 'Dark', 'Dark mode for iStash', dark),
       q('pop-awake', 'cup', 'Awake', 'Keep this Mac awake', !!sys?.awake, !sys),
+      q('pop-screen', 'desktop', 'Screen on', 'Keep the screen on', !!sys?.screenOn, !sys),
       q('pop-lock', 'lock', 'Lock', 'Lock screen', null),
       q('pop-trash', 'trash', 'Trash', 'Empty Trash', null),
       q('pop-desktop', 'desktop', 'Icons', sys?.desktopIcons === false ? 'Show desktop icons' : 'Hide desktop icons', sys?.desktopIcons === false, !sys),
@@ -659,7 +672,8 @@ export function popover(v: View) {
     ].join('')}</div>`;
 
   return `<div class="popover pop" role="dialog" aria-label="iStash">
-    <div class="pop-grid">${cpuTile}${memTile}${diskTile}${netTile}</div>
+    <div class="pop-grid">${cpuTile}${memTile}${diskTile}${netTile}${fanTile}</div>
+    ${appsRow}
     ${drives ? `<div class="pop-drives">${drives}</div>` : ''}
     ${quick}
     <footer class="pop-foot"><span class="pop-dim">${sys ? uptime(sys.uptime) : ''}</span>${button('Open iStash', 'open-main', { kind: 'primary' })}</footer>

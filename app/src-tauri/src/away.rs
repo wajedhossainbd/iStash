@@ -81,10 +81,10 @@ pub fn start() {
             for e in step(&mut seen, &rows, &|d| Path::new("/Volumes").join(d).is_dir()) {
                 match e {
                     Event::Gone { drive, apps } => {
-                        osa(&["display notification (item 2 of argv) with title (item 1 of argv)"], &[&format!("{drive} was disconnected"), &format!("{} keep{} data on it and may not work until it is back. Nothing is lost.", list(&apps), if apps.len() == 1 { "s" } else { "" })]);
+                        crate::island::notify(&format!("{drive} was disconnected"), &format!("{} keep{} data on it and may not work until it is back. Nothing is lost.", list(&apps), if apps.len() == 1 { "s" } else { "" }), "unplug");
                     }
                     Event::Back { drive } => {
-                        osa(&["display notification (item 2 of argv) with title (item 1 of argv)"], &[&format!("{drive} is back"), "The apps that keep data on it work again."]);
+                        crate::island::notify(&format!("{drive} is back"), "The apps that keep data on it work again.", "plug");
                     }
                     Event::Held { drive, apps } => {
                         let many = apps.len() > 1;

@@ -729,3 +729,15 @@ h1:focus { outline: none; } /* focused on navigation so VoiceOver announces the 
 .bloom.disk { --c1: color-mix(in srgb, #6FA8FF 70%, transparent); --c2: color-mix(in srgb, #A57BFF 55%, transparent); }
 :root[data-theme="light"] .bloom.mem { --c1: color-mix(in srgb, #5CCB7E 45%, transparent); --c2: color-mix(in srgb, #A6E6B9 50%, transparent); }
 :root[data-theme="light"] .bloom.disk { --c1: color-mix(in srgb, #4AA8FF 45%, transparent); --c2: color-mix(in srgb, #A9C8FF 50%, transparent); }
+/* Menu-bar panel: app shortcuts, fan tile, two rows of toggles */
+.pop-quick { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.pop-grid > .pop-tile:nth-child(5):last-child { grid-column: 1 / -1; }
+.pop-apps { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
+.pop-app .pop-cam { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 8px; background: #2c2c2e; color: #f5f5f7; }
+.pop-app .pop-cam svg { width: 18px; height: 18px; }
+.pop-app { display: grid; justify-items: center; gap: 4px; padding: 8px 2px 6px; border: 0; border-radius: 10px; background: rgba(255, 255, 255, 0.05);
+  color: var(--pop-ink-2); font: 500 10px/12px var(--font-text); cursor: default; transition: background-color var(--duration-fast), transform var(--duration-fast); }
+.pop-app:hover { background: rgba(255, 255, 255, 0.11); color: var(--pop-ink); }
+.pop-app:active { transform: scale(0.96); }
+.pop-app .app-icon { width: 30px; height: 30px; }
+.pop-app span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; }

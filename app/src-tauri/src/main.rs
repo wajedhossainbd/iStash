@@ -9,6 +9,8 @@ mod login;
 mod mem;
 mod net;
 mod quick;
+mod island;
+mod sensors;
 mod stay;
 mod tune;
 mod widget;
@@ -36,13 +38,9 @@ fn app_icon(path: String) -> Result<tauri::ipc::Response, String> {
 
 /// Posts a macOS notification. The text goes in as arguments, never into the script itself.
 #[tauri::command]
-fn notify(title: String, body: String) -> Result<(), String> {
-    let ok = Command::new("/usr/bin/osascript")
-        .args(["-e", "on run argv", "-e", "display notification (item 2 of argv) with title (item 1 of argv)", "-e", "end run", &title, &body])
-        .status()
-        .map_err(|e| e.to_string())?
-        .success();
-    ok.then_some(()).ok_or_else(|| "macOS didn’t show the notification.".into())
+fn notify(title: String, body: String, kind: Option<String>) -> Result<(), String> {
+    island::notify(&title, &body, kind.as_deref().unwrap_or("info"));
+    Ok(())
 }
 
 /// Opens one of a fixed set of places, so a "fix" button in an error state does something real.
@@ -54,6 +52,9 @@ fn open_target(target: &str) -> Result<(), String> {
         "login-items" => vec!["x-apple.systempreferences:com.apple.LoginItems-Settings.extension"],
         "privacy" => vec!["x-apple.systempreferences:com.apple.preference.security?Privacy_FilesAndFolders"],
         "disk-utility" => vec!["-b", "com.apple.DiskUtility"],
+        "system-settings" => vec!["-b", "com.apple.systempreferences"],
+        "activity-monitor" => vec!["-b", "com.apple.ActivityMonitor"],
+        "system-information" => vec!["-b", "com.apple.SystemProfiler"],
         "journal" if Path::new(&journal).exists() => vec!["-R", &journal],
         "journal" => return Err("There is no journal yet. It is created with the first move.".into()),
         _ => return Err(format!("unknown target {target}")),
@@ -182,16 +183,17 @@ fn main() {
         // Size and position only: closing hides the window, and a remembered "hidden" would launch with no window.
         .plugin(
             tauri_plugin_window_state::Builder::default()
-                .with_denylist(&["popover", "widget"])
+                .with_denylist(&["popover", "widget", "island", "camera"])
                 .with_state_flags(StateFlags::SIZE | StateFlags::POSITION | StateFlags::MAXIMIZED | StateFlags::FULLSCREEN)
                 .build(),
         )
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
-        .invoke_handler(tauri::generate_handler![net::net_info, net::speed_test, net::speed_servers, disk_io, widget::widget_mode, widget::widget_hover, login::login_status, login::set_login, tune::focus, tune::clean_scan, tune::clean_run, tune::free_memory, app_icon, open_target, notify, appearance_checked, volumes, mem::memory, mem::quit_app, engine::scan_home, engine::plan, engine::start_job, engine::jobs, engine::stop_job, engine::eject, engine::quit_drive_users, engine::set_guard, quick::sys_status, quick::keep_awake, quick::lock_screen, quick::empty_trash, quick::set_desktop_icons])
+        .invoke_handler(tauri::generate_handler![island::island_hide, island::set_island, island::open_camera, sensors::sensors, quick::keep_screen, net::net_info, net::speed_test, net::speed_servers, disk_io, widget::widget_mode, widget::widget_hover, login::login_status, login::set_login, tune::focus, tune::clean_scan, tune::clean_run, tune::free_memory, app_icon, open_target, notify, appearance_checked, volumes, mem::memory, mem::quit_app, engine::scan_home, engine::plan, engine::start_job, engine::jobs, engine::stop_job, engine::eject, engine::quit_drive_users, engine::set_guard, quick::sys_status, quick::keep_awake, quick::lock_screen, quick::empty_trash, quick::set_desktop_icons])
         .setup(|app| {
             mem::start();
             engine::start();
+            island::init(app.handle());
             away::start();
             stay::install(app.handle());
             widget::start(app.handle().clone());

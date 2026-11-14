@@ -107,6 +107,9 @@ export interface Settings {
   cleanAge: number;
   widget: 'off' | 'auto' | 'pinned'; // the glass panel on a screen edge
   widgetSide: 'left' | 'right'; // days an item must be untouched before it may be removed; 0 = any age
+  island: boolean; // iStash's notifications drop from the top of the screen instead of macOS banners
+  islandGlow: 'amber' | 'blue' | 'pink' | 'green' | 'white';
+  islandSecs: number;
   cleanKinds: string[]; // which kinds the Clean screen has ticked; the schedule cleans the same ones
 }
 
@@ -140,7 +143,9 @@ export interface State {
   focus: string | null;
   clean: { items: CleanItem[] | null; busy: boolean; freed: number | null; last: number | null; memBusy: boolean; memFreed: number | null; memAt?: number };
   /** Popover only: CPU split (percent, last 2 s), seconds since boot, and the quick toggles macOS reports. */
-  sys?: { user: number; system: number; idle: number; uptime: number; awake: boolean; desktopIcons: boolean };
+  sys?: { user: number; system: number; idle: number; uptime: number; awake: boolean; screenOn?: boolean; desktopIcons: boolean };
+  /** Fans and temperatures (popover only). */
+  sensors?: { fans: { rpm: number; min: number | null; max: number | null }[]; cpu: { avg: number; max: number } | null; gpu: { avg: number; max: number } | null; sensors: { name: string; c: number }[] };
   loginNeedsApproval?: boolean; // macOS waits for the user to allow iStash in Login Items
   unsupported?: (keyof Settings)[]; // settings this build cannot act on; shown as such instead of a dead switch
 }
@@ -199,6 +204,10 @@ export interface Api {
   focus(appPath: string | null): Promise<void>;
   /** Keeps the Mac and display awake (caffeinate) until turned off or iStash quits. */
   keepAwake(on: boolean): Promise<void>;
+  /** Keeps the display on. */
+  keepScreen(on: boolean): Promise<void>;
+  testIsland(): Promise<void>;
+  openCamera(): Promise<void>;
   /** Sleeps the display, which locks the Mac when a password is required after sleep. */
   lockScreen(): Promise<void>;
   /** Empties the Trash for good, through Finder. */
@@ -312,7 +321,7 @@ export function mockState(now = Date.now()): State {
     mac: { model: 'MacBook Pro', total: 494 * GB, free: 31.2 * GB, system: 104 * GB, apps: 153 * GB, reserve: 10 * GB },
     drives, folders, jobs: [], memApps,
     forecast: strained(now),
-    settings: { onboarded: false, theme: 'dark', login: true, menubar: true, dryRun: true, warnAt: 30, ejectGuard: true, updates: true, defaultDrive: null, cleanEvery: 'off', cleanAge: 7, widget: 'off', widgetSide: 'right', cleanKinds: ['caches', 'logs', 'temp'] },
+    settings: { onboarded: false, theme: 'dark', login: true, menubar: true, dryRun: true, warnAt: 30, ejectGuard: true, updates: true, defaultDrive: null, cleanEvery: 'off', cleanAge: 7, widget: 'off', widgetSide: 'right', island: true, islandGlow: 'amber', islandSecs: 5, cleanKinds: ['caches', 'logs', 'temp'] },
     permissions: { volumes: false, notify: false },
     scan: { running: false, checked: 0 },
     journalPath: '~/Library/Application Support/Stowaway/journal.jsonl',
@@ -321,7 +330,8 @@ export function mockState(now = Date.now()): State {
       servers: [{ host: 'speedtest.example.net:8080', sponsor: 'Example Fibre', city: 'Dhaka', cc: 'BD', km: 4 }, { host: 'st2.example.net:8080', sponsor: 'Metro Net', city: 'Narayanganj', cc: 'BD', km: 12 }] },
     focus: null, clean: { items: null, busy: false, freed: null, last: null, memBusy: false, memFreed: null },
     io: { mac: { read: 42e6, write: 8e6, avgRead: 20e6, avgWrite: 5e6, last: now } },
-    sys: { user: 18, system: 9, idle: 73, uptime: 55260, awake: false, desktopIcons: true },
+    sys: { user: 18, system: 9, idle: 73, uptime: 55260, awake: false, screenOn: false, desktopIcons: true },
+    sensors: { fans: [{ rpm: 1240, min: 1000, max: 4900 }], cpu: { avg: 58.4, max: 71.2 }, gpu: null, sensors: [] },
   };
 }
 
@@ -453,6 +463,9 @@ export function createMock(scenario: Scenario = 'normal', onboarded = scenario !
     },
     async focus(appPath) { await ok(); s.focus = appPath; emit(); },
     async keepAwake(on) { await ok(); s.sys!.awake = on; emit(); },
+    async testIsland() { await ok(); },
+    async openCamera() { await ok(); },
+    async keepScreen(on) { await ok(); s.sys!.screenOn = on; emit(); },
     async lockScreen() { await ok(); },
     async emptyTrash() { await ok(); },
     async desktopIcons(show) { await ok(); s.sys!.desktopIcons = show; emit(); },

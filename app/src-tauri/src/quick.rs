@@ -7,6 +7,7 @@ use std::process::{Child, Command};
 use std::sync::{Mutex, OnceLock};
 
 static AWAKE: Mutex<Option<Child>> = Mutex::new(None);
+static SCREEN: Mutex<Option<Child>> = Mutex::new(None);
 
 fn ok(cmd: &str, args: &[&str]) -> Result<(), String> {
     let out = Command::new(cmd).args(args).output().map_err(|e| e.to_string())?;
@@ -57,7 +58,11 @@ fn whole_disk(part: &str) -> &str {
 }
 
 fn awake() -> bool {
-    let mut g = AWAKE.lock().unwrap();
+    running(&AWAKE)
+}
+
+fn running(slot: &Mutex<Option<Child>>) -> bool {
+    let mut g = slot.lock().unwrap();
     if let Some(c) = g.as_mut() {
         if matches!(c.try_wait(), Ok(Some(_))) {
             *g = None;
@@ -74,26 +79,38 @@ fn desktop_icons() -> bool {
 
 #[tauri::command(async)]
 pub fn sys_status() -> Value {
-    json!({ "cpu": cpu_ticks(), "uptime": uptime(), "bootDisk": boot_disk(), "awake": awake(), "desktopIcons": desktop_icons() })
+    json!({ "cpu": cpu_ticks(), "uptime": uptime(), "bootDisk": boot_disk(), "awake": awake(), "screenOn": running(&SCREEN), "desktopIcons": desktop_icons() })
 }
 
-/// Keeps the Mac and its display awake with `caffeinate`, which also ends on its own if iStash quits.
+/// Keeps the Mac awake (no idle or system sleep) with `caffeinate`, which ends on its own if iStash quits. The display
+/// may still turn off; Keep screen on is the separate toggle for that.
 #[tauri::command]
 pub fn keep_awake(on: bool) -> Result<bool, String> {
-    let mut g = AWAKE.lock().unwrap();
+    caffeinate(&AWAKE, "-is", on)
+}
+
+/// Keeps the display on.
+#[tauri::command]
+pub fn keep_screen(on: bool) -> Result<bool, String> {
+    caffeinate(&SCREEN, "-d", on)
+}
+
+fn caffeinate(slot: &Mutex<Option<Child>>, flags: &str, on: bool) -> Result<bool, String> {
+    let mut g = slot.lock().unwrap();
     if let Some(mut c) = g.take() {
         let _ = c.kill();
         let _ = c.wait();
     }
     if on {
         let pid = std::process::id().to_string();
-        *g = Some(Command::new("/usr/bin/caffeinate").args(["-dis", "-w", &pid]).spawn().map_err(|e| e.to_string())?);
+        *g = Some(Command::new("/usr/bin/caffeinate").args([flags, "-w", &pid]).spawn().map_err(|e| e.to_string())?);
     }
     Ok(on)
 }
 
 pub fn stop_awake() {
     let _ = keep_awake(false);
+    let _ = keep_screen(false);
 }
 
 /// Sleeps the display; macOS locks it when "Require password after screen saver or display is off" is on.

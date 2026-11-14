@@ -5,7 +5,15 @@ updates installed copies through the app itself.
 
 ## Unreleased
 
-Nothing yet.
+### Added
+- **Notch island.** iStash's notifications (drive disconnected or back, memory running out, update ready) drop from
+  the top of the screen as a black pill with a neon edge, then shrink back. Choose its glow colour and how long it
+  stays in Settings, or turn it off to get macOS banners again.
+- **Menu-bar panel:** shortcuts to System Settings, Disk Utility, Activity Monitor and System Information; a Camera
+  button that opens a small window with the camera's picture; a **Screen on** toggle that keeps the display awake
+  (Awake now keeps the Mac awake but lets the display sleep).
+- **Fan and temperature tile** in the menu-bar panel: fan speed against its range, and CPU temperature. Fan speed is
+  shown, not set: changing it needs administrator rights, which iStash doesn't ask for.
 
 ## 0.1.17 — 14 Nov 2026
 

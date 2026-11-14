@@ -4,5 +4,5 @@ import { defineConfig } from 'vite';
 export default defineConfig({
   clearScreen: false,
   server: { port: 1420, strictPort: true, fs: { allow: ['../..'] } },
-  build: { target: 'safari16', outDir: 'dist' },
+  build: { target: 'safari16', outDir: 'dist', rollupOptions: { input: { main: 'index.html', island: 'island.html', camera: 'camera.html' } } },
 });

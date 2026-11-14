@@ -33,7 +33,7 @@ export function createReal(invoke: Invoke): Api {
     version: '0.1.0',
     mac: { model: 'This Mac', total: 1, free: 0, system: 0, apps: 0, reserve: 10 * 2 ** 30 },
     drives: [], folders: [], jobs: [], forecast: null, memApps: [],
-    settings: { onboarded: false, theme: 'dark', login: false, menubar: true, dryRun: true, warnAt: 30, ejectGuard: true, updates: false, defaultDrive: null, cleanEvery: 'off', cleanAge: 7, widget: 'off', widgetSide: 'right', cleanKinds: ['caches', 'logs', 'temp'], ...saved.settings },
+    settings: { onboarded: false, theme: 'dark', login: false, menubar: true, dryRun: true, warnAt: 30, ejectGuard: true, updates: false, defaultDrive: null, cleanEvery: 'off', cleanAge: 7, widget: 'off', widgetSide: 'right', island: true, islandGlow: 'amber', islandSecs: 5, cleanKinds: ['caches', 'logs', 'temp'], ...saved.settings },
     // macOS asks for these itself the first time they are needed; there is nothing to pre-grant.
     permissions: { volumes: true, notify: false, ...saved.permissions },
     scan: { running: true, checked: 0 },
@@ -140,20 +140,20 @@ export function createReal(invoke: Invoke): Api {
   }, () => {});
   const saveNet = () => write('stowaway.net', { test: s.net!.test, history: s.net!.history, server: s.net!.server, serverLabel: s.net!.serverLabel, mode: s.net!.mode });
   if (!light) invoke<SpeedServer[]>('speed_servers', { query: null }).then((v) => { s.net!.servers = v; emit(); }, () => {});
-  type Sys = { cpu: number[]; uptime: number; bootDisk: string; awake: boolean; desktopIcons: boolean };
+  type Sys = { cpu: number[]; uptime: number; bootDisk: string; awake: boolean; screenOn: boolean; desktopIcons: boolean };
   const pollSys = () => invoke<Sys>('sys_status').then((r) => {
     bootDisk = r.bootDisk;
     // Two tick readings make the split; nice time counts as user, as Activity Monitor does.
     const d = ticks ? r.cpu.map((x, i) => x - ticks![i]) : null, all = d ? d.reduce((a, b) => a + b, 0) : 0;
     ticks = r.cpu;
     const pct = (x: number) => all > 0 ? Math.round((x / all) * 100) : 0;
-    s.sys = { user: d ? pct(d[0] + d[3]) : 0, system: d ? pct(d[1]) : 0, idle: d ? pct(d[2]) : 100, uptime: r.uptime, awake: r.awake, desktopIcons: r.desktopIcons };
+    s.sys = { user: d ? pct(d[0] + d[3]) : 0, system: d ? pct(d[1]) : 0, idle: d ? pct(d[2]) : 100, uptime: r.uptime, awake: r.awake, screenOn: r.screenOn, desktopIcons: r.desktopIcons };
   }, () => {});
   const pollNet = () => invoke<NetInfo | null>('net_info').then((info) => { s.net!.info = info; emit(); }, () => {});
   pollNet();
   setInterval(pollNet, 30e3);
   const pollMem = () => invoke<Reading | null>('memory').then(async (r) => {
-    if (isPopover && !document.hidden) await pollSys();
+    if (isPopover && !document.hidden) { await pollSys(); s.sensors = await invoke<State['sensors']>('sensors').catch(() => s.sensors); }
     await pollIo();
     Object.assign(s.net!, read<{ test: SpeedTest | null; history: SpeedTest[] }>('stowaway.net', { test: s.net!.test, history: s.net!.history })); // a test run in another window
     if (!r) return;
@@ -162,7 +162,7 @@ export function createReal(invoke: Invoke): Api {
     // One notification per episode: when the forecast first drops inside the chosen window.
     const left = s.forecast?.minutesLeft;
     const due = left != null && left <= s.settings.warnAt;
-    if (due && !warned && s.permissions.notify) invoke('notify', { title: `Memory may run out in about ${left} minutes`, body: s.forecast?.suggest ? `Quitting ${s.forecast.suggest.app} frees the most.` : 'Open iStash to see what is using memory.' }).catch(() => {});
+    if (due && !warned && (s.settings.island || s.permissions.notify)) invoke('notify', { kind: 'memory', title: `Memory may run out in about ${left} minutes`, body: s.forecast?.suggest ? `Quitting ${s.forecast.suggest.app} frees the most.` : 'Open iStash to see what is using memory.' }).catch(() => {});
     warned = due;
     s.memApps = toMemApps(r);
     s.mac.free = r.diskFree || s.mac.free;
@@ -175,8 +175,10 @@ export function createReal(invoke: Invoke): Api {
   if (!light) {
     invoke('set_guard', { on: s.settings.ejectGuard }).catch(() => {});
     invoke('widget_mode', { mode: s.settings.widget, left: s.settings.widgetSide === 'left' }).catch(() => {});
+    islandLook();
   }
 
+  function islandLook() { invoke('set_island', { on: s.settings.island, glow: s.settings.islandGlow, secs: s.settings.islandSecs }).catch(() => {}); }
   const cleanScan = async () => { s.clean.items = await invoke<CleanItem[]>('clean_scan', { days: s.settings.cleanAge }); emit(); };
   const clean = async (kinds: string[]) => {
     if (s.clean.busy || !kinds.length) return;
@@ -210,7 +212,7 @@ export function createReal(invoke: Invoke): Api {
       try { s.update.available = await (await native()).checkUpdate(); }
       catch { throw new Error('iStash couldn’t reach its update page. Check your connection and try again. Nothing was changed.'); }
       s.update.checked = Date.now();
-      if (s.update.available && s.update.available !== was && s.permissions.notify) invoke('notify', { title: `iStash ${s.update.available} is ready`, body: 'Open Settings to install it.' }).catch(() => {});
+      if (s.update.available && s.update.available !== was && (s.settings.island || s.permissions.notify)) invoke('notify', { kind: 'update', title: `iStash ${s.update.available} is ready`, body: 'Open Settings to install it.' }).catch(() => {});
     } finally { s.update.busy = false; emit(); }
   };
   // Automatic checks: shortly after launch, then every six hours, when the setting is on. Offline is not an error.
@@ -252,6 +254,7 @@ export function createReal(invoke: Invoke): Api {
         s.settings.login = now !== 'off'; s.loginNeedsApproval = now === 'approve';
       }
       // Turning a schedule on starts the clock now, so the first cleaning is one interval away, not at once.
+      if (key.startsWith('island')) islandLook();
       if (key === 'cleanAge') cleanScan().catch(() => {});
       if (key === 'widget' || key === 'widgetSide') await invoke('widget_mode', { mode: s.settings.widget, left: s.settings.widgetSide === 'left' });
       if (key === 'cleanEvery' && value !== 'off' && s.clean.last == null) { s.clean.last = Date.now(); write('stowaway.clean', { last: s.clean.last }); }
@@ -289,6 +292,9 @@ export function createReal(invoke: Invoke): Api {
       catch (e) { throw new Error(String(e)); }
       finally { s.clean.memBusy = false; emit(); }
     },
+    async testIsland() { await invoke('notify', { kind: 'info', title: 'This is the island', body: 'iStash notifications appear here.' }); },
+    async openCamera() { await invoke('open_camera'); },
+    async keepScreen(on) { s.sys!.screenOn = await invoke<boolean>('keep_screen', { on }).catch((e) => { throw new Error(String(e)); }); emit(); },
     async keepAwake(on) { s.sys!.awake = await invoke<boolean>('keep_awake', { on }).catch((e) => { throw new Error(String(e)); }); emit(); },
     async lockScreen() { await invoke('lock_screen').catch((e) => { throw new Error(`macOS didn’t lock the screen: ${e}`); }); },
     async emptyTrash() { await invoke('empty_trash').catch((e) => { throw new Error(`Finder didn’t empty the Trash: ${e}`); }); },

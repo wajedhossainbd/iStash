@@ -1,0 +1,34 @@
+/* Fixed dark palette, like the other floating panels: the island is black like the notch it grows from. */
+html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; font-family: 'Geist Variable', system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+#root { display: flex; justify-content: center; height: 100%; }
+.island {
+  --glow: 255 170 60;
+  display: flex; align-items: center; gap: 12px; box-sizing: border-box;
+  width: 190px; height: 32px; padding: 0 18px; margin-top: 0;
+  border: 0; outline: none; -webkit-appearance: none; appearance: none; border-radius: 0 0 16px 16px; background: #000; color: #f5f5f7; cursor: pointer; text-align: left;
+  box-shadow: 0 2px 10px rgb(var(--glow) / 0.45), 0 6px 26px rgb(var(--glow) / 0.28), 0 10px 44px rgb(var(--glow) / 0.14);
+  opacity: 0; transform: translateY(-36px) scale(0.9);
+  transition: width 0.5s cubic-bezier(0.34, 1.56, 0.64, 1), height 0.5s cubic-bezier(0.34, 1.56, 0.64, 1),
+    border-radius 0.5s ease, transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.2s ease;
+}
+.island:focus, .island:focus-visible { outline: none; }
+.island[data-glow='blue'] { --glow: 80 170 255; }
+.island[data-glow='pink'] { --glow: 255 80 190; }
+.island[data-glow='green'] { --glow: 70 230 140; }
+.island[data-glow='white'] { --glow: 235 235 245; }
+.island.shown { opacity: 1; transform: none; }
+.island.open { width: 350px; height: 70px; border-radius: 0 0 26px 26px; animation: breathe 2.4s ease-in-out infinite; }
+@keyframes breathe {
+  50% { box-shadow: 0 3px 14px rgb(var(--glow) / 0.6), 0 8px 32px rgb(var(--glow) / 0.36), 0 12px 52px rgb(var(--glow) / 0.18); }
+}
+.island-icon { display: grid; place-items: center; flex: none; width: 34px; height: 34px; border-radius: 50%;
+  background: rgb(var(--glow) / 0.16); color: rgb(var(--glow)); opacity: 0; transform: scale(0.6); transition: opacity 0.25s ease 0.15s, transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) 0.15s; }
+.island-icon svg { width: 18px; height: 18px; }
+.island-text { display: grid; gap: 2px; min-width: 0; opacity: 0; transition: opacity 0.25s ease 0.2s; }
+.island-text b, .island-text small { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.island-text b { font-size: 13px; font-weight: 600; }
+.island-text small { font-size: 12px; color: rgb(245 245 247 / 0.7); }
+.island.open .island-icon { opacity: 1; transform: none; }
+.island.open .island-text { opacity: 1; }
+.island:not(.open) .island-icon, .island:not(.open) .island-text { transition-delay: 0s; }
+@media (prefers-reduced-motion: reduce) { .island, .island-icon, .island-text { transition-duration: 0.01s; } .island.open { animation: none; } }

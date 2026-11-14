@@ -4,5 +4,7 @@
 <dict>
 	<key>NSAppleEventsUsageDescription</key>
 	<string>iStash asks Finder to empty the Trash when you press Empty Trash.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>iStash shows the camera's picture in a small window when you press Camera.</string>
 </dict>
 </plist>

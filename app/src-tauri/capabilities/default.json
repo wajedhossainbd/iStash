@@ -5,7 +5,9 @@
   "windows": [
     "main",
     "popover",
-    "widget"
+    "widget",
+    "island",
+    "camera"
   ],
   "permissions": [
     "core:default",

@@ -79,6 +79,22 @@
           "radius": 18
         },
         "theme": "Dark"
+      },
+      {
+        "label": "island",
+        "title": "iStash",
+        "url": "island.html",
+        "width": 380,
+        "height": 120,
+        "decorations": false,
+        "transparent": true,
+        "resizable": false,
+        "visible": false,
+        "alwaysOnTop": true,
+        "skipTaskbar": true,
+        "shadow": false,
+        "focus": false,
+        "visibleOnAllWorkspaces": true
       }
     ],
     "security": {

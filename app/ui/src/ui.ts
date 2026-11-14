@@ -50,6 +50,7 @@ const P: Record<string, string> = {
   trash: '<path d="M2.5 4.5h11M6 4.5V3h4v1.5M4 4.5l.7 8.5h6.6l.7-8.5"/>',
   desktop: '<rect x="2" y="2.5" width="12" height="8.5" rx="1.2"/><path d="M6 13.5h4M8 11v2.5M4.5 5h1.5M4.5 7h1.5"/>',
   sidebar: '<rect x="2" y="2.5" width="12" height="11" rx="1.5"/><path d="M10.5 2.5v11"/>',
+  camera: '<path d="M2 5.5A1.5 1.5 0 0 1 3.5 4h1.2l1-1.5h4.6l1 1.5h1.2A1.5 1.5 0 0 1 14 5.5v6a1.5 1.5 0 0 1-1.5 1.5h-9A1.5 1.5 0 0 1 2 11.5z"/><circle cx="8" cy="8.3" r="2.4"/>',
   target: '<circle cx="8" cy="8" r="5.5"/><circle cx="8" cy="8" r="2"/>',
 };
 export const icon = (name: string, cls = '') =>
