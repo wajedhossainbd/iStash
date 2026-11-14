@@ -438,12 +438,18 @@ export function memory(v: View) {
 // A cleaner's ring, mobile style: the number in the middle, an arc for how full it is; while working the arc
 // sweeps round and particles are pulled into the centre; when done a tick pops in with what was freed.
 function orb(o: { pct: number; big: string; unit: string; busy: boolean; done: string; tone: 'mem' | 'disk'; small?: boolean }) {
-  const r = 46, len = 2 * Math.PI * r, fill = Math.max(2, Math.min(100, o.pct));
-  const motes = o.busy ? Array.from({ length: 12 }, (_, i) => `<i style="--a:${i * 30}deg;--d:${(i % 4) * 0.22}s"></i>`).join('') : '';
+  const r = 46, len = 2 * Math.PI * r, fill = Math.max(0, Math.min(100, o.pct));
+  // Particles placed by the golden angle, each with its own distance, size, speed, delay and swirl, so the stream
+  // looks natural instead of a repeating ring of dots. Fixed per index, so a redraw doesn't restart them.
+  const rnd = (i: number, k: number) => { const v = Math.sin(i * 12.9898 + k * 78.233) * 43758.5453; return v - Math.floor(v); };
+  const motes = o.busy ? Array.from({ length: 22 }, (_, i) => {
+    const dur = 1.1 + rnd(i, 1) * 1.3;
+    return `<i style="--a:${((i * 137.5) % 360).toFixed(1)}deg;--r:${(0.75 + rnd(i, 2) * 0.55).toFixed(2)};--s:${(3 + rnd(i, 3) * 6).toFixed(1)}px;--sw:${((rnd(i, 4) - 0.5) * 140).toFixed(0)}deg;--t:${dur.toFixed(2)}s;--d:-${(rnd(i, 5) * dur).toFixed(2)}s"></i>`;
+  }).join('') : '';
   return `<div class="orb ${o.tone} ${o.small ? 'is-small' : ''} ${o.busy ? 'is-busy' : ''} ${o.done ? 'is-done' : ''}">
-    <svg viewBox="0 0 120 120" aria-hidden="true"><defs><linearGradient id="orb-${o.tone}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" class="orb-a"/><stop offset="1" class="orb-b"/></linearGradient></defs>
+    <svg class="orb-ring" viewBox="0 0 120 120" aria-hidden="true"><defs><linearGradient id="orb-${o.tone}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" class="orb-a"/><stop offset="1" class="orb-b"/></linearGradient></defs>
       <circle cx="60" cy="60" r="${r}" class="orb-track"/>
-      <circle cx="60" cy="60" r="${r}" class="orb-arc" stroke="url(#orb-${o.tone})" stroke-dasharray="${((fill / 100) * len).toFixed(1)} ${len.toFixed(1)}"/>
+      ${fill > 0 ? `<circle cx="60" cy="60" r="${r}" class="orb-arc" stroke="url(#orb-${o.tone})" stroke-dasharray="${((fill / 100) * len).toFixed(1)} ${len.toFixed(1)}"/>` : ''}
       ${o.busy ? `<circle cx="60" cy="60" r="${r}" class="orb-sweep" stroke-dasharray="${(len * 0.18).toFixed(1)} ${len.toFixed(1)}"/>` : ''}</svg>
     <div class="orb-motes">${motes}</div>
     <div class="orb-read">${o.done && !o.busy ? `<span class="orb-tick">${icon('check')}</span><b>${esc(o.done)}</b>` : `<b class="num">${esc(o.big)}</b><small>${esc(o.busy ? (o.tone === 'mem' ? 'freeing…' : 'cleaning…') : o.unit)}</small>`}</div>
@@ -456,7 +462,7 @@ export function clean(v: View) {
   if (v.down) return h + `<div class="page-body">${helperDown()}</div>`;
   if (!s) return h + loadingPage();
   const c = s.clean, st = s.settings, cols = 'style="grid-template-columns:32px minmax(0,1.2fr) minmax(0,2fr) 100px"';
-  const picked = (c.items ?? []).filter((i) => st.cleanKinds.includes(i.id)), total = sum(picked);
+  const picked = (c.items ?? []).filter((i) => st.cleanKinds.includes(i.id)), total = sum(picked), kept = picked.reduce((n, i) => n + (i.kept ?? 0), 0);
   const when = { off: 'Only when I choose', daily: 'Every day', weekly: 'Every week', monthly: 'Every month', over2: 'When it passes 2 GB', over5: 'When it passes 5 GB', over10: 'When it passes 10 GB' };
   const ages: [number, string][] = [[0, 'Any age'], [3, '3 days'], [7, '7 days'], [30, '30 days']];
   return h + `<div class="page-body">
@@ -469,7 +475,7 @@ export function clean(v: View) {
     <h2 style="margin-top:4px">Storage</h2>
     <section class="card" style="display:grid;grid-template-columns:auto 1fr auto auto auto;gap:8px 24px;align-items:center">
       <div class="boost-inline">${orb({ pct: Math.min(100, (total / (5 * GB)) * 100), big: c.items ? gb(total).replace(' GB', '') : '…', unit: 'GB to clean', busy: c.busy, done: c.freed != null && c.last && !c.busy && Date.now() - c.last < 60e3 ? `${gb(c.freed)} freed` : '', tone: 'disk', small: true })}</div>
-      <span></span>
+      <span class="secondary" style="font:var(--type-callout)">${c.items && kept > 0.05 * GB && !c.busy ? `${gb(kept)} is newer than ${st.cleanAge} days, so it's kept.` : ''}</span>
       <div class="move-to"><label class="secondary" for="clean-every" style="font:var(--type-group)">Clean automatically</label>
         <select class="select" id="clean-every" data-action="clean-every">${Object.entries(when).map(([k, label]) => `<option value="${k}" ${st.cleanEvery === k ? 'selected' : ''}>${label}</option>`).join('')}</select></div>
       <div class="move-to"><label class="secondary" for="clean-age" style="font:var(--type-group)">Only files untouched for</label>

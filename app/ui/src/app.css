@@ -605,3 +605,26 @@ h1:focus { outline: none; } /* focused on navigation so VoiceOver announces the 
 .table-row.is-cleaning { animation: clean-out 1.4s var(--easing-standard) infinite; animation-delay: calc(var(--k) * 120ms); }
 @keyframes clean-out { 40% { transform: translateX(28px); background: color-mix(in srgb, var(--accent-fill) 12%, transparent); } }
 @media (prefers-reduced-motion: reduce) { .orb-motes i, .orb-sweep, .orb.is-busy svg, .table-row.is-cleaning { animation: none; } }
+/* Cleaner ring, second pass: only the ring is turned to start at 12 o'clock (the tick inside must not be), the sweep
+   speeds up and slows down, and particles stream in from varied distances with a swirl. */
+.orb svg { transform: none; }
+.orb .orb-ring { transform: rotate(-90deg); }
+.orb.is-busy svg { animation: none; }
+.orb.is-busy .orb-ring { animation: orb-breathe 2.4s ease-in-out infinite; }
+@keyframes orb-breathe { 50% { transform: rotate(-90deg) scale(1.035); } }
+.orb-sweep { animation: orb-spin 1.8s cubic-bezier(0.55, 0.1, 0.45, 0.9) infinite; }
+.orb-motes i { width: var(--s); height: var(--s); margin: calc(var(--s) / -2); animation: orb-pull var(--t) cubic-bezier(0.55, 0, 0.85, 0.5) infinite; animation-delay: var(--d); }
+@keyframes orb-pull {
+  0% { transform: rotate(var(--a)) translateY(calc(-118px * var(--r))) scale(1); opacity: 0.95; }
+  70% { opacity: 0.9; }
+  100% { transform: rotate(calc(var(--a) + var(--sw))) translateY(-6px) scale(0.15); opacity: 0; }
+}
+.orb.is-small .orb-motes i { animation-name: orb-pull-s; }
+@keyframes orb-pull-s {
+  0% { transform: rotate(var(--a)) translateY(calc(-80px * var(--r))) scale(1); opacity: 0.95; }
+  100% { transform: rotate(calc(var(--a) + var(--sw))) translateY(-4px) scale(0.15); opacity: 0; }
+}
+/* Done: the ring glows once as the tick pops in. */
+.orb.is-done .orb-ring { animation: orb-glow 0.9s var(--easing-standard); }
+@keyframes orb-glow { 40% { filter: drop-shadow(0 0 14px var(--a2)); transform: rotate(-90deg) scale(1.05); } }
+.orb-tick svg { transform: none; }

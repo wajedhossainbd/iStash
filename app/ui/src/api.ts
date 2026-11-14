@@ -115,7 +115,7 @@ export interface Permissions {
   notify: boolean;
 }
 
-export interface CleanItem { id: string; name: string; note: string; count: number; size: number }
+export interface CleanItem { id: string; name: string; note: string; count: number; size: number; kept?: number } // kept: newer than the age rule
 
 export interface State {
   version: string;

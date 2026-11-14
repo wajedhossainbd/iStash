@@ -127,7 +127,10 @@ pub fn clean_scan(days: u64) -> Value {
             .iter()
             .map(|(id, name, note)| {
                 let t = targets(&home, &tmp, id, now, days);
-                json!({ "id": id, "name": name, "note": note, "count": t.len(), "size": t.iter().map(|p| scan::disk_usage(p)).sum::<u64>() })
+                let size: u64 = t.iter().map(|p| scan::disk_usage(p)).sum();
+                // What the age rule keeps back, so the screen can say why it shows less than expected.
+                let all: u64 = if days == 0 { size } else { targets(&home, &tmp, id, now, 0).iter().map(|p| scan::disk_usage(p)).sum() };
+                json!({ "id": id, "name": name, "note": note, "count": t.len(), "size": size, "kept": all.saturating_sub(size) })
             })
             .collect(),
     )

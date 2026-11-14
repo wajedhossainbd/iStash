@@ -5,7 +5,12 @@ updates installed copies through the app itself.
 
 ## Unreleased
 
-Nothing yet.
+### Fixed
+- The tick in the cleaner ring was turned sideways; it now sits upright.
+- The cleaner animation no longer repeats one pattern: particles come from varied distances, at their own speed,
+  with a swirl, and the sweep speeds up and slows down.
+- An empty storage ring shows no stray dot, and Clean says how much it keeps back because it is newer than your
+  "Only files untouched for" rule, instead of just showing 0.0 GB.
 
 ## 0.1.15 — 14 Nov 2026
 
