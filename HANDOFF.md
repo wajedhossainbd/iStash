@@ -76,6 +76,9 @@ Changing any of these breaks existing installs or moved data:
 - Web blur (`backdrop-filter`) inside a transparent window flickers on every redraw, and macOS re-traces the shadow.
   Use the window's own vibrancy (`windowEffects`) and force `theme: Dark` for floating panels so light text stays
   readable.
+- Quit from the Dock or ⌘Q is answered in `stay.rs` (`applicationShouldTerminate:`, added at launch because the
+  window library doesn't implement it): iStash hides to the menu bar. A real quit is the menu-bar "Quit iStash".
+  Scripts must use `pkill`, not an AppleScript quit.
 - A window that isn't in front gets no hover events; the edge widget follows the pointer from Rust instead.
 - `pmset displaysleepnow` doesn't lock unless "require password immediately" is set; Lock uses
   `SACLockScreenImmediate` from `login.framework`, as the Apple menu does.

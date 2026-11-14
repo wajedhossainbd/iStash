@@ -20,8 +20,12 @@ else
 fi
 
 hdiutil attach "$TMP/iStash.dmg" -nobrowse -quiet -mountpoint "$MNT"
-osascript -e 'tell application id "bd.wajed.stowaway" to quit' >/dev/null 2>&1 || true
-# Wait for the running copy to finish quitting, or macOS refuses to open the new one.
+# Never replace iStash while it is moving a folder.
+if pgrep -f 'stowaway-app --engine' >/dev/null 2>&1; then
+  echo "iStash is moving a folder right now. Run this again when it has finished."; exit 1
+fi
+# Quit the running copy for real (a normal Quit only hides iStash to the menu bar), then wait for it to exit.
+pkill -x stowaway-app 2>/dev/null || true
 i=0; while pgrep -x stowaway-app >/dev/null 2>&1 && [ $i -lt 20 ]; do sleep 0.5; i=$((i+1)); done
 # ditto replaces the old copy in place; your settings and moved folders are not touched.
 ditto "$MNT/iStash.app" "$APP"

@@ -9,6 +9,7 @@ mod login;
 mod mem;
 mod net;
 mod quick;
+mod stay;
 mod tune;
 mod widget;
 
@@ -156,7 +157,16 @@ fn menu(app: &AppHandle) -> tauri::Result<Menu<Wry>> {
     Ok(menu)
 }
 
+pub(crate) fn to_menu_bar(app: &AppHandle) {
+    if let Some(w) = app.get_webview_window("main") {
+        let _ = w.hide();
+    }
+    let _ = app.set_activation_policy(tauri::ActivationPolicy::Accessory);
+}
+
 fn show_main(app: &AppHandle) {
+    // Back in the Dock while the window is open.
+    let _ = app.set_activation_policy(tauri::ActivationPolicy::Regular);
     if let Some(w) = app.get_webview_window("main") {
         let _ = w.show();
         let _ = w.set_focus();
@@ -183,6 +193,7 @@ fn main() {
             mem::start();
             engine::start();
             away::start();
+            stay::install(app.handle());
             widget::start(app.handle().clone());
             let handle = app.handle();
             app.set_menu(menu(handle)?)?;
@@ -193,6 +204,7 @@ fn main() {
                 } else if id == "tray:open" {
                     show_main(app);
                 } else if id == "tray:quit" {
+                    stay::REAL_QUIT.store(true, std::sync::atomic::Ordering::Relaxed);
                     tune::restore();
                     quick::stop_awake();
                     app.exit(0);
@@ -246,12 +258,16 @@ fn main() {
         .build(tauri::generate_context!())
         .expect("failed to start iStash")
         .run(|app, event| match event {
-            // Closing the window keeps iStash in the menu bar; clicking the Dock icon brings it back.
+            // Closing the window, or Quit from the Dock or ⌘Q, leaves iStash running in the menu bar and on the
+            // screen edge, without a Dock icon. "Quit iStash" in the menu-bar icon's menu quits for real
+            // (app.exit gives an exit code; the Dock and ⌘Q don't).
             RunEvent::WindowEvent { label, event: WindowEvent::CloseRequested { api, .. }, .. } if label == "main" => {
                 api.prevent_close();
-                if let Some(w) = app.get_webview_window("main") {
-                    let _ = w.hide();
-                }
+                to_menu_bar(app);
+            }
+            RunEvent::ExitRequested { api, code: None, .. } => {
+                api.prevent_exit();
+                to_menu_bar(app);
             }
             RunEvent::Reopen { .. } => show_main(app),
             _ => {}

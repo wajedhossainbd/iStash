@@ -5,7 +5,11 @@ updates installed copies through the app itself.
 
 ## Unreleased
 
-Nothing yet.
+### Changed
+- **Quit from the Dock or ⌘Q now keeps iStash in the menu bar.** The window and Dock icon go away; the menu-bar
+  panel, edge widget, drive warnings and schedules keep running. To quit completely, choose **Quit iStash** from the
+  menu-bar icon's right-click menu. Logging out, restarting and shutting down are never held up.
+- The install script quits a running iStash for real before replacing it, and refuses while a folder is being moved.
 
 ## 0.1.12 — 14 Nov 2026
 
