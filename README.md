@@ -41,8 +41,10 @@ iStash does the move safely, keeps track of every link, and tells you when a dri
 | **Which app needs which drive** | A drive map shows each app's data and where it lives. Open a drive to see every folder on it. |
 | **Eject guard** | macOS asks iStash before any eject. If an app still needs the drive, the eject is refused and the app named. |
 | **Missing-drive warnings** | A notification when a drive with app data disappears, and a prompt to connect it if you open an app that needs it. |
-| **Menu-bar panel** | A control-centre panel: live CPU, memory, disk and internet tiles, your drives, and quick toggles for dark mode, keep awake, lock, empty Trash, desktop icons, the edge widget and Focus. |
-| **Edge widget** | A thin glass column on the left or right edge of the screen with CPU, memory, network, disk and drives. Always on, or slides out when you touch the edge. |
+| **Notch island** | iStash's notifications drop from the top of the screen as a black pill with a neon glow (amber, blue, pink, green, white or RGB), then shrink back. |
+| **Menu-bar panel** | A control-centre panel: live CPU, memory, disk and internet tiles, fan and temperatures, your drives, shortcuts to System Settings, Disk Utility, Activity Monitor, System Information and the camera, and quick toggles for dark mode, keep awake, keep the screen on, lock, empty Trash, desktop icons, the edge widget and Focus. |
+| **Fan control** | Let macOS decide, run the fans at full speed, or set a speed yourself, with every temperature sensor listed. Your password is asked once. |
+| **Edge widget** | A thin glass column on the left or right edge of the screen with CPU, memory, network, disk, fan and drives. Always on, or slides out when you touch the edge. |
 | **Internet** | A live speed gauge with download, upload, ping and jitter; your public IP, provider and location; every past test in one table. |
 | **Any test server** | Search Speedtest's servers by city, country or provider, pick a recently used one, or test against any file. |
 | **Drive activity** | Read and write speed for each drive, its average, and when it was last busy. |
@@ -51,6 +53,7 @@ iStash does the move safely, keeps track of every link, and tells you when a dri
 | **Clean** | Free up memory with no password, and clear caches, logs, Xcode build files and old temporary files, shown as a glowing orb that pulls the clutter in and tells you what was freed. |
 | **Scheduled cleaning** | Clean daily, weekly, monthly, or once the files pass a size such as 5 GB, and only files older than you choose. |
 | **Open at login** | Starts with your Mac, so warnings and schedules keep working. |
+| **Permissions up front** | Every permission iStash uses is listed in setup and Settings, with Allow all, so it doesn't stop to ask later. |
 | **Updates built in** | New versions install from inside the app, each one checked against iStash's signature. |
 | **Light and dark** | Follows your Mac's appearance, or pick one. |
 
@@ -72,8 +75,11 @@ iStash does the move safely, keeps track of every link, and tells you when a dri
     <td><img src="docs/screenshots/servers.png" alt="Searching test servers"><br><sub><b>Test servers</b> · search by city, country or provider</sub></td>
   </tr>
   <tr>
-    <td><img src="docs/screenshots/menubar.png" alt="The menu-bar panel"><br><sub><b>Menu-bar panel</b> · live tiles and quick toggles</sub></td>
+    <td><img src="docs/screenshots/menubar.png" alt="The menu-bar panel"><br><sub><b>Menu-bar panel</b> · live tiles, fan control, shortcuts and quick toggles</sub></td>
     <td align="center"><img src="docs/screenshots/widget.png" alt="The edge widget" width="170"><br><sub><b>Edge widget</b> · on the edge of your screen</sub></td>
+  </tr>
+  <tr>
+    <td colspan="2"><img src="docs/screenshots/island.png" alt="The notch island with an amber and an RGB glow"><br><sub><b>Notch island</b> · notifications from the top of the screen, in the glow you pick</sub></td>
   </tr>
   <tr>
     <td><img src="docs/screenshots/memory.png" alt="Memory: what is using it, and Focus"><br><sub><b>Memory</b> · what's using it, and Focus</sub></td>

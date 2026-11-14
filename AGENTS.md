@@ -15,8 +15,8 @@ bar and on a screen edge. Formerly "Stowaway"; internal names still say stowaway
 |---|---|
 | `crates/stowaway-core/` | Rust engine: `scan`, `rules` (what may move), `mover` (copy, verify, link, journal, recover), `drives`, `diskarb` (eject guard), `procs`, `metrics`, `forecast`. |
 | `crates/stowaway-cli/` | Command line front end to the engine. |
-| `app/src-tauri/src/` | Tauri 2 shell. `engine.rs` (scan, move, bring back, eject), `mem.rs` (live metrics), `away.rs` (missing-drive watcher), `net.rs` (connection, speed test, Speedtest server list), `tune.rs` (Focus, cleaner, free memory), `quick.rs` (menu-bar toggles), `widget.rs` (edge widget), `login.rs` (Open at login), `main.rs` (windows, tray, commands). |
-| `app/ui/src/` | UI, TypeScript, no framework: HTML strings rendered with morphdom. `api.ts` (types + sample data), `real.ts` (calls the shell), `screens.ts` (every screen), `ui.ts` (components, icons), `main.ts` (routing, actions), `app.css`. |
+| `app/src-tauri/src/` | Tauri 2 shell. `engine.rs` (scan, move, bring back, eject), `mem.rs` (live metrics), `away.rs` (missing-drive watcher), `net.rs` (connection, speed test, Speedtest server list), `tune.rs` (Focus, cleaner, free memory), `quick.rs` (menu-bar toggles, permissions), `widget.rs` (edge widget), `island.rs` (notch island, camera window), `sensors.rs` (fans, temperatures, the fan helper), `login.rs` (Open at login), `main.rs` (windows, tray, commands). |
+| `app/ui/src/` | UI, TypeScript, no framework: HTML strings rendered with morphdom. `api.ts` (types + sample data), `real.ts` (calls the shell), `screens.ts` (every screen), `ui.ts` (components, icons), `main.ts` (routing, actions), `app.css`. `island.ts` and `camera.ts` are their own pages (`island.html`, `camera.html`). |
 | `design/` | `tokens.json` → `node design/tokens.mjs` → `prototype/tokens.css` (checks WCAG AA). `system.md` has the design rules. |
 | `docs/screenshots/` | README pictures, taken on sample data. |
 | `.github/workflows/release.yml` | Test, build, sign and publish a release on every push to `main`. |
@@ -54,7 +54,8 @@ Run all three test suites before committing.
   (`windowEffects`) and `theme: Dark`, never `backdrop-filter` in a transparent window.
 - Text never wraps in tiles, rows or the widget; long values end with an ellipsis.
 - Help text is one short line, or none if the control says enough. Detail belongs in the sheet shown before an action.
-- No decorative mono labels, glow, emoji or invented numbers (full list in `design/system.md`).
+- No decorative mono labels, glow, emoji or invented numbers (full list in `design/system.md`). The notch island's
+  neon glow is the owner's exception; it lives in `island.css` only.
 - Motion: transform, opacity of overlays and stroke offsets only; respect reduced motion; nothing may start invisible
   (WebKit pauses animations in background windows).
 

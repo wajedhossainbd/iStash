@@ -42,7 +42,10 @@ fn place(app: &AppHandle) {
 
 /// Shows a notification: on the island if it is on, otherwise as a macOS banner. `kind` picks the island's icon.
 pub fn notify(title: &str, body: &str, kind: &str) {
-    let island = APP.get().filter(|_| ON.load(Ordering::Relaxed)).and_then(|a| a.get_webview_window("island").map(|w| (a.clone(), w)));
+    let island = APP
+        .get()
+        .filter(|_| ON.load(Ordering::Relaxed))
+        .and_then(|a| a.get_webview_window("island").map(|w| (a.clone(), w)));
     match island {
         Some((app, w)) => {
             let a = app.clone();
@@ -53,7 +56,16 @@ pub fn notify(title: &str, body: &str, kind: &str) {
         }
         None => {
             let _ = Command::new("/usr/bin/osascript")
-                .args(["-e", "on run argv", "-e", "display notification (item 2 of argv) with title (item 1 of argv)", "-e", "end run", title, body])
+                .args([
+                    "-e",
+                    "on run argv",
+                    "-e",
+                    "display notification (item 2 of argv) with title (item 1 of argv)",
+                    "-e",
+                    "end run",
+                    title,
+                    body,
+                ])
                 .status();
         }
     }
@@ -70,7 +82,8 @@ pub fn island_hide(app: AppHandle) {
 #[tauri::command]
 pub fn set_island(on: bool, glow: String, secs: u32) {
     ON.store(on, Ordering::Relaxed);
-    let glow = if ["amber", "blue", "pink", "green", "white", "rgb"].contains(&glow.as_str()) { glow } else { "amber".into() };
+    let glow =
+        if ["amber", "blue", "pink", "green", "white", "rgb"].contains(&glow.as_str()) { glow } else { "amber".into() };
     if let Ok(mut l) = LOOK.lock() {
         *l = (glow, secs.clamp(2, 15));
     }
@@ -85,7 +98,9 @@ extern "C" {}
 #[tauri::command(async)]
 pub fn open_camera(app: AppHandle) -> Result<(), String> {
     if ask_camera() != 3 {
-        let _ = Command::new("/usr/bin/open").arg("x-apple.systempreferences:com.apple.preference.security?Privacy_Camera").status();
+        let _ = Command::new("/usr/bin/open")
+            .arg("x-apple.systempreferences:com.apple.preference.security?Privacy_Camera")
+            .status();
     }
     camera_window(&app)
 }

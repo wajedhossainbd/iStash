@@ -29,7 +29,15 @@ pub fn others(table: &[procs::Proc], focus: &str, me: i32) -> Vec<i32> {
     let focus = format!("{}/", focus.trim_end_matches('/'));
     table
         .iter()
-        .filter(|p| p.pid != me && p.cmd.contains(".app/") && !p.cmd.starts_with("/System/") && !p.cmd.starts_with("/usr/") && !p.cmd.starts_with(&focus) && !p.cmd.contains("/iStash.app/") && !p.cmd.contains("/Stowaway.app/"))
+        .filter(|p| {
+            p.pid != me
+                && p.cmd.contains(".app/")
+                && !p.cmd.starts_with("/System/")
+                && !p.cmd.starts_with("/usr/")
+                && !p.cmd.starts_with(&focus)
+                && !p.cmd.contains("/iStash.app/")
+                && !p.cmd.contains("/Stowaway.app/")
+        })
         .map(|p| p.pid)
         .collect()
 }
@@ -43,7 +51,10 @@ pub fn focus(path: Option<String>) -> Result<usize, String> {
     if !path.ends_with(".app") || !Path::new(&path).is_dir() {
         return Err("not an app bundle".into());
     }
-    let pids: Vec<i32> = others(&procs::process_table(), &path, std::process::id() as i32).into_iter().filter(|pid| policy("-b", *pid)).collect();
+    let pids: Vec<i32> = others(&procs::process_table(), &path, std::process::id() as i32)
+        .into_iter()
+        .filter(|pid| policy("-b", *pid))
+        .collect();
     let n = pids.len();
     *SLOWED.lock().map_err(|e| e.to_string())? = pids;
     Ok(n)
@@ -60,7 +71,12 @@ pub fn free_memory() -> Result<u64, String> {
         return Err("This Mac has less than 20 GB free, and freeing memory needs room on the disk. Clean or move some folders first. Nothing was changed.".into());
     }
     let before = crate::mem::free_bytes();
-    let mut child = Command::new("/usr/bin/memory_pressure").args(["-p", "30", "-y", "1", "-Q"]).stdout(std::process::Stdio::null()).stderr(std::process::Stdio::null()).spawn().map_err(|e| e.to_string())?;
+    let mut child = Command::new("/usr/bin/memory_pressure")
+        .args(["-p", "30", "-y", "1", "-Q"])
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .spawn()
+        .map_err(|e| e.to_string())?;
     // It stops by itself once 30% is free; never let it hold memory longer than 30 seconds.
     for _ in 0..60 {
         if child.try_wait().map_err(|e| e.to_string())?.is_some() {
@@ -97,9 +113,17 @@ fn newest(p: &Path) -> SystemTime {
 /// always wait at least three). Links are never followed or removed, so folders moved to a drive are safe.
 pub fn targets(home: &Path, tmp: &Path, kind: &str, now: SystemTime, days: u64) -> Vec<PathBuf> {
     let days = if kind == "temp" { days.max(3) } else { days };
-    let fresh = move |p: &Path| days > 0 && now.duration_since(newest(p)).unwrap_or_default() < Duration::from_secs(days * 86400);
+    let fresh = move |p: &Path| {
+        days > 0 && now.duration_since(newest(p)).unwrap_or_default() < Duration::from_secs(days * 86400)
+    };
     let (dir, keep): (PathBuf, Box<dyn Fn(&std::fs::DirEntry) -> bool>) = match kind {
-        "caches" => (home.join("Library/Caches"), Box::new(|e| { let n = e.file_name().to_string_lossy().to_lowercase(); n.starts_with("com.apple.") || n.contains("stowaway") })),
+        "caches" => (
+            home.join("Library/Caches"),
+            Box::new(|e| {
+                let n = e.file_name().to_string_lossy().to_lowercase();
+                n.starts_with("com.apple.") || n.contains("stowaway")
+            }),
+        ),
         "logs" => (home.join("Library/Logs"), Box::new(|_| false)),
         "derived" => (home.join("Library/Developer/Xcode/DerivedData"), Box::new(|_| false)),
         "temp" => (tmp.to_path_buf(), Box::new(|_| false)),
@@ -110,7 +134,11 @@ pub fn targets(home: &Path, tmp: &Path, kind: &str, now: SystemTime, days: u64) 
         return vec![];
     }
     let Ok(rd) = std::fs::read_dir(&dir) else { return vec![] };
-    rd.flatten().filter(|e| e.file_type().is_ok_and(|t| !t.is_symlink()) && !keep(e)).map(|e| e.path()).filter(|p| !fresh(p)).collect()
+    rd.flatten()
+        .filter(|e| e.file_type().is_ok_and(|t| !t.is_symlink()) && !keep(e))
+        .map(|e| e.path())
+        .filter(|p| !fresh(p))
+        .collect()
 }
 
 fn places() -> (PathBuf, PathBuf) {
@@ -155,7 +183,11 @@ pub fn clean_run(kinds: Vec<String>, days: u64) -> u64 {
         return 0;
     }
     let now = SystemTime::now();
-    kinds.iter().filter(|k| KINDS.iter().any(|x| x.0 == k.as_str())).map(|k| remove(&targets(&home, &tmp, k, now, days))).sum()
+    kinds
+        .iter()
+        .filter(|k| KINDS.iter().any(|x| x.0 == k.as_str()))
+        .map(|k| remove(&targets(&home, &tmp, k, now, days)))
+        .sum()
 }
 
 #[cfg(test)]
@@ -178,7 +210,14 @@ mod tests {
         fs::write(tmp.join("fresh"), b"x").unwrap();
         let later = SystemTime::now() + Duration::from_secs(4 * 86400);
 
-        let names = |k: &str, now| { let mut v: Vec<String> = targets(&home, &tmp, k, now, 0).iter().map(|p| p.file_name().unwrap().to_string_lossy().into_owned()).collect(); v.sort(); v };
+        let names = |k: &str, now| {
+            let mut v: Vec<String> = targets(&home, &tmp, k, now, 0)
+                .iter()
+                .map(|p| p.file_name().unwrap().to_string_lossy().into_owned())
+                .collect();
+            v.sort();
+            v
+        };
         assert_eq!(names("caches", SystemTime::now()), ["pip"]);
         assert_eq!(names("temp", SystemTime::now()), Vec::<String>::new());
         assert_eq!(names("temp", later), ["fresh"]);
@@ -188,15 +227,25 @@ mod tests {
         assert_eq!(targets(&home, &tmp, "caches", SystemTime::now() + Duration::from_secs(8 * 86400), 7).len(), 1);
         assert!(remove(&targets(&home, &tmp, "caches", SystemTime::now(), 0)) > 0);
         assert!(!home.join("Library/Caches/pip").exists());
-        assert!(home.join("Library/Caches/com.apple.Safari/f").exists() && drive.join("Google/keep").exists() && home.join("Library/Caches/Google").is_symlink());
+        assert!(
+            home.join("Library/Caches/com.apple.Safari/f").exists()
+                && drive.join("Google/keep").exists()
+                && home.join("Library/Caches/Google").is_symlink()
+        );
         fs::remove_dir_all(&root).unwrap();
     }
 
     #[test]
     fn focus_slows_other_apps_only() {
         let p = |pid, cmd: &str| procs::Proc { pid, cmd: cmd.into() };
-        let table = [p(1, "/Applications/Xcode.app/Contents/MacOS/Xcode"), p(2, "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"), p(3, "/Applications/Google Chrome.app/Contents/Frameworks/Helper.app/Contents/MacOS/Helper"),
-            p(4, "/System/Applications/Mail.app/Contents/MacOS/Mail"), p(5, "/usr/bin/python3 x.py"), p(6, "/Applications/iStash.app/Contents/MacOS/stowaway-app")];
+        let table = [
+            p(1, "/Applications/Xcode.app/Contents/MacOS/Xcode"),
+            p(2, "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"),
+            p(3, "/Applications/Google Chrome.app/Contents/Frameworks/Helper.app/Contents/MacOS/Helper"),
+            p(4, "/System/Applications/Mail.app/Contents/MacOS/Mail"),
+            p(5, "/usr/bin/python3 x.py"),
+            p(6, "/Applications/iStash.app/Contents/MacOS/stowaway-app"),
+        ];
         assert_eq!(others(&table, "/Applications/Xcode.app", 6), [2, 3]);
     }
 }

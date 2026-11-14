@@ -42,7 +42,11 @@ pub fn step(seen: &mut Seen, moved: &[(String, String, bool)], connected: &dyn F
     }
     seen.warned.retain(|(d, a)| missing.contains(d) && moved.iter().any(|m| &m.0 == d && &m.1 == a && m.2));
     for d in &missing {
-        let apps: Vec<String> = moved.iter().filter(|m| &m.0 == d && m.2 && seen.warned.insert((d.clone(), m.1.clone()))).map(|m| m.1.clone()).collect();
+        let apps: Vec<String> = moved
+            .iter()
+            .filter(|m| &m.0 == d && m.2 && seen.warned.insert((d.clone(), m.1.clone())))
+            .map(|m| m.1.clone())
+            .collect();
         if !apps.is_empty() {
             out.push(Event::Held { drive: d.clone(), apps });
         }
@@ -77,14 +81,29 @@ pub fn start() {
         loop {
             let (table, apps) = (procs::process_table(), procs::open_apps());
             let moved = crate::engine::all_moved(&cat, &table);
-            let rows: Vec<(String, String, bool)> = moved.iter().map(|m| (m.drive.clone(), m.app.clone(), !procs::users_of(&cat, &m.path, &table, &apps).is_empty())).collect();
+            let rows: Vec<(String, String, bool)> = moved
+                .iter()
+                .map(|m| (m.drive.clone(), m.app.clone(), !procs::users_of(&cat, &m.path, &table, &apps).is_empty()))
+                .collect();
             for e in step(&mut seen, &rows, &|d| Path::new("/Volumes").join(d).is_dir()) {
                 match e {
                     Event::Gone { drive, apps } => {
-                        crate::island::notify(&format!("{drive} was disconnected"), &format!("{} keep{} data on it and may not work until it is back. Nothing is lost.", list(&apps), if apps.len() == 1 { "s" } else { "" }), "unplug");
+                        crate::island::notify(
+                            &format!("{drive} was disconnected"),
+                            &format!(
+                                "{} keep{} data on it and may not work until it is back. Nothing is lost.",
+                                list(&apps),
+                                if apps.len() == 1 { "s" } else { "" }
+                            ),
+                            "unplug",
+                        );
                     }
                     Event::Back { drive } => {
-                        crate::island::notify(&format!("{drive} is back"), "The apps that keep data on it work again.", "plug");
+                        crate::island::notify(
+                            &format!("{drive} is back"),
+                            "The apps that keep data on it work again.",
+                            "plug",
+                        );
                     }
                     Event::Held { drive, apps } => {
                         let many = apps.len() > 1;
@@ -125,13 +144,22 @@ mod tests {
         // First look never announces, even if the drive is already away.
         assert_eq!(step(&mut Seen::default(), &[m("T7", "Chrome", false)], &away), vec![]);
         assert_eq!(step(&mut s, &[m("T7", "Chrome", false), m("T7", "venvs", false)], &here), vec![]);
-        assert_eq!(step(&mut s, &[m("T7", "Chrome", false), m("T7", "venvs", false)], &away), vec![Event::Gone { drive: "T7".into(), apps: vec!["Chrome".into(), "venvs".into()] }]);
+        assert_eq!(
+            step(&mut s, &[m("T7", "Chrome", false), m("T7", "venvs", false)], &away),
+            vec![Event::Gone { drive: "T7".into(), apps: vec!["Chrome".into(), "venvs".into()] }]
+        );
         // Chrome is opened while the drive is away: asked once, not on every look.
-        assert_eq!(step(&mut s, &[m("T7", "Chrome", true)], &away), vec![Event::Held { drive: "T7".into(), apps: vec!["Chrome".into()] }]);
+        assert_eq!(
+            step(&mut s, &[m("T7", "Chrome", true)], &away),
+            vec![Event::Held { drive: "T7".into(), apps: vec!["Chrome".into()] }]
+        );
         assert_eq!(step(&mut s, &[m("T7", "Chrome", true)], &away), vec![]);
         // Quit and opened again: asked again.
         assert_eq!(step(&mut s, &[m("T7", "Chrome", false)], &away), vec![]);
-        assert_eq!(step(&mut s, &[m("T7", "Chrome", true)], &away), vec![Event::Held { drive: "T7".into(), apps: vec!["Chrome".into()] }]);
+        assert_eq!(
+            step(&mut s, &[m("T7", "Chrome", true)], &away),
+            vec![Event::Held { drive: "T7".into(), apps: vec!["Chrome".into()] }]
+        );
         assert_eq!(step(&mut s, &[m("T7", "Chrome", true)], &here), vec![Event::Back { drive: "T7".into() }]);
     }
 }

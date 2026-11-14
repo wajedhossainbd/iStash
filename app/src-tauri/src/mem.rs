@@ -53,7 +53,8 @@ fn sysctl<T: Copy>(name: &CStr) -> Option<T> {
     let mut v = std::mem::MaybeUninit::<T>::uninit();
     let mut len = std::mem::size_of::<T>();
     // SAFETY: the kernel writes at most len bytes into v; it is read back only if the size matches.
-    let r = unsafe { libc::sysctlbyname(name.as_ptr(), v.as_mut_ptr() as *mut c_void, &mut len, std::ptr::null_mut(), 0) };
+    let r =
+        unsafe { libc::sysctlbyname(name.as_ptr(), v.as_mut_ptr() as *mut c_void, &mut len, std::ptr::null_mut(), 0) };
     (r == 0 && len == std::mem::size_of::<T>()).then(|| unsafe { v.assume_init() })
 }
 
@@ -63,7 +64,14 @@ fn vm_used() -> (u64, u64) {
     let mut info: libc::vm_statistics64 = unsafe { std::mem::zeroed() };
     let mut count = libc::HOST_VM_INFO64_COUNT;
     // SAFETY: host_statistics64 fills a vm_statistics64 of HOST_VM_INFO64_COUNT integers.
-    let r = unsafe { libc::host_statistics64(libc::mach_host_self(), libc::HOST_VM_INFO64, &mut info as *mut _ as *mut i32, &mut count) };
+    let r = unsafe {
+        libc::host_statistics64(
+            libc::mach_host_self(),
+            libc::HOST_VM_INFO64,
+            &mut info as *mut _ as *mut i32,
+            &mut count,
+        )
+    };
     if r != 0 {
         return (0, 0);
     }
@@ -79,7 +87,14 @@ pub fn free_bytes() -> u64 {
     let mut info: libc::vm_statistics64 = unsafe { std::mem::zeroed() };
     let mut count = libc::HOST_VM_INFO64_COUNT;
     // SAFETY: as in vm_used.
-    let r = unsafe { libc::host_statistics64(libc::mach_host_self(), libc::HOST_VM_INFO64, &mut info as *mut _ as *mut i32, &mut count) };
+    let r = unsafe {
+        libc::host_statistics64(
+            libc::mach_host_self(),
+            libc::HOST_VM_INFO64,
+            &mut info as *mut _ as *mut i32,
+            &mut count,
+        )
+    };
     if r != 0 {
         return 0;
     }
@@ -96,9 +111,14 @@ fn cores() -> String {
 /// The app bundle for a process-group name, so the UI can show its real icon and offer Quit.
 pub fn bundle(name: &str) -> Option<String> {
     let home = std::env::var("HOME").unwrap_or_default();
-    [format!("/Applications/{name}.app"), format!("/System/Applications/{name}.app"), format!("/System/Applications/Utilities/{name}.app"), format!("{home}/Applications/{name}.app")]
-        .into_iter()
-        .find(|p| Path::new(p).is_dir())
+    [
+        format!("/Applications/{name}.app"),
+        format!("/System/Applications/{name}.app"),
+        format!("/System/Applications/Utilities/{name}.app"),
+        format!("{home}/Applications/{name}.app"),
+    ]
+    .into_iter()
+    .find(|p| Path::new(p).is_dir())
 }
 
 /// Everything the Overview, Memory screen and sidebar need, from the latest reading; null until the first one.

@@ -22,11 +22,19 @@ pub fn login_status() -> &'static str {
 pub fn set_login(on: bool) -> Result<&'static str, String> {
     // SAFETY: as above.
     let svc = unsafe { SMAppService::mainAppService() };
-    let r = unsafe { if on { svc.registerAndReturnError() } else { svc.unregisterAndReturnError() } };
+    let r = unsafe {
+        if on {
+            svc.registerAndReturnError()
+        } else {
+            svc.unregisterAndReturnError()
+        }
+    };
     let now = status_word(unsafe { svc.status() });
     // Turning off something already off reports an error; only a state that did not change is a failure.
     match r {
-        Err(e) if (now == "on") != on && now != "approve" => Err(format!("macOS didn’t change the login item ({}). Nothing was changed.", e.code())),
+        Err(e) if (now == "on") != on && now != "approve" => {
+            Err(format!("macOS didn’t change the login item ({}). Nothing was changed.", e.code()))
+        }
         _ => Ok(now),
     }
 }

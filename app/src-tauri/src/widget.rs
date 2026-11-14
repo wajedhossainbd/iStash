@@ -83,7 +83,12 @@ pub fn start(app: AppHandle) {
             let in_band = p.y >= top && p.y <= bottom;
             // Closed: the pointer must reach the screen edge strip. Open: anywhere over the panel keeps it out.
             let right_edge = pos.x as f64 + size.width as f64;
-            let inside = in_band && if LEFT.load(Ordering::Relaxed) { p.x <= right_edge + if open { 4.0 } else { 2.0 } * k } else { p.x >= pos.x as f64 - if open { 4.0 } else { 2.0 } * k };
+            let inside = in_band
+                && if LEFT.load(Ordering::Relaxed) {
+                    p.x <= right_edge + if open { 4.0 } else { 2.0 } * k
+                } else {
+                    p.x >= pos.x as f64 - if open { 4.0 } else { 2.0 } * k
+                };
             if inside {
                 away = 0;
                 if !open {
@@ -111,4 +116,3 @@ pub fn widget_hover(app: AppHandle, inside: bool) {
         slide_to(&w, inside);
     }
 }
-

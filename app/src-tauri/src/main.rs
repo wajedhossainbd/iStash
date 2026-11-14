@@ -5,11 +5,11 @@
 mod away;
 mod engine;
 mod icon;
+mod island;
 mod login;
 mod mem;
 mod net;
 mod quick;
-mod island;
 mod sensors;
 mod stay;
 mod tune;
@@ -20,8 +20,8 @@ use std::process::Command;
 use tauri::image::Image;
 use tauri::menu::{CheckMenuItem, Menu, MenuItem, MenuItemKind, PredefinedMenuItem, Submenu};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
-use tauri_plugin_window_state::StateFlags;
 use tauri::{AppHandle, Emitter, Manager, PhysicalPosition, RunEvent, WindowEvent, Wry};
+use tauri_plugin_window_state::StateFlags;
 
 /// The popover's width in points; the UI sizes its height (native.ts `fitPopover`).
 const POP_W: f64 = 380.0;
@@ -93,12 +93,21 @@ fn volumes() -> Vec<serde_json::Value> {
 /// counters. The UI turns two readings into speeds.
 #[tauri::command(async)]
 fn disk_io() -> std::collections::HashMap<String, [u64; 2]> {
-    let out = Command::new("/usr/sbin/ioreg").args(["-r", "-c", "IOBlockStorageDriver", "-l", "-w0"]).output().map(|o| String::from_utf8_lossy(&o.stdout).into_owned()).unwrap_or_default();
+    let out = Command::new("/usr/sbin/ioreg")
+        .args(["-r", "-c", "IOBlockStorageDriver", "-l", "-w0"])
+        .output()
+        .map(|o| String::from_utf8_lossy(&o.stdout).into_owned())
+        .unwrap_or_default();
     parse_io(&out)
 }
 
 fn parse_io(text: &str) -> std::collections::HashMap<String, [u64; 2]> {
-    let num = |line: &str, key: &str| line.split(key).nth(1).map(|r| r.chars().take_while(|c| c.is_ascii_digit()).collect::<String>()).and_then(|d| d.parse::<u64>().ok());
+    let num = |line: &str, key: &str| {
+        line.split(key)
+            .nth(1)
+            .map(|r| r.chars().take_while(|c| c.is_ascii_digit()).collect::<String>())
+            .and_then(|d| d.parse::<u64>().ok())
+    };
     let mut map = std::collections::HashMap::new();
     let mut pending: Option<[u64; 2]> = None;
     for line in text.lines() {
@@ -140,7 +149,9 @@ fn menu(app: &AppHandle) -> tauri::Result<Menu<Wry>> {
     let menu = Menu::default(app)?;
     let items: Vec<CheckMenuItem<Wry>> = THEMES
         .iter()
-        .map(|(id, label)| CheckMenuItem::with_id(app, format!("appearance:{id}"), *label, true, *id == "system", None::<&str>))
+        .map(|(id, label)| {
+            CheckMenuItem::with_id(app, format!("appearance:{id}"), *label, true, *id == "system", None::<&str>)
+        })
         .collect::<tauri::Result<_>>()?;
     let refs: Vec<&dyn tauri::menu::IsMenuItem<Wry>> = items.iter().map(|i| i as _).collect();
     let appearance = Submenu::with_items(app, "Appearance", true, &refs)?;
@@ -180,7 +191,11 @@ fn main() {
     // SAFETY: geteuid has no preconditions.
     let root = unsafe { libc::geteuid() } == 0;
     if root || args.first().map(String::as_str) == Some("--fan") {
-        std::process::exit(if args.first().map(String::as_str) == Some("--fan") && root { sensors::fan_cli(&args[1..]) } else { 1 });
+        std::process::exit(if args.first().map(String::as_str) == Some("--fan") && root {
+            sensors::fan_cli(&args[1..])
+        } else {
+            1
+        });
     }
 
     // A move runs as this binary with --engine, so Stop can end it and recovery can undo it.
@@ -192,12 +207,56 @@ fn main() {
         .plugin(
             tauri_plugin_window_state::Builder::default()
                 .with_denylist(&["popover", "widget", "island", "camera"])
-                .with_state_flags(StateFlags::SIZE | StateFlags::POSITION | StateFlags::MAXIMIZED | StateFlags::FULLSCREEN)
+                .with_state_flags(
+                    StateFlags::SIZE | StateFlags::POSITION | StateFlags::MAXIMIZED | StateFlags::FULLSCREEN,
+                )
                 .build(),
         )
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
-        .invoke_handler(tauri::generate_handler![island::island_hide, island::set_island, island::open_camera, island::camera_status, quick::ask_permission, quick::permissions_status, sensors::sensors, sensors::set_fan, quick::keep_screen, net::net_info, net::speed_test, net::speed_servers, disk_io, widget::widget_mode, widget::widget_hover, login::login_status, login::set_login, tune::focus, tune::clean_scan, tune::clean_run, tune::free_memory, app_icon, open_target, notify, appearance_checked, volumes, mem::memory, mem::quit_app, engine::scan_home, engine::plan, engine::start_job, engine::jobs, engine::stop_job, engine::eject, engine::quit_drive_users, engine::set_guard, quick::sys_status, quick::keep_awake, quick::lock_screen, quick::empty_trash, quick::set_desktop_icons])
+        .invoke_handler(tauri::generate_handler![
+            island::island_hide,
+            island::set_island,
+            island::open_camera,
+            island::camera_status,
+            quick::ask_permission,
+            quick::permissions_status,
+            sensors::sensors,
+            sensors::set_fan,
+            quick::keep_screen,
+            net::net_info,
+            net::speed_test,
+            net::speed_servers,
+            disk_io,
+            widget::widget_mode,
+            widget::widget_hover,
+            login::login_status,
+            login::set_login,
+            tune::focus,
+            tune::clean_scan,
+            tune::clean_run,
+            tune::free_memory,
+            app_icon,
+            open_target,
+            notify,
+            appearance_checked,
+            volumes,
+            mem::memory,
+            mem::quit_app,
+            engine::scan_home,
+            engine::plan,
+            engine::start_job,
+            engine::jobs,
+            engine::stop_job,
+            engine::eject,
+            engine::quit_drive_users,
+            engine::set_guard,
+            quick::sys_status,
+            quick::keep_awake,
+            quick::lock_screen,
+            quick::empty_trash,
+            quick::set_desktop_icons
+        ])
         .setup(|app| {
             mem::start();
             engine::start();
@@ -237,7 +296,12 @@ fn main() {
                 .menu(&tray_menu)
                 .show_menu_on_left_click(false)
                 .on_tray_icon_event(|tray, ev| {
-                    let TrayIconEvent::Click { button: MouseButton::Left, button_state: MouseButtonState::Up, rect, .. } = ev
+                    let TrayIconEvent::Click {
+                        button: MouseButton::Left,
+                        button_state: MouseButtonState::Up,
+                        rect,
+                        ..
+                    } = ev
                     else {
                         return;
                     };

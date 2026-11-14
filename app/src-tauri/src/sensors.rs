@@ -10,16 +10,42 @@ use std::ffi::{c_char, c_void};
 
 #[repr(C)]
 #[derive(Clone, Copy, Default)]
-struct Vers { major: u8, minor: u8, build: u8, reserved: u8, release: u16 }
+struct Vers {
+    major: u8,
+    minor: u8,
+    build: u8,
+    reserved: u8,
+    release: u16,
+}
 #[repr(C)]
 #[derive(Clone, Copy, Default)]
-struct PLimit { version: u16, length: u16, cpu: u32, gpu: u32, mem: u32 }
+struct PLimit {
+    version: u16,
+    length: u16,
+    cpu: u32,
+    gpu: u32,
+    mem: u32,
+}
 #[repr(C)]
 #[derive(Clone, Copy, Default)]
-struct KeyInfo { size: u32, kind: u32, attributes: u8 }
+struct KeyInfo {
+    size: u32,
+    kind: u32,
+    attributes: u8,
+}
 #[repr(C)]
 #[derive(Clone, Copy, Default)]
-struct KeyData { key: u32, vers: Vers, plimit: PLimit, info: KeyInfo, result: u8, status: u8, data8: u8, data32: u32, bytes: [u8; 32] }
+struct KeyData {
+    key: u32,
+    vers: Vers,
+    plimit: PLimit,
+    info: KeyInfo,
+    result: u8,
+    status: u8,
+    data8: u8,
+    data32: u32,
+    bytes: [u8; 32],
+}
 
 #[link(name = "IOKit", kind = "framework")]
 extern "C" {
@@ -28,7 +54,14 @@ extern "C" {
     fn IOServiceOpen(service: u32, task: u32, kind: u32, connect: *mut u32) -> i32;
     fn IOServiceClose(connect: u32) -> i32;
     fn IOObjectRelease(object: u32) -> i32;
-    fn IOConnectCallStructMethod(connect: u32, selector: u32, input: *const c_void, in_size: usize, output: *mut c_void, out_size: *mut usize) -> i32;
+    fn IOConnectCallStructMethod(
+        connect: u32,
+        selector: u32,
+        input: *const c_void,
+        in_size: usize,
+        output: *mut c_void,
+        out_size: *mut usize,
+    ) -> i32;
     fn IOHIDEventSystemClientCreate(allocator: *const c_void) -> *mut c_void;
     fn IOHIDEventSystemClientSetMatching(client: *mut c_void, matching: *const c_void) -> i32;
     fn IOHIDEventSystemClientCopyServices(client: *mut c_void) -> *const c_void;
@@ -45,7 +78,14 @@ extern "C" {
     fn CFStringCreateWithCString(alloc: *const c_void, s: *const c_char, encoding: u32) -> *const c_void;
     fn CFStringGetCString(s: *const c_void, buf: *mut c_char, size: isize, encoding: u32) -> bool;
     fn CFNumberCreate(alloc: *const c_void, kind: isize, value: *const c_void) -> *const c_void;
-    fn CFDictionaryCreate(alloc: *const c_void, keys: *const *const c_void, values: *const *const c_void, n: isize, kcb: *const c_void, vcb: *const c_void) -> *const c_void;
+    fn CFDictionaryCreate(
+        alloc: *const c_void,
+        keys: *const *const c_void,
+        values: *const *const c_void,
+        n: isize,
+        kcb: *const c_void,
+        vcb: *const c_void,
+    ) -> *const c_void;
     static kCFTypeDictionaryKeyCallBacks: c_void;
     static kCFTypeDictionaryValueCallBacks: c_void;
 }
@@ -75,12 +115,24 @@ impl Smc {
         let mut out = KeyData::default();
         let mut size = std::mem::size_of::<KeyData>();
         // SAFETY: selector 2 is the SMC's struct call; input and output are the 80-byte SMCKeyData_t.
-        let r = unsafe { IOConnectCallStructMethod(self.0, 2, input as *const _ as *const c_void, size, &mut out as *mut _ as *mut c_void, &mut size) };
+        let r = unsafe {
+            IOConnectCallStructMethod(
+                self.0,
+                2,
+                input as *const _ as *const c_void,
+                size,
+                &mut out as *mut _ as *mut c_void,
+                &mut size,
+            )
+        };
         (r == 0 && out.result == 0).then_some(out)
     }
     /// Writes a key, sized and typed as the SMC reports it. Needs root.
     fn write(&self, key: &[u8; 4], value: f64) -> bool {
-        let Some(info) = self.call(&KeyData { key: fourcc(key), data8: 9, ..Default::default() }).map(|o| o.info) else { return false };
+        let Some(info) = self.call(&KeyData { key: fourcc(key), data8: 9, ..Default::default() }).map(|o| o.info)
+        else {
+            return false;
+        };
         let mut bytes = [0u8; 32];
         match &info.kind.to_be_bytes() {
             b"flt " => bytes[..4].copy_from_slice(&(value as f32).to_le_bytes()),
@@ -135,9 +187,22 @@ fn temps() -> Vec<(String, f64)> {
             return out;
         }
         let (page, usage): (i32, i32) = (0xff00, 5); // Apple vendor page, temperature sensors
-        let keys = [CFStringCreateWithCString(std::ptr::null(), c"PrimaryUsagePage".as_ptr(), UTF8), CFStringCreateWithCString(std::ptr::null(), c"PrimaryUsage".as_ptr(), UTF8)];
-        let vals = [CFNumberCreate(std::ptr::null(), 3, &page as *const _ as *const c_void), CFNumberCreate(std::ptr::null(), 3, &usage as *const _ as *const c_void)];
-        let dict = CFDictionaryCreate(std::ptr::null(), keys.as_ptr(), vals.as_ptr(), 2, &kCFTypeDictionaryKeyCallBacks, &kCFTypeDictionaryValueCallBacks);
+        let keys = [
+            CFStringCreateWithCString(std::ptr::null(), c"PrimaryUsagePage".as_ptr(), UTF8),
+            CFStringCreateWithCString(std::ptr::null(), c"PrimaryUsage".as_ptr(), UTF8),
+        ];
+        let vals = [
+            CFNumberCreate(std::ptr::null(), 3, &page as *const _ as *const c_void),
+            CFNumberCreate(std::ptr::null(), 3, &usage as *const _ as *const c_void),
+        ];
+        let dict = CFDictionaryCreate(
+            std::ptr::null(),
+            keys.as_ptr(),
+            vals.as_ptr(),
+            2,
+            &kCFTypeDictionaryKeyCallBacks,
+            &kCFTypeDictionaryValueCallBacks,
+        );
         IOHIDEventSystemClientSetMatching(client, dict);
         let services = IOHIDEventSystemClientCopyServices(client);
         let product = CFStringCreateWithCString(std::ptr::null(), c"Product".as_ptr(), UTF8);
@@ -211,11 +276,14 @@ pub fn fan_cli(args: &[String]) -> i32 {
     let mut ok = true;
     for i in 0..n.min(4) {
         let d = b'0' + i;
-        let (lo, hi) = (smc.read(&[b'F', d, b'M', b'n']).unwrap_or(0.0), smc.read(&[b'F', d, b'M', b'x']).unwrap_or(0.0));
+        let (lo, hi) =
+            (smc.read(&[b'F', d, b'M', b'n']).unwrap_or(0.0), smc.read(&[b'F', d, b'M', b'x']).unwrap_or(0.0));
         let done = (0..40).any(|_| {
             let w = match target {
                 None => smc.write(&[b'F', d, b'M', b'd'], 0.0),
-                Some(t) => smc.write(&[b'F', d, b'M', b'd'], 1.0) && smc.write(&[b'F', d, b'T', b'g'], t.clamp(lo, hi.max(lo))),
+                Some(t) => {
+                    smc.write(&[b'F', d, b'M', b'd'], 1.0) && smc.write(&[b'F', d, b'T', b'g'], t.clamp(lo, hi.max(lo)))
+                }
             };
             if !w {
                 std::thread::sleep(std::time::Duration::from_millis(250));
@@ -224,7 +292,11 @@ pub fn fan_cli(args: &[String]) -> i32 {
         });
         ok &= done;
     }
-    if ok { 0 } else { 4 }
+    if ok {
+        0
+    } else {
+        4
+    }
 }
 
 /// Whether the fan helper is installed: owned by root and setuid.
@@ -246,11 +318,15 @@ pub fn set_fan(mode: String, rpm: Option<u32>) -> Result<(), String> {
     };
     if !fan_ready() {
         let exe = std::env::current_exe().map_err(|e| e.to_string())?;
-        let exe = exe.to_str().filter(|p| !p.contains('\'') && !p.contains('"')).ok_or("iStash's path can't be used.")?;
+        let exe =
+            exe.to_str().filter(|p| !p.contains('\'') && !p.contains('"')).ok_or("iStash's path can't be used.")?;
         let script = format!(
             "do shell script \"mkdir -p /Library/PrivilegedHelperTools && cp '{exe}' '{HELPER}' && chown root:wheel '{HELPER}' && chmod 4755 '{HELPER}'\" with prompt \"iStash needs your password once to control the fans.\" with administrator privileges"
         );
-        let out = std::process::Command::new("/usr/bin/osascript").args(["-e", &script]).output().map_err(|e| e.to_string())?;
+        let out = std::process::Command::new("/usr/bin/osascript")
+            .args(["-e", &script])
+            .output()
+            .map_err(|e| e.to_string())?;
         if !out.status.success() {
             return Err("Fan control wasn't set up. Nothing was changed.".into());
         }

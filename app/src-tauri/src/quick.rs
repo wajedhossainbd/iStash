@@ -20,12 +20,24 @@ fn cpu_ticks() -> [u32; 4] {
     let mut info: libc::host_cpu_load_info = unsafe { std::mem::zeroed() };
     let mut count = (std::mem::size_of::<libc::host_cpu_load_info>() / std::mem::size_of::<i32>()) as u32;
     // SAFETY: host_statistics fills a host_cpu_load_info of `count` integers.
-    let r = unsafe { libc::host_statistics(libc::mach_host_self(), libc::HOST_CPU_LOAD_INFO, &mut info as *mut _ as *mut i32, &mut count) };
+    let r = unsafe {
+        libc::host_statistics(
+            libc::mach_host_self(),
+            libc::HOST_CPU_LOAD_INFO,
+            &mut info as *mut _ as *mut i32,
+            &mut count,
+        )
+    };
     if r != 0 {
         return [0; 4];
     }
     let t = info.cpu_ticks;
-    [t[libc::CPU_STATE_USER as usize], t[libc::CPU_STATE_SYSTEM as usize], t[libc::CPU_STATE_IDLE as usize], t[libc::CPU_STATE_NICE as usize]]
+    [
+        t[libc::CPU_STATE_USER as usize],
+        t[libc::CPU_STATE_SYSTEM as usize],
+        t[libc::CPU_STATE_IDLE as usize],
+        t[libc::CPU_STATE_NICE as usize],
+    ]
 }
 
 /// Seconds since boot.
@@ -33,18 +45,36 @@ fn uptime() -> u64 {
     let mut tv: libc::timeval = unsafe { std::mem::zeroed() };
     let mut len = std::mem::size_of::<libc::timeval>();
     // SAFETY: kern.boottime is a timeval; the kernel writes at most len bytes.
-    let r = unsafe { libc::sysctlbyname(c"kern.boottime".as_ptr(), &mut tv as *mut _ as *mut _, &mut len, std::ptr::null_mut(), 0) };
+    let r = unsafe {
+        libc::sysctlbyname(c"kern.boottime".as_ptr(), &mut tv as *mut _ as *mut _, &mut len, std::ptr::null_mut(), 0)
+    };
     let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0);
-    if r == 0 { now.saturating_sub(tv.tv_sec as u64) } else { 0 }
+    if r == 0 {
+        now.saturating_sub(tv.tv_sec as u64)
+    } else {
+        0
+    }
 }
 
 /// The whole physical disk the startup volume lives on ("disk0"), whose counters `disk_io` reports.
 fn boot_disk() -> &'static str {
     static DISK: OnceLock<String> = OnceLock::new();
     DISK.get_or_init(|| {
-        let out = Command::new("/usr/sbin/diskutil").args(["info", "-plist", "/"]).output().map(|o| o.stdout).unwrap_or_default();
+        let out = Command::new("/usr/sbin/diskutil")
+            .args(["info", "-plist", "/"])
+            .output()
+            .map(|o| o.stdout)
+            .unwrap_or_default();
         let d = plist::Value::from_reader_xml(&out[..]).ok().and_then(|v| v.into_dictionary());
-        let store = d.as_ref().and_then(|d| d.get("APFSPhysicalStores")?.as_array()?.first()?.as_dictionary()?.get("APFSPhysicalStore")?.as_string().map(str::to_string));
+        let store = d.as_ref().and_then(|d| {
+            d.get("APFSPhysicalStores")?
+                .as_array()?
+                .first()?
+                .as_dictionary()?
+                .get("APFSPhysicalStore")?
+                .as_string()
+                .map(str::to_string)
+        });
         whole_disk(store.as_deref().unwrap_or("disk0")).to_string()
     })
 }
@@ -144,7 +174,10 @@ pub fn empty_trash() -> Result<(), String> {
 /// Shows or hides the icons on the desktop. Finder restarts to apply it.
 #[tauri::command(async)]
 pub fn set_desktop_icons(show: bool) -> Result<bool, String> {
-    ok("/usr/bin/defaults", &["write", "com.apple.finder", "CreateDesktop", "-bool", if show { "true" } else { "false" }])?;
+    ok(
+        "/usr/bin/defaults",
+        &["write", "com.apple.finder", "CreateDesktop", "-bool", if show { "true" } else { "false" }],
+    )?;
     ok("/usr/bin/killall", &["Finder"])?;
     Ok(show)
 }
@@ -183,11 +216,17 @@ pub fn ask_permission(kind: String) -> Result<bool, String> {
             let st = crate::island::ask_camera();
             if st == 1 || st == 2 {
                 // Refused before: macOS won't ask again, so open the switch for it.
-                let _ = Command::new("/usr/bin/open").arg("x-apple.systempreferences:com.apple.preference.security?Privacy_Camera").status();
+                let _ = Command::new("/usr/bin/open")
+                    .arg("x-apple.systempreferences:com.apple.preference.security?Privacy_Camera")
+                    .status();
             }
             Ok(st == 3)
         }
-        "finder" => Ok(Command::new("/usr/bin/osascript").args(["-e", "tell application \"Finder\" to get name"]).output().map(|o| o.status.success()).unwrap_or(false)),
+        "finder" => Ok(Command::new("/usr/bin/osascript")
+            .args(["-e", "tell application \"Finder\" to get name"])
+            .output()
+            .map(|o| o.status.success())
+            .unwrap_or(false)),
         "fans" => crate::sensors::set_fan("auto".into(), None).map(|_| true),
         _ => Err("Unknown permission.".into()),
     }

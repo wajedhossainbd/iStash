@@ -70,7 +70,8 @@ pub fn all_moved(cat: &Catalog, table: &[procs::Proc]) -> Vec<Moved> {
 
 fn objection(cat: &Catalog, mount: &Path) -> Option<String> {
     let (table, apps) = (procs::process_table(), procs::open_apps());
-    let running = |m: &Moved| if procs::users_of(cat, &m.path, &table, &apps).is_empty() { vec![] } else { vec![m.app.clone()] };
+    let running =
+        |m: &Moved| if procs::users_of(cat, &m.path, &table, &apps).is_empty() { vec![] } else { vec![m.app.clone()] };
     drives::eject_objection(mount, &all_moved(cat, &table), &running)
 }
 
@@ -80,12 +81,17 @@ pub fn start() {
     let _ = Mover::new(&cat, &idle).recover();
     // Lives as long as the app: macOS asks it before any unmount, from Finder or anywhere else.
     std::mem::forget(diskarb::EjectGuard::start(Box::new(move |mount: &Path| {
-        if GUARD_ON.load(Ordering::Relaxed) { objection(&cat, mount) } else { None }
+        if GUARD_ON.load(Ordering::Relaxed) {
+            objection(&cat, mount)
+        } else {
+            None
+        }
     })));
     std::thread::spawn(|| loop {
         std::thread::sleep(Duration::from_millis(1200));
         // Measure outside the lock: walking a big copy takes a moment.
-        let growing: Vec<PathBuf> = JOBS.lock().map(|j| j.iter().map(|x| x.growing.clone()).collect()).unwrap_or_default();
+        let growing: Vec<PathBuf> =
+            JOBS.lock().map(|j| j.iter().map(|x| x.growing.clone()).collect()).unwrap_or_default();
         let sizes: Vec<u64> = growing.iter().map(|p| scan::disk_usage(p)).collect();
         let Ok(mut jobs) = JOBS.lock() else { continue };
         for (p, size) in growing.iter().zip(sizes) {
@@ -102,7 +108,13 @@ pub fn start() {
                     if let Some(mut e) = j.child.stderr.take() {
                         let _ = std::io::Read::read_to_string(&mut e, &mut err);
                     }
-                    let error = (!status.success() && !j.stopped).then(|| if err.is_empty() { "The move stopped unexpectedly. Nothing was lost; iStash put things back.".into() } else { err });
+                    let error = (!status.success() && !j.stopped).then(|| {
+                        if err.is_empty() {
+                            "The move stopped unexpectedly. Nothing was lost; iStash put things back.".into()
+                        } else {
+                            err
+                        }
+                    });
                     if !status.success() {
                         let cat = Catalog::for_user();
                         let _ = Mover::new(&cat, &idle).recover();
@@ -132,7 +144,8 @@ pub fn scan_home() -> Value {
     let cat = Catalog::for_user();
     let items = scan::scan(&cat, MIN_BYTES);
     let (table, apps) = (procs::process_table(), procs::open_apps());
-    let since: HashMap<PathBuf, u64> = Journal::for_home(&cat.home).moved().unwrap_or_default().into_iter().map(|e| (e.path, e.ts)).collect();
+    let since: HashMap<PathBuf, u64> =
+        Journal::for_home(&cat.home).moved().unwrap_or_default().into_iter().map(|e| (e.path, e.ts)).collect();
     let folders: Vec<Value> = items
         .iter()
         .filter(|i| !i.info && (i.moved || i.verdict != Verdict::Keep))
@@ -194,7 +207,8 @@ pub fn start_job(kind: String, path: String, drive: Option<String>, quit: bool) 
     if !back {
         cmd.arg(&mount);
     }
-    let child = cmd.stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::piped()).spawn().map_err(|e| e.to_string())?;
+    let child =
+        cmd.stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::piped()).spawn().map_err(|e| e.to_string())?;
     let job = Job {
         kind: if back { "back" } else { "move" },
         growing: if back { fsx::sibling(&p, ".stowaway-restoring") } else { pl.dest.clone() },
@@ -232,7 +246,10 @@ pub fn jobs() -> Value {
                 .collect()
         })
         .unwrap_or_default();
-    let finished: Vec<Value> = FINISHED.lock().map(|mut f| f.drain(..).map(|(p, e)| json!({ "path": p, "error": e })).collect()).unwrap_or_default();
+    let finished: Vec<Value> = FINISHED
+        .lock()
+        .map(|mut f| f.drain(..).map(|(p, e)| json!({ "path": p, "error": e })).collect())
+        .unwrap_or_default();
     json!({ "running": running, "finished": finished })
 }
 

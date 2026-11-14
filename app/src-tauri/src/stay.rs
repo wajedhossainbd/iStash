@@ -49,7 +49,8 @@ pub fn install(app: &AppHandle) {
             return;
         }
         let cls = (*delegate).class() as *const _ as *mut objc2::runtime::AnyClass;
-        let imp: Imp = std::mem::transmute(should_terminate as extern "C-unwind" fn(*mut AnyObject, Sel, *mut AnyObject) -> usize);
+        let imp: Imp =
+            std::mem::transmute(should_terminate as extern "C-unwind" fn(*mut AnyObject, Sel, *mut AnyObject) -> usize);
         objc2::ffi::class_addMethod(cls, sel!(applicationShouldTerminate:), imp, c"Q@:@".as_ptr());
     }
 }

@@ -319,7 +319,10 @@ mod tests {
         assert!(never_read("Library/Group Containers/x"));
         assert!(!never_read("Library/Caches/x"));
         // Reading these makes macOS ask for Apple Music and media library access.
-        assert!(skipped("Library/Application Support/com.apple.AMPLibraryAgent") && skipped("Library/Caches/com.apple.Music"));
+        assert!(
+            skipped("Library/Application Support/com.apple.AMPLibraryAgent")
+                && skipped("Library/Caches/com.apple.Music")
+        );
         assert!(!skipped("Library/Caches/Google"));
     }
 

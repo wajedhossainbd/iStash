@@ -1,4 +1,4 @@
-# iStash — handoff (14 Nov 2026)
+# iStash — handoff (15 Nov 2026)
 
 Read this first. Then [`AGENTS.md`](AGENTS.md) for how to work in this repository, [`CHANGELOG.md`](CHANGELOG.md) for
 what each release contains, and [`tasks/plan.md`](tasks/plan.md) / [`tasks/todo.md`](tasks/todo.md) for the roadmap.
@@ -11,10 +11,10 @@ identifier still use the old name on purpose; see "Names that must not change" b
 | Area | State |
 |---|---|
 | Rust engine (`crates/stowaway-core`, `crates/stowaway-cli`) | Done for v0.1: scan, rules, mover with journal and crash recovery, drives, eject guard, metrics, forecast. Hardened with fault-injection tests (T16). |
-| App (`app/`, Tauri 2) | Shipping. Overview, Offload, Drives (cable map and per-drive pages), Memory (with Focus), Internet (speed test), Clean, Settings, menu-bar panel, edge widget. Runs the engine itself; there is no separate login agent yet. |
-| Releases | Published automatically from `main`. Latest: **0.1.17** (new cleaner design). Installed copies update themselves. |
+| App (`app/`, Tauri 2) | Shipping. Overview, Offload, Drives (cable map and per-drive pages), Memory (with Focus), Internet (speed test), Clean, Settings, menu-bar panel (with fan control and app shortcuts), edge widget, notch island, camera window. Runs the engine itself; there is no separate login agent yet. |
+| Releases | Published automatically from `main`. Latest: **0.1.18** (notch island, fan control, permissions up front). Installed copies update themselves. |
 | Repository | [`wajedhossainbd/iStash`](https://github.com/wajedhossainbd/iStash), public, GPL 3.0. `main` is protected against force-pushes and deletion (owner included); normal pushes are allowed. |
-| Owner's Mac | iStash 0.1.17 in `/Applications/iStash.app`, Open at login on. 28 folders live on "Mac 1TB SSD" and "Mac 500 SSD": 5 moved by iStash, the rest linked by hand before it existed. |
+| Owner's Mac | iStash 0.1.18 in `/Applications/iStash.app`, fan helper installed, Open at login on. 28 folders live on "Mac 1TB SSD" and "Mac 500 SSD": 5 moved by iStash, the rest linked by hand before it existed. |
 
 Work branch: `claude/determined-cerf-4bfe99` (worktree `.claude/worktrees/core-engine-96be1d`) is level with `main`.
 Pull request 2 (menu-bar panel) is merged.
@@ -89,6 +89,15 @@ Changing any of these breaks existing installs or moved data:
   to swap. `purge` needs an administrator.
 - macOS can't cap another app's memory; Focus lowers other apps' priority (`taskpolicy -b`) instead.
 - A page that redraws on every poll replaces controls under the mouse; morphdom keeps unchanged nodes.
+- Fan speed needs root. The fan helper is a setuid copy of the app binary in `/Library/PrivilegedHelperTools`; as
+  root, `main()` runs only `--fan auto|max|rpm N`. Apple silicon needs the `Ftst` key set before `F0Md` takes.
+- Camera: WKWebView grants `getUserMedia` itself (wry), but macOS must allow iStash first, and the request has to be
+  made on the main thread. A stale "denied" record doesn't show in System Settings; `tccutil reset Camera
+  bd.wajed.stowaway` clears it.
+- The island is its own page (`island.html`) in a borderless window above the menu bar (level 26, all Spaces). Its
+  window is wider than the pill so the glow isn't cut square.
+- Screenshots: headless Chrome won't go narrower than about 500 px, so narrow windows (panel, widget) are framed in an
+  iframe on a backdrop page and cropped.
 
 ## Known gaps
 
