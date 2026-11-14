@@ -5,7 +5,11 @@ updates installed copies through the app itself.
 
 ## Unreleased
 
-Nothing yet.
+### Changed
+- **Clean looks like a phone cleaner.** Memory and storage each get a ring with the amount in the middle. While
+  cleaning, the ring sweeps round and particles are pulled into it; rows being cleaned slide aside. When it's done,
+  a tick pops in with what was freed.
+- The memory card no longer carries a line of help text.
 
 ## 0.1.14 — 14 Nov 2026
 

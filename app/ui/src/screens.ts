@@ -435,6 +435,21 @@ export function memory(v: View) {
 }
 
 // ---------- Clean ----------
+// A cleaner's ring, mobile style: the number in the middle, an arc for how full it is; while working the arc
+// sweeps round and particles are pulled into the centre; when done a tick pops in with what was freed.
+function orb(o: { pct: number; big: string; unit: string; busy: boolean; done: string; tone: 'mem' | 'disk'; small?: boolean }) {
+  const r = 46, len = 2 * Math.PI * r, fill = Math.max(2, Math.min(100, o.pct));
+  const motes = o.busy ? Array.from({ length: 12 }, (_, i) => `<i style="--a:${i * 30}deg;--d:${(i % 4) * 0.22}s"></i>`).join('') : '';
+  return `<div class="orb ${o.tone} ${o.small ? 'is-small' : ''} ${o.busy ? 'is-busy' : ''} ${o.done ? 'is-done' : ''}">
+    <svg viewBox="0 0 120 120" aria-hidden="true"><defs><linearGradient id="orb-${o.tone}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" class="orb-a"/><stop offset="1" class="orb-b"/></linearGradient></defs>
+      <circle cx="60" cy="60" r="${r}" class="orb-track"/>
+      <circle cx="60" cy="60" r="${r}" class="orb-arc" stroke="url(#orb-${o.tone})" stroke-dasharray="${((fill / 100) * len).toFixed(1)} ${len.toFixed(1)}"/>
+      ${o.busy ? `<circle cx="60" cy="60" r="${r}" class="orb-sweep" stroke-dasharray="${(len * 0.18).toFixed(1)} ${len.toFixed(1)}"/>` : ''}</svg>
+    <div class="orb-motes">${motes}</div>
+    <div class="orb-read">${o.done && !o.busy ? `<span class="orb-tick">${icon('check')}</span><b>${esc(o.done)}</b>` : `<b class="num">${esc(o.big)}</b><small>${esc(o.busy ? (o.tone === 'mem' ? 'freeing…' : 'cleaning…') : o.unit)}</small>`}</div>
+  </div>`;
+}
+
 export function clean(v: View) {
   const s = v.s;
   const h = header('Clean', 'Free up memory and storage.', s && !v.down ? button('Measure again', 'clean-scan', { disabled: s.clean.busy }) : '');
@@ -445,14 +460,16 @@ export function clean(v: View) {
   const when = { off: 'Only when I choose', daily: 'Every day', weekly: 'Every week', monthly: 'Every month', over2: 'When it passes 2 GB', over5: 'When it passes 5 GB', over10: 'When it passes 10 GB' };
   const ages: [number, string][] = [[0, 'Any age'], [3, '3 days'], [7, '7 days'], [30, '30 days']];
   return h + `<div class="page-body">
-    <section class="card" style="display:grid;grid-template-columns:1fr auto;gap:8px 32px;align-items:center">
-      <div><h2 class="secondary" style="font:var(--type-group)">Memory</h2>${v.m ? `<span class="num" style="font:var(--type-figure)">${gb(v.m.memUsed)}</span> <span class="secondary">of ${Math.round(v.m.memTotal / 2 ** 30)} GB in use${v.m.swap ? ` · swap ${gb(v.m.swap)}` : ''}</span>` : '<span class="secondary">Reading…</span>'}
-        <p class="secondary" style="font:var(--type-callout);margin-top:6px;max-width:640px">${c.memFreed != null ? `<strong style="color:var(--ok-text)">${c.memFreed > 0 ? `${gb(c.memFreed)} of memory became free.` : 'Nothing more to free right now.'}</strong> ` : ''}Takes up to 30 seconds, no password needed.</p></div>
-      <div>${button(c.memBusy ? 'Freeing memory…' : 'Free up memory', 'free-memory', { large: true, disabled: c.memBusy })}</div>
+    <section class="card boost-card">
+      ${orb({ pct: v.m ? Math.round((v.m.memUsed / v.m.memTotal) * 100) : 0, big: v.m ? gb(v.m.memUsed).replace(' GB', '') : '–', unit: 'GB in use', busy: c.memBusy, done: c.memFreed != null && !c.memBusy ? (c.memFreed > 0 ? `${gb(c.memFreed)} freed` : 'Already lean') : '', tone: 'mem' })}
+      <div class="boost-side"><h2>Memory</h2>
+        <p class="secondary">${v.m ? `${Math.round(v.m.memTotal / 2 ** 30)} GB total${v.m.swap ? ` · swap ${gb(v.m.swap)}` : ''}` : ''}</p>
+        ${button(c.memBusy ? 'Freeing…' : 'Free up memory', 'free-memory', { kind: 'primary', large: true, disabled: c.memBusy })}</div>
     </section>
     <h2 style="margin-top:4px">Storage</h2>
-    <section class="card" style="display:grid;grid-template-columns:1fr auto auto auto;gap:8px 24px;align-items:end">
-      <div><h2 class="secondary" style="font:var(--type-group)">Ticked below</h2><span class="num" style="font:var(--type-figure)">${c.items ? gb(total) : '…'}</span> <span class="secondary">can be removed</span></div>
+    <section class="card" style="display:grid;grid-template-columns:auto 1fr auto auto auto;gap:8px 24px;align-items:center">
+      <div class="boost-inline">${orb({ pct: Math.min(100, (total / (5 * GB)) * 100), big: c.items ? gb(total).replace(' GB', '') : '…', unit: 'GB to clean', busy: c.busy, done: c.freed != null && c.last && !c.busy && Date.now() - c.last < 60e3 ? `${gb(c.freed)} freed` : '', tone: 'disk', small: true })}</div>
+      <span></span>
       <div class="move-to"><label class="secondary" for="clean-every" style="font:var(--type-group)">Clean automatically</label>
         <select class="select" id="clean-every" data-action="clean-every">${Object.entries(when).map(([k, label]) => `<option value="${k}" ${st.cleanEvery === k ? 'selected' : ''}>${label}</option>`).join('')}</select></div>
       <div class="move-to"><label class="secondary" for="clean-age" style="font:var(--type-group)">Only files untouched for</label>
@@ -461,7 +478,7 @@ export function clean(v: View) {
     </section>
     ${c.freed != null && c.last ? banner({ kind: 'info', ic: 'check', title: `Freed ${gb(c.freed)}`, body: `Last cleaned ${ago(c.last)}.` }) : ''}
     <div class="table" role="table" aria-label="What can be cleaned"><div class="table-head" role="row" ${cols}><span></span><span>Kind</span><span>What it is</span><span style="text-align:right">Size</span></div>
-      ${c.items ? c.items.map((i) => `<label class="table-row" role="row" ${cols}><input type="checkbox" data-action="clean-kind" data-id="${i.id}" ${st.cleanKinds.includes(i.id) ? 'checked' : ''} aria-label="${esc(i.name)}" style="accent-color:var(--accent-fill)">
+      ${c.items ? c.items.map((i, k) => `<label class="table-row ${c.busy && st.cleanKinds.includes(i.id) && i.size ? 'is-cleaning' : ''}" role="row" ${cols} style="--k:${k}"><input type="checkbox" data-action="clean-kind" data-id="${i.id}" ${st.cleanKinds.includes(i.id) ? 'checked' : ''} aria-label="${esc(i.name)}" style="accent-color:var(--accent-fill)">
         <div class="name"><strong>${esc(i.name)}</strong><span>${i.count} item${i.count === 1 ? '' : 's'}</span></div><div class="secondary" style="font:var(--type-callout)">${esc(i.note)}</div><div class="size">${gb(i.size)}</div></label>`).join('') : skeletonRows(4)}</div>
     <p class="tertiary" style="font:var(--type-caption)">Moved folders, macOS caches and your documents are never cleaned.</p>
   </div>`;

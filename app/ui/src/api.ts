@@ -445,6 +445,7 @@ export function createMock(scenario: Scenario = 'normal', onboarded = scenario !
     },
     async clean(kinds) {
       await ok();
+      s.clean.busy = true; emit(); await new Promise((r) => setTimeout(r, 2500)); s.clean.busy = false;
       const hit = (s.clean.items ?? []).filter((i) => kinds.includes(i.id));
       s.clean.freed = hit.reduce((n, i) => n + i.size, 0); s.clean.last = Date.now(); s.mac.free += s.clean.freed;
       hit.forEach((i) => { i.size = 0; i.count = 0; });
@@ -455,7 +456,7 @@ export function createMock(scenario: Scenario = 'normal', onboarded = scenario !
     async lockScreen() { await ok(); },
     async emptyTrash() { await ok(); },
     async desktopIcons(show) { await ok(); s.sys!.desktopIcons = show; emit(); },
-    async freeMemory() { await ok(); s.clean.memFreed = 1.8 * GB; emit(); },
+    async freeMemory() { await ok(); s.clean.memBusy = true; emit(); await new Promise((r) => setTimeout(r, 2500)); s.clean.memBusy = false; s.clean.memFreed = 1.8 * GB; emit(); },
     async speedTest() { await ok(); const t: SpeedTest = { mode: 'full', down: 182.4, up: 41.7, ping: 12, jitter: 2, ip: '203.0.113.7', isp: 'Example Fibre', city: 'Dhaka', country: 'BD', at: Date.now(), server: 'Cloudflare' }; s.net = { ...s.net!, testing: false, test: t, history: [t, ...s.net!.history].slice(0, 20) }; emit(); },
     async setSpeedServer(url, label) { await ok(); s.net!.server = url; s.net!.serverLabel = label; emit(); },
     async setSpeedMode(mode) { await ok(); s.net!.mode = mode; emit(); },
