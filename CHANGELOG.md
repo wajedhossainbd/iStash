@@ -5,6 +5,10 @@ updates installed copies through the app itself.
 
 ## Unreleased
 
+Nothing yet.
+
+## 0.1.21 — 15 Nov 2026
+
 ### Added
 - **Apps using the most CPU** on the Memory page, busiest first, with Quit for apps; the two busiest also show on the
   menu-bar panel's CPU tile. macOS's own busy processes, such as WindowServer, are included.
