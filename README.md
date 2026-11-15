@@ -49,6 +49,7 @@ iStash does the move safely, keeps track of every link, and tells you when a dri
 | **Any test server** | Search Speedtest's servers by city, country or provider, pick a recently used one, or test against any file. |
 | **Drive activity** | Read and write speed for each drive, its average, and when it was last busy. |
 | **Memory forecast** | Live CPU, memory, disk and network, with a warning before macOS runs out of memory. |
+| **What's using the CPU** | The apps and macOS processes using the most CPU, busiest first, counted like Activity Monitor (100% is one core). The two busiest also show in the menu-bar panel. |
 | **Focus** | Give one app priority: the other apps run in the background until you stop it. |
 | **Clean** | Free up memory with no password, and clear caches, logs, Xcode build files and old temporary files, shown as a glowing orb that pulls the clutter in and tells you what was freed. |
 | **Scheduled cleaning** | Clean daily, weekly, monthly, or once the files pass a size such as 5 GB, and only files older than you choose. |
@@ -82,7 +83,7 @@ iStash does the move safely, keeps track of every link, and tells you when a dri
     <td colspan="2"><img src="docs/screenshots/island.png" alt="The notch island with an amber and an RGB glow"><br><sub><b>Notch island</b> · notifications from the top of the screen, in the glow you pick</sub></td>
   </tr>
   <tr>
-    <td><img src="docs/screenshots/memory.png" alt="Memory: what is using it, and Focus"><br><sub><b>Memory</b> · what's using it, and Focus</sub></td>
+    <td><img src="docs/screenshots/memory.png" alt="Memory: the apps using the most memory and CPU, and Focus"><br><sub><b>Memory</b> · what's using memory and CPU, and Focus</sub></td>
     <td><img src="docs/screenshots/clean.png" alt="Clean: freeing memory"><br><sub><b>Clean</b> · freeing memory, by hand or on a schedule</sub></td>
   </tr>
 </table>
