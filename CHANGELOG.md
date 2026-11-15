@@ -5,7 +5,10 @@ updates installed copies through the app itself.
 
 ## Unreleased
 
-Nothing yet.
+### Changed
+- **Check works for folders moved before 0.1.25.** Instead of "No manifest", the first Check records what the
+  drive copy holds now and says so; later checks compare against that. `stowaway-cli backfill` records all of
+  them at once. Damage from before that first record can't be seen.
 
 ## 0.1.25 — 15 Nov 2026
 

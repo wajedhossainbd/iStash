@@ -18,6 +18,7 @@ const USAGE: &str = "usage: stowaway-cli <command>
   move <path> <drive> [--yes] move a folder to a drive and link it (dry run without --yes)
   bring-back <path> [--yes]   copy a moved folder back to this Mac (dry run without --yes)
   check <path>                re-read a moved folder's drive copy and compare it with its manifest
+  backfill                    record manifests for folders moved before manifests were kept
   recover                     finish or undo moves a crash interrupted
   drives                      which drive holds which moved folders, and which apps need it
   status [--net] [--watch]    CPU, memory, swap, disk, network, top apps, memory forecast
@@ -34,6 +35,9 @@ fn main() -> ExitCode {
         ["bring-back", p, rest @ ..] => cmd_bring_back(&cat, &abs(p), rest.contains(&"--yes")),
         ["check", p] => cmd_check(&cat, &abs(p)),
         ["recover"] => recover(&cat),
+        ["backfill"] => {
+            manifest::backfill(&Journal::for_home(&cat.home)).map(|l| l.iter().for_each(|l| println!("{l}")))
+        }
         ["drives"] => cmd_drives(&cat),
         ["status", rest @ ..] => cmd_status(rest),
         ["guard"] => cmd_guard(cat.clone()),
@@ -164,7 +168,12 @@ fn cmd_check(cat: &Catalog, path: &Path) -> Result<()> {
             println!("{label:>8}  {p}");
         }
     }
-    if r.intact() {
+    if r.recorded {
+        println!(
+            "No manifest yet (moved before they were kept): recorded {} files; later checks compare with it.",
+            r.checked
+        );
+    } else if r.intact() {
         println!("All {} files match.", r.checked);
     } else {
         println!("Changed and extra files are normal if the app ran since the move; damaged ones are not.");

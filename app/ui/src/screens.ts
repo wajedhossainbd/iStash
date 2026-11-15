@@ -756,6 +756,7 @@ export function dialogFor(v: View) {
       const c = d.check;
       if (!c) return '';
       const rows = ([['Missing', c.missing], ['Damaged', c.damaged], ['Changed since the move', c.changed], ['New since the move', c.extra]] as const).filter(([, l]) => l.length);
+      if (c.recorded) return okOnly(`Recorded ${esc(it.app)} ${esc(it.name.toLowerCase())}`, `This folder was moved before iStash kept a list of its files, so there was nothing to compare yet. iStash has now recorded its <span class="num">${c.checked}</span> files; the next check compares against them.`);
       if (!rows.length) return okOnly(`${esc(it.app)} ${esc(it.name.toLowerCase())} is intact`, `All <span class="num">${c.checked}</span> files match what was moved.`);
       return dialog({ title: `${esc(it.app)} ${esc(it.name.toLowerCase())} differs from what was moved`, buttons: button('OK', 'close', { kind: 'primary' }),
         body: `<ul>${rows.map(([k, l]) => `<li><strong>${k}</strong> (<span class="num">${l.length}</span>): <span class="path">${esc(l.slice(0, 3).join(', '))}${l.length > 3 ? ', …' : ''}</span></li>`).join('')}</ul><p>${c.missing.length || c.damaged.length ? 'Missing or damaged files point to a drive problem. Bring the folder back while the rest is readable.' : `Changes are normal: ${esc(it.app)} has written to its data since the move.`}</p>` });

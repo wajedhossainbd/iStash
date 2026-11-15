@@ -161,7 +161,8 @@ export type Plan =
   | { ok: false; title: string; reason: string };
 
 /** A moved folder re-read against its manifest. Relative paths. */
-export interface Check { checked: number; missing: string[]; changed: string[]; damaged: string[]; extra: string[] }
+/** recorded: there was no manifest (moved before iStash kept them), so one was recorded now and nothing compared. */
+export interface Check { checked: number; missing: string[]; changed: string[]; damaged: string[]; extra: string[]; recorded?: boolean }
 
 export type ApiErrorCode = 'helper-down';
 export class ApiError extends Error {

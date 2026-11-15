@@ -35,6 +35,9 @@ pub struct Report {
     pub changed: Vec<String>,
     pub damaged: Vec<String>,
     pub extra: Vec<String>,
+    /// There was no manifest (moved before they existed), so this check recorded one from the drive copy as
+    /// it is now. Nothing was compared; later checks compare against it.
+    pub recorded: bool,
 }
 
 impl Report {
@@ -88,15 +91,41 @@ pub fn check(journal: &Journal, path: &Path) -> Result<Report> {
     };
     let m: Manifest = match std::fs::read(path_for(journal, &e.id)) {
         Ok(b) => serde_json::from_slice(&b).map_err(|err| Fail(format!("The manifest is unreadable: {err}")))?,
-        Err(err) if err.kind() == std::io::ErrorKind::NotFound => {
-            return fail("No manifest: this folder was moved before iStash kept them.")
-        }
+        Err(err) if err.kind() == std::io::ErrorKind::NotFound => return record(journal, &e.id, &e.dest),
         Err(err) => return Err(err.into()),
     };
     if !m.dest.is_dir() {
         return fail(format!("Connect the drive that holds {} first.", m.dest.display()));
     }
     compare(&m, &m.dest)
+}
+
+/// Write the missing manifest of the move journaled as `id` from what its drive copy holds now.
+fn record(journal: &Journal, id: &str, dest: &Path) -> Result<Report> {
+    if !dest.is_dir() {
+        return fail(format!("Connect the drive that holds {} first.", dest.display()));
+    }
+    let items =
+        fsx::tree(dest).map_err(|e| Fail(format!("Could not read {} to record it: {e}", dest.display())))?.items;
+    let r = Report { checked: items.len(), recorded: true, ..Report::default() };
+    write(journal, id, &Manifest { dest: dest.into(), items })?;
+    Ok(r)
+}
+
+/// Record a manifest for every moved folder that has none (moved before manifests existed) and whose drive
+/// is connected. One line per such folder; a folder that fails does not stop the others.
+pub fn backfill(journal: &Journal) -> Result<Vec<String>> {
+    let mut out = Vec::new();
+    for e in journal.moved()? {
+        if path_for(journal, &e.id).exists() {
+            continue;
+        }
+        out.push(match record(journal, &e.id, &e.dest) {
+            Ok(r) => format!("{}: recorded {} files.", e.path.display(), r.checked),
+            Err(f) => format!("{}: {f}", e.path.display()),
+        });
+    }
+    Ok(out)
 }
 
 #[cfg(test)]

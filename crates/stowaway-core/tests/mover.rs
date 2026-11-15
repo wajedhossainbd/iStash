@@ -56,6 +56,18 @@ fn move_and_bring_back_across_volumes() {
     let id = &m.journal.moved().unwrap()[0].id;
     assert!(manifest::path_for(&m.journal, id).is_file());
 
+    // A folder moved before manifests existed: Check records one from the drive copy, then compares with it.
+    std::fs::remove_file(manifest::path_for(&m.journal, id)).unwrap();
+    let report = manifest::check(&m.journal, &folder).unwrap();
+    assert!(report.recorded && report.intact() && report.checked == 6, "{report:?}");
+    let report = manifest::check(&m.journal, &folder).unwrap();
+    assert!(!report.recorded && report.intact(), "the recorded manifest matches a fresh hash");
+    std::fs::remove_file(manifest::path_for(&m.journal, id)).unwrap();
+    let lines = manifest::backfill(&m.journal).unwrap();
+    assert!(lines.len() == 1 && lines[0].ends_with("recorded 6 files."), "{lines:?}");
+    assert!(manifest::backfill(&m.journal).unwrap().is_empty(), "nothing left to backfill");
+    assert!(manifest::check(&m.journal, &folder).unwrap().intact());
+
     m.bring_back(&folder).unwrap();
     assert!(folder.is_dir() && !folder.is_symlink());
     assert_eq!(tree(&folder).unwrap(), before);
