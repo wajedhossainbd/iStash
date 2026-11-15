@@ -12,9 +12,9 @@ identifier still use the old name on purpose; see "Names that must not change" b
 |---|---|
 | Rust engine (`crates/stowaway-core`, `crates/stowaway-cli`) | Done for v0.1: scan, rules, mover with journal and crash recovery, drives, eject guard, metrics, forecast. Hardened with fault-injection tests (T16). |
 | App (`app/`, Tauri 2) | Shipping. Overview, Offload, Drives (cable map and per-drive pages), Memory (apps by memory and CPU, Focus), Internet (speed test), Clean, Settings, menu-bar panel (with fan control and app shortcuts), edge widget, notch island, camera window. Runs the engine itself; there is no separate login agent yet. |
-| Releases | Published automatically from `main`. Latest: **0.1.21** (apps by CPU; 0.1.20 is the first signed with the iStash certificate). Installed copies update themselves. |
+| Releases | Published automatically from `main`. Latest: **0.1.22** (installer disk images aren't drives; 0.1.20 is the first signed with the iStash certificate). Installed copies update themselves. |
 | Repository | [`wajedhossainbd/iStash`](https://github.com/wajedhossainbd/iStash), public, GPL 3.0. `main` is protected against force-pushes and deletion (owner included); normal pushes are allowed. |
-| Owner's Mac | iStash 0.1.21 in `/Applications/iStash.app`, fan helper installed, Open at login on. 28 folders live on "Mac 1TB SSD" and "Mac 500 SSD": 5 moved by iStash, the rest linked by hand before it existed. |
+| Owner's Mac | iStash 0.1.22 in `/Applications/iStash.app`, fan helper installed, Open at login on. 28 folders live on "Mac 1TB SSD" and "Mac 500 SSD": 5 moved by iStash, the rest linked by hand before it existed. |
 
 Work branch: `claude/determined-cerf-4bfe99` (worktree `.claude/worktrees/core-engine-96be1d`) is level with `main`.
 Pull request 2 (menu-bar panel) is merged.

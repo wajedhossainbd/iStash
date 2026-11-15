@@ -13,7 +13,7 @@ so your apps carry on as if nothing moved.
 ![Download 3 MB](https://img.shields.io/badge/download-3%20MB-F2F4F5?labelColor=15171B)
 [![License: GPL 3.0](https://img.shields.io/badge/license-GPL%203.0-F2F4F5?labelColor=15171B)](LICENSE)
 
-[**Download for Mac**](https://github.com/wajedhossainbd/iStash/releases/latest/download/iStash.dmg) · [Install with one command](#install) · [Features](#features) · [Changelog](CHANGELOG.md)
+[**Download for Mac**](https://github.com/wajedhossainbd/iStash/releases/latest/download/iStash.dmg) · [Install guide](docs/INSTALL.md) · [Why iStash](#what-istash-does-differently) · [Features](#features) · [Changelog](CHANGELOG.md)
 
 [![Buy me a coffee](https://img.shields.io/badge/Buy%20me%20a%20coffee-FFDD00?style=for-the-badge&logo=buymeacoffee&logoColor=000000)](https://supportkori.com/wajed)
 
@@ -23,15 +23,74 @@ so your apps carry on as if nothing moved.
 
 </div>
 
-## Why iStash
+## The problem
 
-A 256 GB Mac fills up fast, and most of the weight isn't your files. It's the data apps keep for themselves: AI models,
-SDKs, build caches, virtual machines, browser caches. Moving those folders by hand works until the drive is unplugged,
-an app starts over with an empty folder, or you forget which app needed which drive.
+A 256 GB Mac fills up fast, and most of the weight isn't your files. It's the data apps keep for themselves: AI
+models, SDKs, simulators, build caches, Docker and virtual machines. Delete it and the apps download it again. macOS
+offers no way to say "keep this app's data on my external drive".
 
-iStash does the move safely, keeps track of every link, and tells you when a drive an app needs isn't there.
+So people move the folders by hand and leave a symbolic link. It works, until:
+
+- the copy was incomplete and nobody checked;
+- the drive is unplugged, and the app quietly starts over with an empty folder;
+- the drive is ejected while an app is still writing to it;
+- months later, nobody remembers which app needs which drive, or how to put a folder back.
+
+## What iStash does differently
+
+iStash makes that move safe, keeps track of it, and watches over it afterwards.
+
+- **Checked, not hoped for.** Every file is copied and compared (count, size, content) before the original is removed.
+- **Crash-proof.** Every step goes into a journal. If the Mac sleeps, crashes or loses power mid-move, iStash
+  finishes or undoes the move on the next start. Stop any move and everything goes back.
+- **Knows which app needs which drive.** The drive map shows each app's data and where it lives.
+- **Guards the eject.** macOS asks iStash before an eject; if an app still needs the drive, iStash refuses and
+  names the app.
+- **Warns when a drive is missing**, and asks you to connect it if you open an app that needs it.
+- **Undo is one click.** Bring back any folder iStash moved, whenever you like.
+- **Knows what not to touch.** Documents, Desktop, iCloud Drive, Photos, app sandboxes and macOS's own data are off
+  limits. No root helper for moving, no account, no tracking.
+
+### How it compares
+
+| | Moves app data and keeps apps working | Checks every file first | Undo and crash recovery | Which app needs which drive | Eject guard | Free and open source |
+|---|:-:|:-:|:-:|:-:|:-:|:-:|
+| **iStash** | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Moving folders by hand with a symbolic link | ✓ | – | – | – | – | ✓ |
+| An app's own storage setting (Xcode, Docker, Photos, Steam, Ollama…) | for that app only | varies | – | – | – | – |
+| Disk space viewers (DaisyDisk, GrandPerspective, OmniDiskSweeper) | – shows space only | – | – | – | – | some |
+| Cleaners (CleanMyMac, Pearcleaner) | – deletes, doesn't move | – | – | – | – | some |
+| File automation (Hazel) | moves files, not app data behind links | – | – | – | – | – |
+| macOS Storage settings and iCloud | – | – | – | – | – | built in |
+
+Many apps on this list are excellent at their own job. As far as we know, none of them moves app data off the Mac
+in a way that's checked, reversible and watched over afterwards. That gap is why iStash exists.
+
+**Also in the box**, because a Mac that's short on disk is usually short on memory too: a memory forecast that warns
+before macOS runs out, a cleaner, CPU and memory by app, a menu-bar control centre, an edge widget, an internet
+speed test, fan control and a notch island for notifications. Other tools do these well too; here they share one
+small app and one menu-bar icon.
+
+## Why I built it
+
+I'm Wajed. My Mac mini has 256 GB, and developer tools filled it: Xcode, Docker, Gradle, Rust toolchains, SDKs and
+AI tools. I moved their folders to external SSDs by hand and ended up with 23 symbolic links, no record of which app
+used which drive, and nothing to stop an app losing its data when a drive wasn't plugged in.
+
+I needed a tool that did this properly, so I built one with AI as my pair programmer. It now looks after the app
+data on my own Mac.
+
+## Why it's open source
+
+My motto: **with AI, solve your own problem first, then let others solve theirs.**
+
+iStash solved mine. Plenty of people buy the base-storage Mac and hit the same wall, so the code is free under the
+GPL 3.0. Use it, read how every move is checked before trusting it with your data, fix what bothers you, and build
+on it. If it saves you an upgrade, [a coffee](https://supportkori.com/wajed) is welcome.
 
 ## Features
+
+### The core: moving app data safely
 
 | Feature | What it does |
 | --- | --- |
@@ -41,13 +100,18 @@ iStash does the move safely, keeps track of every link, and tells you when a dri
 | **Which app needs which drive** | A drive map shows each app's data and where it lives. Open a drive to see every folder on it. |
 | **Eject guard** | macOS asks iStash before any eject. If an app still needs the drive, the eject is refused and the app named. |
 | **Missing-drive warnings** | A notification when a drive with app data disappears, and a prompt to connect it if you open an app that needs it. |
+| **Drive activity** | Read and write speed for each drive, its average, and when it was last busy. |
+
+### Also in the box
+
+| Feature | What it does |
+| --- | --- |
 | **Notch island** | iStash's notifications drop from the top of the screen as a black pill with a neon glow (amber, blue, pink, green, white or RGB), then shrink back. |
 | **Menu-bar panel** | A control-centre panel: live CPU, memory, disk and internet tiles, fan and temperatures, your drives, shortcuts to System Settings, Disk Utility, Activity Monitor, System Information and the camera, and quick toggles for dark mode, keep awake, keep the screen on, lock, empty Trash, desktop icons, the edge widget and Focus. |
 | **Fan control** | Let macOS decide, run the fans at full speed, or set a speed yourself, with every temperature sensor listed. Your password is asked once. |
 | **Edge widget** | A thin glass column on the left or right edge of the screen with CPU, memory, network, disk, fan and drives. Always on, or slides out when you touch the edge. |
 | **Internet** | A live speed gauge with download, upload, ping and jitter; your public IP, provider and location; every past test in one table. |
 | **Any test server** | Search Speedtest's servers by city, country or provider, pick a recently used one, or test against any file. |
-| **Drive activity** | Read and write speed for each drive, its average, and when it was last busy. |
 | **Memory forecast** | Live CPU, memory, disk and network, with a warning before macOS runs out of memory. |
 | **What's using the CPU** | The apps and macOS processes using the most CPU, busiest first, counted like Activity Monitor (100% is one core). The two busiest also show in the menu-bar panel. |
 | **Focus** | Give one app priority: the other apps run in the background until you stop it. |
