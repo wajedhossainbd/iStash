@@ -2,6 +2,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { gb, list, ago } from './ui.ts';
+import { toFolder } from './real.ts';
 import { createMock, toDrives, toForecast, type Reading, type Volume } from './api.ts';
 
 test('formatting', () => {
@@ -57,4 +58,13 @@ test('a real reading becomes a forecast only with a trend, and suggests the bigg
   assert.equal(toForecast({ ...r, level: 'watch' })!.condition, 'fine'); // low memory but no trend is not a countdown
   const warn = toForecast({ ...r, level: 'warn', minutesLeft: 24.4 }, 0)!;
   assert.deepEqual([warn.condition, warn.minutesLeft, warn.at, warn.suggest?.app], ['strained', 24, 24 * 60e3, 'Docker']);
+});
+
+test('an app’s own setting comes with steps; the link move stays available', async () => {
+  const derived = (await createMock('normal', true).state()).folders.find((f) => f.id === 'derived')!;
+  assert.ok(derived.verdict === 'move' && derived.how?.some((x) => x.includes('<drive>')));
+  const base = { path: '/Users/x/.gradle', show: '~/.gradle', app: 'Gradle', appPath: null, note: 'n', size: 1, drive: null, since: null, running: false, users: [] };
+  assert.deepEqual(toFolder({ ...base, verdict: 'move', how: ['a', 'b'] }).how, ['a', 'b']);
+  assert.equal(toFolder({ ...base, verdict: 'move', how: [] }).how, undefined);
+  assert.deepEqual(toFolder({ ...base, verdict: 'setting' }).how, ['n']);
 });

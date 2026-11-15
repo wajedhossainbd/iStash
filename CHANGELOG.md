@@ -9,6 +9,9 @@ updates installed copies through the app itself.
 - **Check a moved folder.** Every move now records each file's size, date and content hash; Check (next to Bring
   back) and `stowaway-cli check <path>` read the drive copy again and name missing, damaged, changed and new files.
   Changes nothing. Folders moved before this release have no record yet.
+- Xcode (Derived Data, Archives), Docker, Ollama, Hugging Face and Gradle: Offload now shows how to move their data
+  with the app's own storage setting, which survives app updates and needs no link. Moving with a link stays
+  available in the same sheet. iStash shows the steps and changes no other app's settings.
 
 ## 0.1.22 — 15 Nov 2026
 

@@ -246,7 +246,10 @@ function itemRow(v: V, it: Folder) {
   }
   const preview = s.settings.dryRun;
   let verdict: string, act: string;
-  if (it.verdict === 'move') {
+  if (it.verdict === 'move' && it.how?.length) {
+    verdict = pill('accent', 'Can move') + `<span>${esc(it.app)}’s own setting can do it</span>`;
+    act = button('Show how', 'how', { id: it.id, label: `Show how ${it.app} can keep ${it.name} on a drive` });
+  } else if (it.verdict === 'move') {
     verdict = pill('accent', 'Can move') + `<span>${esc(it.running ? `${it.app} is open and will be asked to quit` : it.reason)}</span>`;
     act = it.running ? button(preview ? 'Quit & move…' : 'Quit & move', 'move', { kind: 'primary', id: it.id, label: `Quit ${it.app} and move ${it.name}` }) : button(preview ? 'Move…' : 'Move', 'move', { id: it.id, label: `Move ${it.app} ${it.name}` });
   } else if (it.verdict === 'setting') {
@@ -757,9 +760,14 @@ export function dialogFor(v: View) {
       return dialog({ title: `${esc(it.app)} ${esc(it.name.toLowerCase())} differs from what was moved`, buttons: button('OK', 'close', { kind: 'primary' }),
         body: `<ul>${rows.map(([k, l]) => `<li><strong>${k}</strong> (<span class="num">${l.length}</span>): <span class="path">${esc(l.slice(0, 3).join(', '))}${l.length > 3 ? ', …' : ''}</span></li>`).join('')}</ul><p>${c.missing.length || c.damaged.length ? 'Missing or damaged files point to a drive problem. Bring the folder back while the rest is readable.' : `Changes are normal: ${esc(it.app)} has written to its data since the move.`}</p>` });
     }
-    case 'how':
-      return dialog({ title: `Move ${esc(it.app)}’s ${esc(it.name.toLowerCase())} with its own setting`, buttons: button('Done', 'close', { kind: 'primary' }),
-        body: `<p>${esc(it.app)} keeps a live database here. A link can corrupt it if the drive is unplugged while it runs, so let ${esc(it.app)} move it.</p><ol>${(it.how || []).map((x) => `<li>${esc(x)}</li>`).join('')}</ol>` });
+    case 'how': {
+      const link = it.verdict === 'move', to = usable(s).filter((x) => x.connected && !x.problem), dr = to.find((x) => x.id === s.settings.defaultDrive) ?? to[0];
+      const steps = (it.how || []).map((x) => `<li>${esc(x.replaceAll('<drive>', dr?.name ?? 'your drive'))}</li>`).join('');
+      return dialog({ title: `Move ${esc(it.app)}’s ${esc(it.name.toLowerCase())} with its own setting`,
+        buttons: link ? button(s.settings.dryRun ? 'Move with a link instead…' : 'Move with a link instead', 'move', { id: it.id }) + button('Done', 'close', { kind: 'primary' }) : button('Done', 'close', { kind: 'primary' }),
+        body: link ? `<p>${esc(it.app)} can keep this on a drive itself. Its own setting survives app updates and needs no link. iStash changes nothing here.</p><ol>${steps}</ol><p>Or let iStash move it with a link; you can bring it back at any time.</p>`
+          : `<p>${esc(it.app)} keeps a live database here. A link can corrupt it if the drive is unplugged while it runs, so let ${esc(it.app)} move it.</p><ol>${steps}</ol>` });
+    }
     case 'why':
       return okOnly(`Why ${esc(it.name.toLowerCase())} can’t move`, esc(it.why || it.reason));
     case 'apfs':

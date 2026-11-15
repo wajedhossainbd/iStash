@@ -164,6 +164,7 @@ const actions: Record<string, (id: string) => unknown> = {
   'start-helper': async () => { await api.startHelper(); await load(); },
   open: (id) => native && tauri().then((n) => n.openTarget(id)),
   move: async (id) => {
+    ui.dialog = null;
     if (!s!.settings.dryRun) return api.move(id, target());
     const drive = target();
     ui.dialog = { type: 'move', id, drive, plan: await api.planMove(id, drive) };

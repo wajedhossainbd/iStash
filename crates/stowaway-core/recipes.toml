@@ -3,6 +3,8 @@
 #   running = regex on running command lines that means the app is open
 #   verdict = move (copy + link; quit the app first) | app (use the app's own setting) | keep | unsupported
 #             leave it out to only name the owner and let the generic rules decide
+#   steps   = how to move it with the app's own storage-location setting, shown before the link move
+#             (only settings the app documents; `<drive>` becomes the drive's name). iStash never changes them itself.
 #
 # Paths are relative to home; `*` matches anything. Within a recipe and across recipes the first match wins,
 # so list inner folders before the folders that contain them.
@@ -37,6 +39,12 @@ running = '/Docker\.app/|com\.docker\.'
 path = "Library/Containers/com.docker.docker"
 verdict = "app"
 note = "Use Docker → Settings → Resources → Advanced → Disk image location. A link would corrupt Docker's disk if the drive is unplugged while it runs."
+steps = [
+  'Open Docker Desktop.',
+  'Go to Settings, then Resources, then Advanced.',
+  'Set Disk image location to a folder on <drive> and press Apply.',
+  'Docker moves the image itself and keeps working.',
+]
 
 [[recipe]]
 id = "chrome"
@@ -57,10 +65,24 @@ running = '/Xcode\.app/'
 path = "Library/Developer/Xcode/DerivedData"
 verdict = "move"
 note = "Build products Xcode recreates. Quit Xcode first. If a test target insists on the startup disk, bring it back."
+steps = [
+  'Open Xcode, then Settings, then Locations.',
+  'Set Derived Data to Custom and choose a folder on <drive>.',
+  'Xcode builds there from then on. The old folder here is only build products: delete it in Finder.',
+]
 [[recipe.folder]]
 path = "Library/Developer/Xcode/*OS DeviceSupport"  # iOS, watchOS, tvOS, visionOS, macOS
 verdict = "move"
 note = "Debug symbols copied from your devices. Quit Xcode first; Xcode copies them again if the drive is missing."
+[[recipe.folder]]
+path = "Library/Developer/Xcode/Archives"
+verdict = "move"
+note = "Your app archives. Quit Xcode first; Organizer lists them only while the drive is connected."
+steps = [
+  'Open Xcode, then Settings, then Locations.',
+  'Set Archives to Custom and choose a folder on <drive>.',
+  'Drag the existing archives into that folder in Finder. Organizer lists them from there.',
+]
 [[recipe.folder]]
 path = "Library/Developer/CoreSimulator"
 verdict = "keep"
@@ -76,6 +98,12 @@ running = 'GradleDaemon'
 path = ".gradle"
 verdict = "move"
 note = "Gradle's caches and wrappers. Stop its daemons first (gradle --stop); builds need the drive connected."
+steps = [
+  'Stop Gradle with gradle --stop.',
+  'Add export GRADLE_USER_HOME="/Volumes/<drive>/gradle" to ~/.zshrc and open a new Terminal window.',
+  'In Android Studio, set Settings → Build, Execution, Deployment → Build Tools → Gradle → Gradle user home to the same folder.',
+  'Builds download what they need there. Move the caches folder from ~/.gradle there first to skip that.',
+]
 
 [[recipe]]
 id = "android-emulator"
@@ -166,6 +194,12 @@ running = '/Ollama\.app/|/ollama (serve|runner)\b'
 path = ".ollama/models"
 verdict = "move"
 note = "Downloaded models. Quit Ollama in the menu bar first; models load from the drive afterwards."
+steps = [
+  'Quit Ollama from its menu-bar icon.',
+  'Move the contents of ~/.ollama/models to a folder on <drive> in Finder.',
+  'Open Ollama, then Settings, and set Model location to that folder.',
+  'Older Ollama without that setting: run launchctl setenv OLLAMA_MODELS "/Volumes/<drive>/ollama" in Terminal (again after each restart), then open Ollama.',
+]
 
 [[recipe]]
 id = "lm-studio"
@@ -187,6 +221,11 @@ app = "Hugging Face models"
 path = ".cache/huggingface"
 verdict = "move"
 note = "Models and datasets downloaded by Python tools. Stop scripts that use them first."
+steps = [
+  'Stop scripts that use Hugging Face models.',
+  'Add export HF_HOME="/Volumes/<drive>/huggingface" to ~/.zshrc and open a new Terminal window.',
+  'Move the contents of ~/.cache/huggingface there in Finder, or let your tools download again.',
+]
 
 [[recipe]]
 id = "mobilesync"

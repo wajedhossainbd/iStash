@@ -154,7 +154,7 @@ pub fn scan_home() -> Value {
             let users = procs::users_of(&cat, &i.path, &table, &apps);
             json!({
                 "path": i.path, "show": i.show, "app": i.app, "appPath": crate::mem::bundle(&i.app),
-                "verdict": if i.moved { "stowed" } else { verdict(i.verdict) }, "note": i.note, "size": i.size.unwrap_or(0),
+                "verdict": if i.moved { "stowed" } else { verdict(i.verdict) }, "note": i.note, "how": i.steps, "size": i.size.unwrap_or(0),
                 "drive": i.drive, "since": since.get(&i.path).map(|t| t * 1000),
                 "running": !users.is_empty(), "users": procs::user_names(&cat, &i.path, &users, &apps),
             })

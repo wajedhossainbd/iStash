@@ -35,7 +35,7 @@ export interface Folder {
   verdict: Verdict;
   reason: string; // one short line
   why?: string; // long explanation when refused
-  how?: string[]; // steps when the app's own setting should move it
+  how?: string[]; // steps to move it with the app's own setting (the first choice; `<drive>` is the drive's name)
   drive?: string; // when stowed
   since?: number; // when stowed
   running: boolean; // the owning app is open
@@ -310,11 +310,12 @@ export function mockState(now = Date.now()): State {
     ({ running: false, reason: '', ...o, size: o.size * GB });
   const folders: Folder[] = [
     f({ id: 'ollama', name: 'Models', app: 'Ollama', appPath: '/Applications/Ollama.app', path: '~/.ollama/models', size: 48.2, verdict: 'move', running: true, reason: 'Ollama is open' }),
-    f({ id: 'derived', name: 'Derived data', app: 'Xcode', appPath: '/Applications/Xcode.app', path: '~/Library/Developer/Xcode/DerivedData', size: 21.7, verdict: 'move', reason: 'Rebuilt if the drive is away' }),
+    f({ id: 'derived', name: 'Derived data', app: 'Xcode', appPath: '/Applications/Xcode.app', path: '~/Library/Developer/Xcode/DerivedData', size: 21.7, verdict: 'move', reason: 'Rebuilt if the drive is away',
+      how: ['Open Xcode, then Settings, then Locations.', 'Set Derived Data to Custom and choose a folder on <drive>.', 'Xcode builds there from then on. The old folder here is only build products: delete it in Finder.'] }),
     f({ id: 'gradle', name: 'Gradle caches', app: 'Gradle', path: '~/.gradle/caches', size: 7.3, verdict: 'move', reason: 'Cache, safe to move' }),
     f({ id: 'docker', name: 'Disk image', app: 'Docker Desktop', appPath: '/Applications/Docker.app', path: '~/Library/Containers/com.docker.docker/Data', size: 59.6, verdict: 'setting',
       reason: 'A link here can corrupt data',
-      how: ['Quit nothing yet. Open Docker Desktop.', 'Go to Settings, then Resources, then Advanced.', 'Set "Disk image location" to a folder on your drive and press Apply.', 'Docker moves the image itself and keeps working.'] }),
+      how: ['Open Docker Desktop.', 'Go to Settings, then Resources, then Advanced.', 'Set Disk image location to a folder on <drive> and press Apply.', 'Docker moves the image itself and keeps working.'] }),
     f({ id: 'mobilesync', name: 'iPhone backups', app: 'Finder', appPath: '/System/Library/CoreServices/Finder.app', path: '~/Library/Application Support/MobileSync/Backup', size: 28.4, verdict: 'refused',
       reason: 'macOS ignores links here',
       why: 'Since macOS 10.15, Finder no longer follows a link for iPhone backups. It would quietly start a new backup on this Mac. Move old backups by hand from Finder (Manage Backups) instead.' }),

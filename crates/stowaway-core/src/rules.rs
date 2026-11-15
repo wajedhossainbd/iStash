@@ -123,6 +123,11 @@ pub struct Folder {
     pub verdict: Option<Verdict>,
     #[serde(default)]
     pub note: String,
+    /// Steps to move the data with the app's own storage-location setting, which survives app updates and
+    /// needs no link. Shown as the first choice; the link move stays the fallback. `<drive>` is the drive's name.
+    /// iStash only shows these; it never changes another app's settings itself.
+    #[serde(default)]
+    pub steps: Vec<String>,
 }
 
 #[derive(Deserialize)]
@@ -201,6 +206,15 @@ impl Catalog {
             return (name.to_string(), Some(format!("/{}\\.app/", regex::escape(name))));
         }
         (name.to_string(), None)
+    }
+
+    /// Steps for moving the folder with its app's own setting; empty when the app has none (first match wins).
+    pub fn steps(&self, rel: &str) -> Vec<String> {
+        self.recipes
+            .iter()
+            .flat_map(|r| &r.folder)
+            .find(|f| fnmatch(&f.path, rel))
+            .map_or(Vec::new(), |f| f.steps.clone())
     }
 
     /// Scan patterns: the generic list plus every recipe folder.
@@ -298,6 +312,26 @@ mod tests {
         assert_eq!(c.owner("Library/Application Support/Claude/vm_bundles").0, "Claude (Cowork)");
         assert_eq!(c.owner("Library/Developer/Xcode/Archives").0, "Xcode");
         assert_eq!(c.owner(".hermes"), ("hermes".into(), None));
+    }
+
+    // Apps with a documented storage-location setting: recommend it, keep the link move as the fallback.
+    #[test]
+    fn own_setting_steps() {
+        let c = cat();
+        for (rel, verdict, needle) in [
+            ("Library/Developer/Xcode/DerivedData", Verdict::Move, "Derived Data"),
+            ("Library/Developer/Xcode/Archives", Verdict::Move, "Archives"),
+            ("Library/Containers/com.docker.docker", Verdict::App, "Disk image location"),
+            (".ollama/models", Verdict::Move, "OLLAMA_MODELS"),
+            (".cache/huggingface", Verdict::Move, "HF_HOME"),
+            (".gradle", Verdict::Move, "GRADLE_USER_HOME"),
+        ] {
+            assert_eq!(c.classify(rel).0, verdict, "{rel}");
+            let steps = c.steps(rel);
+            assert!(steps.len() >= 2 && steps.iter().any(|s| s.contains(needle)), "{rel}: {steps:?}");
+        }
+        assert!(c.steps(".npm").is_empty() && c.steps(".hermes").is_empty());
+        assert!(c.steps("Library/Developer/Xcode/iOS DeviceSupport").is_empty());
     }
 
     #[test]

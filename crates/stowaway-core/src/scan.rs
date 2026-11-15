@@ -15,6 +15,8 @@ pub struct Item {
     pub app: String,
     pub verdict: Verdict,
     pub note: String,
+    /// Steps to move it with the app's own setting (see `rules::Folder::steps`); empty when there is none.
+    pub steps: Vec<String>,
     /// Bytes on disk; None when deliberately not measured.
     pub size: Option<u64>,
     /// A link to a folder on an external drive.
@@ -142,6 +144,7 @@ pub fn make_item(cat: &Catalog, path: &Path, size: u64) -> Item {
         app: cat.owner(&rel).0,
         verdict,
         note,
+        steps: cat.steps(&rel),
         size: Some(size),
         moved: target.is_some(),
         drive: target.as_deref().and_then(drive_of),
@@ -161,6 +164,7 @@ pub fn sandboxed_item(cat: &Catalog) -> Item {
         note: "macOS stops these apps from following a link to another drive, so their data stays here. \
                Not measured: reading it makes macOS ask for permission. Clear space inside each app instead."
             .into(),
+        steps: Vec::new(),
         size: None,
         moved: false,
         target: None,
