@@ -158,12 +158,14 @@ pub struct Tree {
     pub files: u64,
     pub bytes: u64,
     pub hash: [u8; 32],
+    /// Every file and link, in walk order: what a manifest records.
+    pub items: Vec<crate::manifest::Item>,
 }
 
 /// Summarize a folder for verification. Files are read past the page cache, so a copy on a drive
 /// is checked as the drive stores it. Any unreadable entry fails the whole check.
 pub fn tree(root: &Path) -> io::Result<Tree> {
-    let mut t = Tree { files: 0, bytes: 0, hash: [0; 32] };
+    let mut t = Tree { files: 0, bytes: 0, hash: [0; 32], items: Vec::new() };
     let mut h = blake3::Hasher::new();
     walk(root, Path::new(""), &mut t, &mut h)?;
     t.hash = *h.finalize().as_bytes();
@@ -189,16 +191,27 @@ fn walk(root: &Path, rel: &Path, t: &mut Tree, h: &mut blake3::Hasher) -> io::Re
         }
         t.files += 1;
         t.bytes += m.size();
-        if ft.is_file() {
+        let content = if ft.is_file() {
             h.update(b"f");
             h.update(&m.size().to_le_bytes());
-            h.update(hash_file(&root.join(&rel))?.as_bytes());
+            let c = hash_file(&root.join(&rel))?;
+            h.update(c.as_bytes());
+            c
         } else if ft.is_symlink() {
             h.update(b"l");
-            h.update(std::fs::read_link(root.join(&rel))?.as_os_str().as_bytes());
+            let target = std::fs::read_link(root.join(&rel))?;
+            h.update(target.as_os_str().as_bytes());
+            blake3::hash(target.as_os_str().as_bytes())
         } else {
             h.update(b"?");
-        }
+            continue;
+        };
+        t.items.push(crate::manifest::Item {
+            path: rel.to_string_lossy().into_owned(),
+            size: m.size(),
+            mtime: m.mtime(),
+            hash: content.to_hex().to_string(),
+        });
     }
     Ok(())
 }
@@ -212,8 +225,8 @@ fn hash_file(p: &Path) -> io::Result<blake3::Hash> {
     Ok(h.finalize())
 }
 
-/// Check that `copy` holds exactly what `orig` holds; say what differs if not.
-pub fn verify(orig: &Path, copy: &Path) -> Result<()> {
+/// Check that `copy` holds exactly what `orig` holds; say what differs if not. Returns the copy's tree.
+pub fn verify(orig: &Path, copy: &Path) -> Result<Tree> {
     let read = |p: &Path| tree(p).map_err(|e| Fail(format!("Could not read {} to check it: {e}", p.display())));
     let (a, b) = (read(orig)?, read(copy)?);
     if (a.files, a.bytes) != (b.files, b.bytes) {
@@ -225,7 +238,7 @@ pub fn verify(orig: &Path, copy: &Path) -> Result<()> {
     if a.hash != b.hash {
         return Err(Fail("The copy did not match: file contents differ.".into()));
     }
-    Ok(())
+    Ok(b)
 }
 
 /// Delete a folder Stowaway holds a verified copy of. Files a deny-delete ACL or the user lock

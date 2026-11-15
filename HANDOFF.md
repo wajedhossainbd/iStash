@@ -123,7 +123,8 @@ Changing any of these breaks existing installs or moved data:
   (Open at login covers this).
 - Not notarised: needs an Apple Developer ID. Downloads need the quarantine flag removed (the installer does it).
 - Apple Silicon only.
-- No state database or per-file manifests yet (T17), so there's no integrity re-check of moved data.
+- Moves since manifests landed can be re-checked (`manifest.rs`, Check on Offload). Still open from T17: no state
+  database, and no backfill of manifests for folders moved earlier.
 - Recipes for specific apps aren't verified one by one (T24).
 - Folders linked by hand before iStash can't be brought back by it.
 - The Speedtest server list and servers belong to Ookla; iStash uses their public endpoints, as speedtest-cli does.

@@ -6,6 +6,7 @@ pub mod drives;
 pub mod forecast;
 pub mod fsx;
 pub mod journal;
+pub mod manifest;
 pub mod metrics;
 pub mod mover;
 pub mod procs;

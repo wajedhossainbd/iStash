@@ -253,6 +253,7 @@ fn main() {
             engine::jobs,
             engine::stop_job,
             engine::eject,
+            engine::check_folder,
             engine::quit_drive_users,
             engine::set_guard,
             quick::sys_status,
