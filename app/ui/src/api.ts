@@ -160,6 +160,9 @@ export type Plan =
   | { ok: true; size: number; drive: Drive; quits: string | null; macFreeAfter: number }
   | { ok: false; title: string; reason: string };
 
+/** A moved folder re-read against its manifest. Relative paths. */
+export interface Check { checked: number; missing: string[]; changed: string[]; damaged: string[]; extra: string[] }
+
 export type ApiErrorCode = 'helper-down';
 export class ApiError extends Error {
   code: ApiErrorCode;
@@ -180,6 +183,8 @@ export interface Api {
   move(folder: string, drive: string): Promise<void>;
   planBack(folder: string): Promise<Plan>;
   bringBack(folder: string): Promise<void>;
+  /** Re-reads a moved folder on its drive and compares it with what was moved. Changes nothing. */
+  check(folder: string): Promise<Check>;
   /** Stop a running job; the engine rolls back to the original. */
   stop(folder: string): Promise<void>;
   eject(drive: string): Promise<void>;
@@ -440,6 +445,7 @@ export function createMock(scenario: Scenario = 'normal', onboarded = scenario !
     async move(id, d) { await ok(); start(id, 'move', d); },
     async planBack(id) { await ok(); return planBack(id); },
     async bringBack(id) { await ok(); start(id, 'back', folder(id).drive!); },
+    async check(id) { await ok(); return id === 'hf' ? { checked: 1204, missing: [], changed: ['hub/models--bert-base/refs/main'], damaged: [], extra: ['hub/.locks/models--bert-base'] } : { checked: 860, missing: [], changed: [], damaged: [], extra: [] }; },
     async stop(id) { await ok(); s.jobs = s.jobs.filter((j) => j.folder !== id); emit(); },
     async eject(id) {
       await ok();

@@ -6,6 +6,7 @@
 
 use crate::fsx::{self, lexists, sibling};
 use crate::journal::{Journal, Op, Step};
+use crate::manifest::{self, Manifest};
 use crate::rules::{self, Catalog, Verdict};
 use crate::scan::{disk_usage, drive_of};
 use crate::{fail, Fail, Result};
@@ -127,6 +128,7 @@ impl<'a> Mover<'a> {
         let undo_copy = |e: Fail| {
             // Close the operation only once the drive copy is really gone (a detached drive keeps it).
             if drive_connected(dest) && delete_drive_copy(dest).is_ok() {
+                let _ = std::fs::remove_file(manifest::path_for(&self.journal, &id));
                 let _ = j(Step::Undone);
                 return Err(e);
             }
@@ -137,7 +139,12 @@ impl<'a> Mover<'a> {
             Err(e) => return undo_copy(copy_error(e)),
         }
         crate::step("move:copied-unverified");
-        if let Err(e) = fsx::verify(path, dest) {
+        let items = match fsx::verify(path, dest) {
+            Ok(t) => t.items,
+            Err(e) => return undo_copy(e),
+        };
+        // Before "copied": a journaled move always has its manifest.
+        if let Err(e) = manifest::write(&self.journal, &id, &Manifest { dest: dest.into(), items }) {
             return undo_copy(e);
         }
         j(Step::Copied)?;
@@ -248,7 +255,16 @@ impl<'a> Mover<'a> {
             .map_err(|e| Fail(format!("Brought back, but the drive copy could not be deleted yet ({e}).")))?;
         crate::step("back:deleted-unjournaled");
         j(Step::Done)?;
+        self.drop_manifest(path);
         Ok(plan)
+    }
+
+    /// The move's manifest describes a drive copy that is gone once a bring-back finishes.
+    fn drop_manifest(&self, path: &Path) {
+        let moves = self.journal.latest().unwrap_or_default();
+        for e in moves.iter().filter(|e| e.op == Op::Move && e.path == path) {
+            let _ = std::fs::remove_file(manifest::path_for(&self.journal, &e.id));
+        }
     }
 
     /// Finish or undo every operation a crash interrupted. Returns what was done, one line each.

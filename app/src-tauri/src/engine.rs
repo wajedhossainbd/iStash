@@ -13,6 +13,7 @@ use std::sync::Mutex;
 use std::time::Duration;
 use stowaway_core::drives::{self, Moved};
 use stowaway_core::journal::{Journal, Op, Step};
+use stowaway_core::manifest;
 use stowaway_core::mover::Mover;
 use stowaway_core::rules::{Catalog, Verdict};
 use stowaway_core::{diskarb, fsx, procs, scan};
@@ -291,6 +292,16 @@ pub fn quit_drive_users(name: String) -> Result<(), String> {
         procs::quit_users(&cat, &m.path).map_err(|e| e.0)?;
     }
     Ok(())
+}
+
+/// Re-read a moved folder's drive copy and compare it with the manifest written when it was moved. Read only.
+#[tauri::command(async)]
+pub fn check_folder(path: String) -> Result<manifest::Report, String> {
+    let p = PathBuf::from(path);
+    if !p.is_absolute() || p.components().any(|c| c == std::path::Component::ParentDir) {
+        return Err("Not a moved folder.".into());
+    }
+    manifest::check(&Journal::for_home(&Catalog::for_user().home), &p).map_err(|e| e.0)
 }
 
 #[tauri::command]

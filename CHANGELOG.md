@@ -5,7 +5,10 @@ updates installed copies through the app itself.
 
 ## Unreleased
 
-Nothing yet.
+### Added
+- **Check a moved folder.** Every move now records each file's size, date and content hash; Check (next to Bring
+  back) and `stowaway-cli check <path>` read the drive copy again and name missing, damaged, changed and new files.
+  Changes nothing. Folders moved before this release have no record yet.
 
 ## 0.1.22 — 15 Nov 2026
 

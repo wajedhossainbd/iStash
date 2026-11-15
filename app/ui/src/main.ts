@@ -168,6 +168,7 @@ const actions: Record<string, (id: string) => unknown> = {
     const drive = target();
     ui.dialog = { type: 'move', id, drive, plan: await api.planMove(id, drive) };
   },
+  check: async (id) => { ui.dialog = { type: 'check', id, check: await api.check(id) }; },
   back: async (id) => { ui.dialog = { type: 'back', id, plan: await api.planBack(id) }; },
   eject: (id) => {
     if (s!.folders.some((i) => i.verdict === 'stowed' && i.drive === id)) ui.dialog = { type: 'eject', id };

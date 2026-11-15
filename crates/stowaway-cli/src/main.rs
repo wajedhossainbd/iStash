@@ -5,6 +5,7 @@ use std::process::ExitCode;
 use stowaway_core::drives::{self, Moved};
 use stowaway_core::forecast::forecast;
 use stowaway_core::journal::Journal;
+use stowaway_core::manifest;
 use stowaway_core::metrics::{self, Sampler, Snapshot};
 use stowaway_core::mover::{Mover, Plan};
 use stowaway_core::rules::Catalog;
@@ -16,6 +17,7 @@ const USAGE: &str = "usage: stowaway-cli <command>
   quit <path>                 quit them (apps normally, programs with SIGTERM)
   move <path> <drive> [--yes] move a folder to a drive and link it (dry run without --yes)
   bring-back <path> [--yes]   copy a moved folder back to this Mac (dry run without --yes)
+  check <path>                re-read a moved folder's drive copy and compare it with its manifest
   recover                     finish or undo moves a crash interrupted
   drives                      which drive holds which moved folders, and which apps need it
   status [--net] [--watch]    CPU, memory, swap, disk, network, top apps, memory forecast
@@ -30,6 +32,7 @@ fn main() -> ExitCode {
         ["who-uses", p] => who_uses(&cat, &abs(p)),
         ["move", p, drive, rest @ ..] => cmd_move(&cat, &abs(p), &drive_path(drive), rest.contains(&"--yes")),
         ["bring-back", p, rest @ ..] => cmd_bring_back(&cat, &abs(p), rest.contains(&"--yes")),
+        ["check", p] => cmd_check(&cat, &abs(p)),
         ["recover"] => recover(&cat),
         ["drives"] => cmd_drives(&cat),
         ["status", rest @ ..] => cmd_status(rest),
@@ -149,6 +152,23 @@ fn cmd_bring_back(cat: &Catalog, path: &Path, yes: bool) -> Result<()> {
         return Ok(());
     }
     show_plan(cat, &m.bring_back(path)?, "Brought back");
+    Ok(())
+}
+
+fn cmd_check(cat: &Catalog, path: &Path) -> Result<()> {
+    let r = manifest::check(&Journal::for_home(&cat.home), path)?;
+    for (label, list) in
+        [("missing", &r.missing), ("damaged", &r.damaged), ("changed", &r.changed), ("extra", &r.extra)]
+    {
+        for p in list {
+            println!("{label:>8}  {p}");
+        }
+    }
+    if r.intact() {
+        println!("All {} files match.", r.checked);
+    } else {
+        println!("Changed and extra files are normal if the app ran since the move; damaged ones are not.");
+    }
     Ok(())
 }
 

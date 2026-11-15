@@ -1,9 +1,9 @@
 // Screens, ported from design/prototype/screens.js. Each takes the view and returns HTML; data comes only from api.ts.
-import type { Drive, Folder, Forecast, Metrics, Plan, State } from './api';
+import type { Drive, Folder, Forecast, Metrics, Plan, State, Check } from './api';
 import { esc, gb, tb, day, clock, ago, list, icon, appIcon, button, pill, seg, capacity, sparkline, banner, empty, skeletonRows, progress, steps, toggle, forecastChart, dialog } from './ui';
 
 export type Route = 'overview' | 'offload' | 'drives' | 'memory' | 'internet' | 'clean' | 'settings' | 'onboarding' | 'popover' | 'widget';
-export type Dialog = { type: 'move' | 'back' | 'how' | 'why' | 'apfs' | 'eject' | 'quit-app' | 'clean' | 'trash' | 'desktop'; id?: string; drive?: string; plan?: Plan };
+export type Dialog = { type: 'move' | 'back' | 'check' | 'how' | 'why' | 'apfs' | 'eject' | 'quit-app' | 'clean' | 'trash' | 'desktop'; id?: string; drive?: string; plan?: Plan; check?: Check };
 export interface Ui { route: Route; dialog: Dialog | null; offloadTab: 'suggested' | 'stowed' | 'all'; onboardStep: number; onboardDrive: string | null; busy: boolean; drive: string | null; serverOpen?: boolean; serverQuery?: string; serverIndex?: number; searching?: boolean; fanManual?: boolean; fanRpm?: number; fanBusy?: boolean; temps?: boolean }
 /** s is null while the first state is loading; down when the helper can't be reached. */
 export interface View { s: State | null; m: Metrics | null; ui: Ui; down: boolean; icon: (path?: string) => string | null }
@@ -260,7 +260,8 @@ function itemRow(v: V, it: Folder) {
     verdict = held ? pill('danger', `${d.name} is missing`) + `<span>${esc(it.app)} is held until it’s back</span>`
       : pill('ok', `On ${d.name}`) + `<span>${it.since ? `Since ${day(it.since)}, checked file by file` : 'Linked by hand, before iStash'}</span>`;
     // The engine only undoes moves it made itself (its journal has them), so a hand-made link gets no button.
-    act = !it.since ? '' : button('Bring back…', 'back', { id: it.id, disabled: held, title: held ? `Connect ${d.name} first` : '', label: `Bring back ${it.app} ${it.name}` });
+    act = !it.since ? '' : button('Check', 'check', { kind: 'plain', id: it.id, disabled: held, title: held ? `Connect ${d.name} first` : 'Read every file on the drive and compare it with what was moved', label: `Check ${it.app} ${it.name}` })
+      + button('Bring back…', 'back', { id: it.id, disabled: held, title: held ? `Connect ${d.name} first` : '', label: `Bring back ${it.app} ${it.name}` });
   }
   return `<div class="table-row" role="row">${head}<div class="path" title="${esc(it.path)}">${esc(it.path)}</div><div class="size">${gb(it.size)}</div><div class="verdict">${verdict}</div><div class="act">${act}</div></div>`;
 }
@@ -747,6 +748,14 @@ export function dialogFor(v: View) {
       return dialog({ title: `Bring ${esc(it.app)} ${esc(it.name.toLowerCase())} back to this Mac?`,
         buttons: close() + button(p.quits ? `Quit ${esc(p.quits)} and bring back` : 'Bring back', 'confirm-back', { kind: 'primary', id: it.id }),
         body: `<ol>${p.quits ? `<li>Ask ${esc(p.quits)} to quit.</li>` : ''}<li>Copy ${gb(p.size)} from ${esc(p.drive.name)} to this Mac.</li><li>Check every file.</li><li>Replace the link with the folder.</li><li>Remove the copy on ${esc(p.drive.name)} last.</li></ol><p>This Mac will have <strong class="num">${gb(p.macFreeAfter)}</strong> free.</p>` });
+    }
+    case 'check': {
+      const c = d.check;
+      if (!c) return '';
+      const rows = ([['Missing', c.missing], ['Damaged', c.damaged], ['Changed since the move', c.changed], ['New since the move', c.extra]] as const).filter(([, l]) => l.length);
+      if (!rows.length) return okOnly(`${esc(it.app)} ${esc(it.name.toLowerCase())} is intact`, `All <span class="num">${c.checked}</span> files match what was moved.`);
+      return dialog({ title: `${esc(it.app)} ${esc(it.name.toLowerCase())} differs from what was moved`, buttons: button('OK', 'close', { kind: 'primary' }),
+        body: `<ul>${rows.map(([k, l]) => `<li><strong>${k}</strong> (<span class="num">${l.length}</span>): <span class="path">${esc(l.slice(0, 3).join(', '))}${l.length > 3 ? ', …' : ''}</span></li>`).join('')}</ul><p>${c.missing.length || c.damaged.length ? 'Missing or damaged files point to a drive problem. Bring the folder back while the rest is readable.' : `Changes are normal: ${esc(it.app)} has written to its data since the move.`}</p>` });
     }
     case 'how':
       return dialog({ title: `Move ${esc(it.app)}’s ${esc(it.name.toLowerCase())} with its own setting`, buttons: button('Done', 'close', { kind: 'primary' }),

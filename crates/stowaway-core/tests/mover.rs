@@ -6,6 +6,7 @@ use std::cell::Cell;
 use std::path::Path;
 use stowaway_core::fsx::{self, tree};
 use stowaway_core::journal::{Op, Step};
+use stowaway_core::manifest;
 use stowaway_core::mover::Mover;
 use stowaway_core::rules::Catalog;
 
@@ -45,12 +46,24 @@ fn move_and_bring_back_across_volumes() {
     let err = m.move_folder(&folder, &drive.mount).unwrap_err();
     assert!(err.0.contains("link already"), "{err}");
 
+    // The manifest written at move time matches a fresh read of the drive copy, and spots changes.
+    let report = manifest::check(&m.journal, &folder).unwrap();
+    assert!(report.intact() && report.checked == 6, "{report:?}");
+    std::fs::write(dest.join("models/added"), "x").unwrap();
+    let report = manifest::check(&m.journal, &folder).unwrap();
+    assert_eq!(report.extra, ["models/added"]);
+    std::fs::remove_file(dest.join("models/added")).unwrap();
+    let id = &m.journal.moved().unwrap()[0].id;
+    assert!(manifest::path_for(&m.journal, id).is_file());
+
     m.bring_back(&folder).unwrap();
     assert!(folder.is_dir() && !folder.is_symlink());
     assert_eq!(tree(&folder).unwrap(), before);
     assert_eq!(xattr(&folder.join("config.json")), "kept");
     assert!(!fsx::lexists(&drive.path("Stowaway")), "empty offload folders tidied up");
     assert!(m.journal.moved().unwrap().is_empty() && m.journal.open_ops().unwrap().is_empty());
+    assert!(!manifest::path_for(&m.journal, id).exists(), "manifest dropped with the drive copy");
+    assert!(manifest::check(&m.journal, &folder).unwrap_err().0.contains("not moved"));
 }
 
 #[test]
