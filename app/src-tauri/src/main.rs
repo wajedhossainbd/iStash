@@ -78,6 +78,10 @@ fn volumes() -> Vec<serde_json::Value> {
             if b("Internal") || s("MountPoint") == "/" {
                 return None;
             }
+            // An opened installer (.dmg) is a read-only disk image, not a drive: iStash's own DMG showed up as one.
+            if s("BusProtocol") == "Disk Image" && !b("WritableVolume") {
+                return None;
+            }
             // APFS reports FreeSpace 0 and puts the real figure on the container.
             let free = if n("APFSContainerFree") > 0 { n("APFSContainerFree") } else { n("FreeSpace") };
             Some(serde_json::json!({

@@ -5,7 +5,8 @@ updates installed copies through the app itself.
 
 ## Unreleased
 
-Nothing yet.
+### Fixed
+- An open installer disk image (such as iStash.dmg) no longer shows up as a drive.
 
 ## 0.1.21 — 15 Nov 2026
 
