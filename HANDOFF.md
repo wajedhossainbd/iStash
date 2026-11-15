@@ -16,8 +16,20 @@ identifier still use the old name on purpose; see "Names that must not change" b
 | Repository | [`wajedhossainbd/iStash`](https://github.com/wajedhossainbd/iStash), public, GPL 3.0. `main` is protected against force-pushes and deletion (owner included); normal pushes are allowed. |
 | Owner's Mac | iStash 0.1.27 in `/Applications/iStash.app`, fan helper installed, Open at login on. 28 folders live on "Mac 1TB SSD" and "Mac 500 SSD": 5 moved by iStash, the rest linked by hand before it existed. |
 
-Work branch: `claude/determined-cerf-4bfe99` (worktree `.claude/worktrees/core-engine-96be1d`) is level with `main`.
-Pull request 2 (menu-bar panel) is merged.
+Branches: only `main`. Pull requests 1–4 are merged; 5 was closed as a duplicate of Record now (0.1.27). Old
+session worktrees under `.claude/worktrees/` hold nothing unmerged and can be removed. Start new work on a branch from
+`main`.
+
+## Next
+
+In this order, unless the owner says otherwise:
+1. **T24, recipe verification** (`tasks/todo.md`): move, launch, use and bring back each listed app's data on the
+   owner's Mac, and write `docs/recipes.md` with the evidence. Needs the owner present: move a real folder only when
+   the owner names it.
+2. **Checkpoint B**: the owner uses the app for a week; collect what breaks.
+3. **T18, login agent**: ask the owner first whether it is still wanted. The app now runs the engine itself, and
+   Open at login covers drive warnings and schedules; the agent would add them while the app is quit.
+4. **Phase 3** (`tasks/plan.md`): D4 design, then T26 Timeline, which starts with the `state.db` deferred from T17.
 
 ## Build, run, release
 
@@ -118,7 +130,6 @@ Changing any of these breaks existing installs or moved data:
   Remove it with `sudo rm /Library/PrivilegedHelperTools/bd.wajed.stowaway.fan`.
 - Local (ad-hoc signed) builds don't share privacy grants with releases. If the camera is refused without a prompt,
   `tccutil reset Camera bd.wajed.stowaway` clears it (an app can't clear its own record).
-
 - No login agent (T18): everything runs inside the app, so drive warnings and schedules need iStash running
   (Open at login covers this).
 - Not notarised: needs an Apple Developer ID. Downloads need the quarantine flag removed (the installer does it).

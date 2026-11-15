@@ -23,9 +23,9 @@ Sizes: S = 1–2 files, M = 3–5 files. Every task must meet the quality bar in
 
 ## Phase 2 — v0.1 "Offload" (free core as an app)
 
-Status 14 Nov 2026: shipped as iStash 0.1.12. T16 and T19–T23 done, T25 mostly done (DMG, signed updates, install
-script; not notarised). T17, T18 and T24 are open: the app hosts the engine itself instead of a login agent. Details:
-`HANDOFF.md`, `CHANGELOG.md`.
+Status 15 Nov 2026: shipped, latest iStash 0.1.27. T16 and T19–T23 done; T17 done except `state.db` (deferred to
+T26); T25 mostly done (DMG, signed updates, install script; not notarised). T18 and T24 are open; the app hosts the
+engine itself instead of a login agent. What to do next: `HANDOFF.md` → Next.
 
 - [x] **T16: Mover hardening** — fault-injection tests: drive detached mid-copy, target full, permission denied, source
   changed during copy, sparse files stay sparse (Docker.raw-style), hard links, xattrs/ACLs, sockets/FIFOs skipped with
