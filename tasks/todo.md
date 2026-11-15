@@ -38,7 +38,7 @@ script; not notarised). T17, T18 and T24 are open: the app hosts the engine itse
     a deny-delete ACL or `uchg` lock stopped the original from being deleted; one stuck op aborted all recovery.
   - Known limit: folders with paths longer than 1,024 bytes are refused (copyfile stops at PATH_MAX), cleanly.
   - Known gap: a write between the verify and the switch is caught only by the second "in use" check.
-- [ ] **T17: State store + manifests** (manifests and re-check done; `state.db` and backfill open) — SQLite `state.db`; write a manifest (path, size, mtime, BLAKE3) for every
+- [ ] **T17: State store + manifests** (manifests, re-check and backfill done: Record now / `stowaway-cli record`, 0.1.27; `state.db` deferred to T26, nothing reads it before then) — SQLite `state.db`; write a manifest (path, size, mtime, BLAKE3) for every
   stowed folder at move time; backfill for folders already linked. *Accept:* manifest matches a fresh hash in tests;
   migration test. *Size:* M. *Deps:* T16.
 - [ ] **T18: Agent** — `crates/stowaway-agent`: launchd login agent with its own bundle id, Unix-socket API with token,

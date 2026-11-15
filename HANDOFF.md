@@ -123,8 +123,9 @@ Changing any of these breaks existing installs or moved data:
   (Open at login covers this).
 - Not notarised: needs an Apple Developer ID. Downloads need the quarantine flag removed (the installer does it).
 - Apple Silicon only.
-- Moves since manifests landed can be re-checked (`manifest.rs`, Check on Offload). Still open from T17: no state
-  database, and no backfill of manifests for folders moved earlier.
+- Every moved folder can be re-checked (`manifest.rs`, Check on Offload). Folders moved before 0.1.25 get a record
+  with Record now (or `stowaway-cli record <path>`), taken from the drive copy as it is then: damage from before
+  that can't be seen. Still open from T17: no `state.db`; deferred to T26 (Timeline), its first reader.
 - Recipes for specific apps aren't verified one by one (T24).
 - Folders linked by hand before iStash can't be brought back by it.
 - The Speedtest server list and servers belong to Ookla; iStash uses their public endpoints, as speedtest-cli does.
