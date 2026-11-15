@@ -5,7 +5,13 @@ updates installed copies through the app itself.
 
 ## Unreleased
 
-Nothing yet.
+### Added
+- **Apps using the most CPU** on the Memory page, busiest first, with Quit for apps; the two busiest also show on the
+  menu-bar panel's CPU tile. macOS's own busy processes, such as WindowServer, are included.
+
+### Fixed
+- CPU per app is shown as Activity Monitor shows it: 100% is one full core. It used to be a share of the whole Mac,
+  so an app using one core showed about 10%.
 
 ## 0.1.20 — 15 Nov 2026
 

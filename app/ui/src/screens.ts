@@ -422,7 +422,7 @@ export function drives(v: View) {
 
 // ---------- Memory ----------
 export function memory(v: View) {
-  const h = header('Memory', 'Pressure, swap, and what’s using it.');
+  const h = header('Memory', 'Pressure, swap, and which apps use memory and CPU.');
   if (v.down) return h + `<div class="page-body">${helperDown()}</div>`;
   if (!v.s) return h + loadingPage();
   const s = v.s, max = Math.max(...s.memApps.map((a) => a.mem));
@@ -431,7 +431,19 @@ export function memory(v: View) {
     <section class="table" role="table" aria-label="Apps using memory"><div class="table-head" role="row" ${cols}><span></span><span>App</span><span>Memory</span><span style="text-align:right">Size</span><span></span></div>
     ${s.memApps.map((a) => `<div class="table-row" role="row" ${cols}>${appIcon(v.icon(a.appPath), a.app)}<div class="name"><strong>${esc(a.app)}${s.focus && s.focus === a.appPath ? ' ' + pill('accent', 'In focus') : ''}</strong><span>${esc(a.detail)}</span></div>
       ${capacity([{ value: a.mem, color: 'var(--accent-fill)', label: gb(a.mem) }], max)}<div class="size">${gb(a.mem)}</div><div class="act">${a.appPath ? (s.focus === a.appPath ? button('Stop focus', 'focus', { id: '', kind: 'primary', label: `Stop focusing on ${a.app}` }) : button('Focus', 'focus', { id: a.appPath, label: `Focus on ${a.app}` })) + button('Quit…', 'quit-app', { id: a.id, label: `Quit ${a.app}` }) : ''}</div></div>`).join('')}</section>
+    ${cpuTable(v)}
     <p class="tertiary" style="font:var(--type-caption)">${s.focus ? `Focus is on. Other apps run in the background until you stop it.` : `Focus gives one app priority. macOS can’t cap an app’s memory.`}</p></div>`;
+}
+
+// Apps using the most CPU, busiest first. 100% is one full core, as in Activity Monitor.
+function cpuTable(v: View) {
+  const list = v.s?.cpuApps ?? [];
+  if (!list.length) return '';
+  const cores = navigator.hardwareConcurrency || 8, max = Math.max(100, ...list.map((a) => a.cpu ?? 0));
+  const cols = 'style="grid-template-columns:32px minmax(0,1.3fr) minmax(0,1.4fr) 84px 190px"';
+  return `<section class="table" role="table" aria-label="Apps using CPU"><div class="table-head" role="row" ${cols}><span></span><span>App</span><span>CPU</span><span style="text-align:right">Use</span><span></span></div>
+    ${list.map((a) => { const c = Math.round(a.cpu ?? 0); return `<div class="table-row" role="row" ${cols}>${appIcon(v.icon(a.appPath), a.app)}<div class="name"><strong>${esc(a.app)}</strong><span>${c >= 100 ? `${(c / 100).toFixed(1)} of ${cores} cores` : `${gb(a.mem)} memory`}</span></div>
+      ${capacity([{ value: c, color: c >= 150 ? 'var(--danger-fill)' : 'var(--accent-fill)', label: `${c}%` }], max)}<div class="size">${c}%</div><div class="act">${a.appPath ? button('Quit…', 'quit-app', { id: a.id, label: `Quit ${a.app}` }) : ''}</div></div>`; }).join('')}</section>`;
 }
 
 // ---------- Clean ----------
@@ -643,7 +655,8 @@ export function popover(v: View) {
   const kv = (k: string, val: string, dot = '') => `<span>${dot ? `<i style="background:${dot}"></i>` : ''}${k} <b>${val}</b></span>`;
 
   const cpuTile = tile('CPU', `${cpu}%`, popSpark(m?.cpu ?? [], 100, tone(cpu, 70, 90)) +
-    line(kv('User', `${sys?.user ?? 0}%`), kv('Sys', `${sys?.system ?? 0}%`), kv('Idle', `${sys?.idle ?? 0}%`)));
+    line(kv('User', `${sys?.user ?? 0}%`), kv('Sys', `${sys?.system ?? 0}%`), kv('Idle', `${sys?.idle ?? 0}%`)) +
+    (s.cpuApps ?? []).slice(0, 2).map((a) => `<div class="pop-line pop-top"><span class="pop-dim">${esc(a.app)}</span><b>${Math.round(a.cpu ?? 0)}%</b></div>`).join(''));
   const freed = s.clean.memFreed;
   const memTile = tile('Memory', m ? gb(m.memUsed) : '–', line(kv('of', m ? gb(m.memTotal) : '–'), m?.swap ? kv('swap', gb(m.swap)) : '') +
     popBar(pressure, tone(pressure, 60, 80), `Memory pressure ${pressure}%`) +
@@ -754,7 +767,7 @@ export function dialogFor(v: View) {
         body: `<ul>${picked.map((i) => `<li>${esc(i.name)}: ${gb(i.size)}</li>`).join('')}</ul><p>They are deleted for good, not moved to the Trash. Apps rebuild what they need, so the first launch afterwards can be slower.</p>` });
     }
     case 'quit-app': {
-      const a = s.memApps.find((x) => x.id === d.id);
+      const a = [...s.memApps, ...(s.cpuApps ?? [])].find((x) => x.id === d.id);
       if (!a) return '';
       return dialog({ title: `Quit ${esc(a.app)}?`, buttons: close() + button('Quit', 'confirm-quit', { kind: 'primary', id: a.id }),
         body: `<p>iStash asks ${esc(a.app)} to quit normally, so it can save its work. ${esc(a.detail)}. This frees about ${gb(a.mem)}.</p>` });

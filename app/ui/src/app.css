@@ -761,3 +761,7 @@ h1:focus { outline: none; } /* focused on navigation so VoiceOver announces the 
 .form section > .perm + .perm { margin-top: 8px; }
 .edge-label svg { width: 12px; height: 12px; flex: none; opacity: 0.85; }
 .edge-drive.is-missing .edge-label svg { color: #FF6B6B; }
+/* Panel CPU tile: the busiest apps under the user/system/idle line. */
+.pop-top { justify-content: space-between; }
+.pop-top .pop-dim { min-width: 0; white-space: nowrap; }
+.pop-top b { flex: none; color: var(--pop-ink); font-weight: 600; font-variant-numeric: tabular-nums; }

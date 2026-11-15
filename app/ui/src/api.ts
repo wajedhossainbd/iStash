@@ -90,6 +90,7 @@ export interface MemApp {
   app: string;
   appPath?: string;
   mem: number;
+  cpu?: number; // percent of one core, as Activity Monitor shows it
   detail: string;
 }
 
@@ -132,6 +133,7 @@ export interface State {
   /** null while the first five minutes of samples are collected. */
   forecast: Forecast | null;
   memApps: MemApp[];
+  cpuApps?: MemApp[]; // apps using the most CPU, busiest first
   settings: Settings;
   permissions: Permissions;
   scan: { running: boolean; checked: number };
@@ -259,6 +261,7 @@ export interface Reading {
   memTotal: number; memUsed: number; compressed: number; freePct: number; swap: number; diskFree: number; diskTotal?: number; swapLimit: number;
   history: number[]; level: 'ok' | 'watch' | 'warn' | 'critical'; minutesLeft: number | null; reason: string;
   apps: { name: string; mem: number; cpu: number; path: string | null }[];
+  cpuApps?: Reading['apps'];
 }
 
 /** The core's forecast in the UI's shape; null until there is at least a minute of swap history to draw. */
@@ -278,8 +281,8 @@ export function toForecast(r: Reading, now = Date.now()): Forecast | null {
   };
 }
 
-export const toMemApps = (r: Reading): MemApp[] => r.apps.map((a) => ({
-  id: a.name, app: a.name, ...(a.path && { appPath: a.path }), mem: a.mem, detail: `${Math.round(a.cpu)}% CPU`,
+export const toMemApps = (r: Reading, list = r.apps): MemApp[] => list.map((a) => ({
+  id: a.name, app: a.name, ...(a.path && { appPath: a.path }), mem: a.mem, cpu: a.cpu, detail: `${Math.round(a.cpu)}% CPU`,
 }));
 
 // ---------------------------------------------------------------------------------------------------------------
@@ -327,6 +330,8 @@ export function mockState(now = Date.now()): State {
     version: '0.1.0',
     mac: { model: 'MacBook Pro', total: 494 * GB, free: 31.2 * GB, system: 104 * GB, apps: 153 * GB, reserve: 10 * GB },
     drives, folders, jobs: [], memApps,
+    cpuApps: [['Claude', '/Applications/Claude.app', 1.6, 112], ['Google Chrome', '/Applications/Google Chrome.app', 3.1, 64], ['Docker Desktop', '/Applications/Docker.app', 6.2, 38], ['python', '', 0.4, 21], ['WindowServer', '', 0.1, 14]]
+      .map(([app, appPath, gbs, cpu]) => ({ id: app as string, app: app as string, ...(appPath && { appPath: appPath as string }), mem: (gbs as number) * GB, cpu: cpu as number, detail: '' })),
     forecast: strained(now),
     settings: { onboarded: false, theme: 'dark', login: true, menubar: true, dryRun: true, warnAt: 30, ejectGuard: true, updates: true, defaultDrive: null, cleanEvery: 'off', cleanAge: 7, widget: 'off', widgetSide: 'right', island: true, islandGlow: 'amber', islandSecs: 5, cleanKinds: ['caches', 'logs', 'temp'] },
     permissions: { volumes: false, notify: false },
@@ -444,7 +449,7 @@ export function createMock(scenario: Scenario = 'normal', onboarded = scenario !
     },
     async quitApp(appId) {
       await ok();
-      s.memApps = s.memApps.filter((a) => a.id !== appId);
+      s.memApps = s.memApps.filter((a) => a.id !== appId); s.cpuApps = s.cpuApps?.filter((a) => a.id !== appId);
       s.folders.forEach((x) => { if (x.appPath && s.memApps.every((a) => a.appPath !== x.appPath)) x.running = false; });
       if (s.forecast?.suggest?.appId === appId) s.forecast = fine(s.forecast);
       emit();

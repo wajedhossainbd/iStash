@@ -165,6 +165,7 @@ export function createReal(invoke: Invoke): Api {
     if (due && !warned && (s.settings.island || s.permissions.notify)) invoke('notify', { kind: 'memory', title: `Memory may run out in about ${left} minutes`, body: s.forecast?.suggest ? `Quitting ${s.forecast.suggest.app} frees the most.` : 'Open iStash to see what is using memory.' }).catch(() => {});
     warned = due;
     s.memApps = toMemApps(r);
+    s.cpuApps = toMemApps(r, r.cpuApps ?? []);
     s.mac.free = r.diskFree || s.mac.free;
     s.mac.total = r.diskTotal || s.mac.total;
     emit();
@@ -241,7 +242,7 @@ export function createReal(invoke: Invoke): Api {
       await pollDrives();
     },
     async quitApp(appId) {
-      const a = s.memApps.find((x) => x.id === appId);
+      const a = [...s.memApps, ...(s.cpuApps ?? [])].find((x) => x.id === appId);
       if (!a?.appPath) throw new Error('iStash can only quit apps, not background programs. Nothing was changed.');
       await invoke('quit_app', { path: a.appPath });
     },

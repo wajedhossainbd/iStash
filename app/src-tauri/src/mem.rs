@@ -20,7 +20,8 @@ struct Live {
     samples: Vec<Sample>, // every reading of the last hour, for the forecast and the swap chart
     cpu: Vec<f64>,
     net_in: Vec<f64>,
-    used: (u64, u64), // memory in use, compressed
+    used: (u64, u64),                // memory in use, compressed
+    system: Vec<(String, f64, u64)>, // busy processes of other users (macOS's own), which the sampler can't read
 }
 
 static LIVE: Mutex<Option<Live>> = Mutex::new(None);
@@ -31,6 +32,7 @@ pub fn start() {
         loop {
             let snap = sampler.sample();
             let used = vm_used();
+            let system = system_busy();
             if let Ok(mut g) = LIVE.lock() {
                 let l = g.get_or_insert_with(Live::default);
                 l.samples.push(snap.forecast_sample());
@@ -42,11 +44,37 @@ pub fn start() {
                     }
                 }
                 l.used = used;
+                l.system = system;
                 l.last = Some(snap);
             }
             std::thread::sleep(EVERY);
         }
     });
+}
+
+/// Processes owned by other users (WindowServer, kernel_task, daemons) using at least 5% of a core. Reading another
+/// user's process needs root, but `ps` reports its CPU and memory to anyone.
+fn system_busy() -> Vec<(String, f64, u64)> {
+    let out = Command::new("/bin/ps").args(["-Aceo", "uid=,pcpu=,rss=,comm="]).output();
+    out.map(|o| parse_ps_busy(&String::from_utf8_lossy(&o.stdout), unsafe { libc::getuid() })).unwrap_or_default()
+}
+
+fn parse_ps_busy(text: &str, me: u32) -> Vec<(String, f64, u64)> {
+    let mut by_name: std::collections::HashMap<String, (f64, u64)> = Default::default();
+    for line in text.lines() {
+        let mut f = line.split_whitespace();
+        let (Some(uid), Some(cpu), Some(rss)) = (f.next(), f.next(), f.next()) else { continue };
+        let name = f.collect::<Vec<_>>().join(" ");
+        let (Ok(uid), Ok(cpu), Ok(rss)) = (uid.parse::<u32>(), cpu.parse::<f64>(), rss.parse::<u64>()) else {
+            continue;
+        };
+        if uid != me && !name.is_empty() {
+            let e = by_name.entry(name).or_default();
+            e.0 += cpu;
+            e.1 += rss * 1024;
+        }
+    }
+    by_name.into_iter().filter(|(_, (c, _))| *c >= 5.0).map(|(n, (c, r))| (n, c, r)).collect()
 }
 
 fn sysctl<T: Copy>(name: &CStr) -> Option<T> {
@@ -133,6 +161,13 @@ pub fn memory() -> Value {
     history.reverse();
     let mut apps: Vec<_> = s.apps.iter().filter(|a| a.rss > 50_000_000).collect();
     apps.sort_by(|a, b| b.rss.cmp(&a.rss));
+    // CPU as Activity Monitor shows it: 100% is one full core. The sampler gives a share of the whole Mac.
+    let ncpu = std::thread::available_parallelism().map_or(1, |n| n.get()) as f64;
+    let mut busy: Vec<(String, f64, u64)> =
+        s.apps.iter().map(|a| (a.name.clone(), a.cpu_pct * ncpu, a.rss)).filter(|a| a.1 >= 1.0).collect();
+    busy.extend(l.system.iter().cloned());
+    busy.sort_by(|a, b| b.1.total_cmp(&a.1));
+    let row = |a: &&stowaway_core::metrics::AppUse| json!({ "name": a.name, "mem": a.rss, "cpu": a.cpu_pct * ncpu, "path": bundle(&a.name) });
     json!({
         "t": s.t, "cpu": l.cpu, "cores": cores(), "netIn": l.net_in, "netOut": s.net_out_bps,
         "memTotal": s.mem_total, "memUsed": l.used.0, "compressed": l.used.1, "freePct": s.mem_free_pct,
@@ -140,7 +175,8 @@ pub fn memory() -> Value {
         "history": history,
         "level": match f.level { Level::Ok => "ok", Level::Watch => "watch", Level::Warn => "warn", Level::Critical => "critical" },
         "minutesLeft": f.minutes_left, "reason": f.reason,
-        "apps": apps.iter().take(8).map(|a| json!({ "name": a.name, "mem": a.rss, "cpu": a.cpu_pct, "path": bundle(&a.name) })).collect::<Vec<_>>(),
+        "apps": apps.iter().take(8).map(row).collect::<Vec<_>>(),
+        "cpuApps": busy.iter().take(8).map(|(n, c, r)| json!({ "name": n, "mem": r, "cpu": (c * 10.0).round() / 10.0, "path": bundle(n) })).collect::<Vec<_>>(),
     })
 }
 
@@ -160,6 +196,16 @@ pub fn quit_app(path: String) -> Result<(), String> {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn ps_busy_keeps_other_users_busy_processes() {
+        let t = "  88   42.0  120000 WindowServer\n 501  110.0  360000 python\n   0    0.3    4000 launchd\n   0    6.0    1000 kernel_task\n   0    2.0    1000 kernel_task\n";
+        let mut v = super::parse_ps_busy(t, 501);
+        v.sort_by(|a, b| b.1.total_cmp(&a.1));
+        assert_eq!(v.iter().map(|x| x.0.as_str()).collect::<Vec<_>>(), ["WindowServer", "kernel_task"]);
+        assert_eq!(v[0].2, 120000 * 1024);
+        assert_eq!(v[1].1, 8.0);
+    }
+
     #[test]
     fn reads_this_mac() {
         super::start();
