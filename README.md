@@ -102,6 +102,8 @@ iStash does the move safely, keeps track of every link, and tells you when a dri
 **Requirements:** macOS 14 Sonoma or newer, on a Mac with Apple Silicon (M1 or later).
 The download is about 3 MB and the installed app about 6 MB.
 
+Step by step, with pictures, first launch, troubleshooting and uninstalling: **[the install guide](docs/INSTALL.md)**.
+
 ### One command (recommended)
 
 ```sh
