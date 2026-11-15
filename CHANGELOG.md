@@ -5,6 +5,11 @@ updates installed copies through the app itself.
 
 ## Unreleased
 
+### Added
+- Xcode (Derived Data, Archives), Docker, Ollama, Hugging Face and Gradle: Offload now shows how to move their data
+  with the app's own storage setting, which survives app updates and needs no link. Moving with a link stays
+  available in the same sheet. iStash shows the steps and changes no other app's settings.
+
 ### Fixed
 - An open installer disk image (such as iStash.dmg) no longer shows up as a drive.
 

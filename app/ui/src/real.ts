@@ -5,7 +5,7 @@ import { ApiError, toDrives, toForecast, toMemApps } from './api.ts';
 import type { Api, CleanItem, Drive, DriveIo, NetInfo, SpeedLive, SpeedServer, SpeedTest, Folder, Job, Plan, Reading, Settings, State, Verdict, Volume } from './api.ts';
 
 type Invoke = <T>(cmd: string, args?: Record<string, unknown>) => Promise<T>;
-interface Scanned { path: string; show: string; app: string; appPath: string | null; verdict: Verdict; note: string; size: number; drive: string | null; since: number | null; running: boolean; users: string[] }
+interface Scanned { path: string; show: string; app: string; appPath: string | null; verdict: Verdict; note: string; how?: string[]; size: number; drive: string | null; since: number | null; running: boolean; users: string[] }
 interface ScanResult { folders: Scanned[]; checked: number; mac: { total: number; free: number }; journal: string }
 interface EnginePlan { ok: boolean; size: number; quits: string[]; reason: string }
 interface EngineJobs { running: { path: string; kind: Job['kind']; drive: string; done: number; total: number; step: Job['step'] }[]; finished: { path: string; error: string | null }[] }
@@ -18,7 +18,7 @@ const write = (key: string, v: unknown) => { try { localStorage.setItem(key, JSO
 export function toFolder(f: Scanned): Folder {
   return {
     id: f.path, name: f.path.split('/').pop()!, app: f.app, ...(f.appPath && { appPath: f.appPath }), path: f.show, size: f.size, verdict: f.verdict,
-    reason: f.verdict === 'stowed' ? '' : f.note, ...(f.verdict === 'refused' && { why: f.note }), ...(f.verdict === 'setting' && { how: [f.note] }),
+    reason: f.verdict === 'stowed' ? '' : f.note, ...(f.verdict === 'refused' && { why: f.note }), ...(f.how?.length ? { how: f.how } : f.verdict === 'setting' && { how: [f.note] }),
     ...(f.drive && { drive: f.drive }), ...(f.since && { since: f.since }), running: f.running,
   };
 }
