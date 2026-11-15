@@ -5,7 +5,10 @@ updates installed copies through the app itself.
 
 ## Unreleased
 
-Nothing yet.
+### Added
+- **Record now** for folders moved before 0.1.25. Check used to stop with "No manifest"; it now says there's no record
+  yet and offers to make one from the drive copy as it is today, so later checks have something to compare with.
+  Nothing on the drive changes, and an existing record is never replaced. Also `stowaway-cli record <path>`.
 
 ## 0.1.25 — 15 Nov 2026
 

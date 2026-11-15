@@ -3,7 +3,7 @@ import type { Drive, Folder, Forecast, Metrics, Plan, State, Check } from './api
 import { esc, gb, tb, day, clock, ago, list, icon, appIcon, button, pill, seg, capacity, sparkline, banner, empty, skeletonRows, progress, steps, toggle, forecastChart, dialog } from './ui';
 
 export type Route = 'overview' | 'offload' | 'drives' | 'memory' | 'internet' | 'clean' | 'settings' | 'onboarding' | 'popover' | 'widget';
-export type Dialog = { type: 'move' | 'back' | 'check' | 'how' | 'why' | 'apfs' | 'eject' | 'quit-app' | 'clean' | 'trash' | 'desktop'; id?: string; drive?: string; plan?: Plan; check?: Check };
+export type Dialog = { type: 'move' | 'back' | 'check' | 'how' | 'why' | 'apfs' | 'eject' | 'quit-app' | 'clean' | 'trash' | 'desktop'; id?: string; drive?: string; plan?: Plan; check?: Check; justRecorded?: boolean };
 export interface Ui { route: Route; dialog: Dialog | null; offloadTab: 'suggested' | 'stowed' | 'all'; onboardStep: number; onboardDrive: string | null; busy: boolean; drive: string | null; serverOpen?: boolean; serverQuery?: string; serverIndex?: number; searching?: boolean; fanManual?: boolean; fanRpm?: number; fanBusy?: boolean; temps?: boolean }
 /** s is null while the first state is loading; down when the helper can't be reached. */
 export interface View { s: State | null; m: Metrics | null; ui: Ui; down: boolean; icon: (path?: string) => string | null }
@@ -755,6 +755,10 @@ export function dialogFor(v: View) {
     case 'check': {
       const c = d.check;
       if (!c) return '';
+      const what = `${esc(it.app)} ${esc(it.name.toLowerCase())}`;
+      if (!c.recorded) return dialog({ title: `No record of ${what} yet`, buttons: button('Not now', 'close') + button('Record now', 'record', { kind: 'primary', id: it.id }),
+        body: `<p>iStash moved this folder before it kept a record of every file, so there is nothing to compare with yet.</p><p>Record now reads the copy on the drive as it is today and keeps that as the record. Later checks compare with it. Nothing on the drive changes.</p>` });
+      if (d.justRecorded) return okOnly(`Recorded ${what}`, `iStash read <span class="num">${c.checked}</span> files on the drive. Check compares with this record from now on.`);
       const rows = ([['Missing', c.missing], ['Damaged', c.damaged], ['Changed since the move', c.changed], ['New since the move', c.extra]] as const).filter(([, l]) => l.length);
       if (!rows.length) return okOnly(`${esc(it.app)} ${esc(it.name.toLowerCase())} is intact`, `All <span class="num">${c.checked}</span> files match what was moved.`);
       return dialog({ title: `${esc(it.app)} ${esc(it.name.toLowerCase())} differs from what was moved`, buttons: button('OK', 'close', { kind: 'primary' }),

@@ -30,6 +30,8 @@ pub struct Manifest {
 /// which apps do; `damaged` ones differ but kept their modified time, which apps don't.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize)]
 pub struct Report {
+    /// False when the folder has no record yet (moved before iStash kept them); nothing was compared.
+    pub recorded: bool,
     pub checked: usize,
     pub missing: Vec<String>,
     pub changed: Vec<String>,
@@ -67,7 +69,7 @@ pub fn write(journal: &Journal, id: &str, m: &Manifest) -> Result<()> {
 pub fn compare(m: &Manifest, dir: &Path) -> Result<Report> {
     let now = fsx::tree(dir).map_err(|e| Fail(format!("Could not read {} to check it: {e}", dir.display())))?;
     let mut was: HashMap<&str, &Item> = m.items.iter().map(|i| (i.path.as_str(), i)).collect();
-    let mut r = Report { checked: m.items.len(), ..Report::default() };
+    let mut r = Report { recorded: true, checked: m.items.len(), ..Report::default() };
     for i in &now.items {
         match was.remove(i.path.as_str()) {
             None => r.extra.push(i.path.clone()),
@@ -81,22 +83,47 @@ pub fn compare(m: &Manifest, dir: &Path) -> Result<Report> {
     Ok(r)
 }
 
-/// Re-check a moved folder (the link under home) against the manifest written when it was moved.
+fn moved_entry(journal: &Journal, path: &Path) -> Result<crate::journal::Entry> {
+    match journal.moved()?.into_iter().find(|e| e.path == path) {
+        Some(e) => Ok(e),
+        None => fail(format!("{} was not moved by iStash.", path.display())),
+    }
+}
+
+/// Re-check a moved folder (the link under home) against the manifest written when it was moved. A folder moved
+/// before manifests existed reports `recorded: false`.
 pub fn check(journal: &Journal, path: &Path) -> Result<Report> {
-    let Some(e) = journal.moved()?.into_iter().find(|e| e.path == path) else {
-        return fail(format!("{} was not moved by iStash.", path.display()));
-    };
+    let e = moved_entry(journal, path)?;
     let m: Manifest = match std::fs::read(path_for(journal, &e.id)) {
-        Ok(b) => serde_json::from_slice(&b).map_err(|err| Fail(format!("The manifest is unreadable: {err}")))?,
-        Err(err) if err.kind() == std::io::ErrorKind::NotFound => {
-            return fail("No manifest: this folder was moved before iStash kept them.")
+        Ok(b) => {
+            serde_json::from_slice(&b).map_err(|err| Fail(format!("The record of this move is unreadable: {err}")))?
         }
+        Err(err) if err.kind() == std::io::ErrorKind::NotFound => return Ok(Report::default()),
         Err(err) => return Err(err.into()),
     };
     if !m.dest.is_dir() {
         return fail(format!("Connect the drive that holds {} first.", m.dest.display()));
     }
     compare(&m, &m.dest)
+}
+
+/// Make a record for a folder moved before manifests existed, from its drive copy as it is now, so later checks
+/// have something to compare with. Reads the drive copy; writes only the record. Never replaces an existing record.
+pub fn record(journal: &Journal, path: &Path) -> Result<Report> {
+    let e = moved_entry(journal, path)?;
+    let p = path_for(journal, &e.id);
+    if p.exists() {
+        return fail("This folder already has a record. Check compares with it.");
+    }
+    if !e.dest.is_dir() {
+        return fail(format!("Connect the drive that holds {} first.", e.dest.display()));
+    }
+    let items = fsx::tree(&e.dest)
+        .map_err(|err| Fail(format!("Could not read {} to record it: {err}", e.dest.display())))?
+        .items;
+    let r = Report { recorded: true, checked: items.len(), ..Report::default() };
+    write(journal, &e.id, &Manifest { dest: e.dest, items })?;
+    Ok(r)
 }
 
 #[cfg(test)]
@@ -136,6 +163,26 @@ mod tests {
         assert_eq!(r.checked, 5);
         assert_eq!((r.missing, r.extra), (vec!["b".to_string()], vec!["new".to_string()]));
         assert_eq!((r.damaged, r.changed), (vec!["sub/c".to_string()], vec!["sub/d".to_string()]));
+        fs::remove_dir_all(d).unwrap();
+    }
+
+    #[test]
+    fn older_moves_have_no_record_until_recorded() {
+        use crate::journal::{Op, Step};
+        let d = std::env::temp_dir().join(format!("stowaway-record-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&d);
+        let (home, dest) = (d.join("home/data"), d.join("drive/data"));
+        fs::create_dir_all(&dest).unwrap();
+        fs::write(dest.join("a"), "a").unwrap();
+        let j = Journal { path: d.join("state/journal.jsonl") };
+        j.append("old", Op::Move, Step::Done, &home, &dest).unwrap();
+
+        let r = check(&j, &home).unwrap();
+        assert!(!r.recorded && r.checked == 0, "no record yet, nothing compared");
+        assert_eq!(record(&j, &home).unwrap().checked, 1);
+        assert!(record(&j, &home).is_err(), "an existing record is never replaced");
+        let r = check(&j, &home).unwrap();
+        assert!(r.recorded && r.intact());
         fs::remove_dir_all(d).unwrap();
     }
 }

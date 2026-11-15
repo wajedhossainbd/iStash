@@ -304,6 +304,16 @@ pub fn check_folder(path: String) -> Result<manifest::Report, String> {
     manifest::check(&Journal::for_home(&Catalog::for_user().home), &p).map_err(|e| e.0)
 }
 
+/// Make a record for a folder moved before records existed, from its drive copy as it is now. Reads the drive copy.
+#[tauri::command(async)]
+pub fn record_folder(path: String) -> Result<manifest::Report, String> {
+    let p = PathBuf::from(path);
+    if !p.is_absolute() || p.components().any(|c| c == std::path::Component::ParentDir) {
+        return Err("Not a moved folder.".into());
+    }
+    manifest::record(&Journal::for_home(&Catalog::for_user().home), &p).map_err(|e| e.0)
+}
+
 #[tauri::command]
 pub fn set_guard(on: bool) {
     GUARD_ON.store(on, Ordering::Relaxed);

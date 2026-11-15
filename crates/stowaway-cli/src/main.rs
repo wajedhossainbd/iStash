@@ -18,6 +18,7 @@ const USAGE: &str = "usage: stowaway-cli <command>
   move <path> <drive> [--yes] move a folder to a drive and link it (dry run without --yes)
   bring-back <path> [--yes]   copy a moved folder back to this Mac (dry run without --yes)
   check <path>                re-read a moved folder's drive copy and compare it with its manifest
+  record <path>               make a manifest for a folder moved before iStash kept them (reads the drive copy)
   recover                     finish or undo moves a crash interrupted
   drives                      which drive holds which moved folders, and which apps need it
   status [--net] [--watch]    CPU, memory, swap, disk, network, top apps, memory forecast
@@ -33,6 +34,9 @@ fn main() -> ExitCode {
         ["move", p, drive, rest @ ..] => cmd_move(&cat, &abs(p), &drive_path(drive), rest.contains(&"--yes")),
         ["bring-back", p, rest @ ..] => cmd_bring_back(&cat, &abs(p), rest.contains(&"--yes")),
         ["check", p] => cmd_check(&cat, &abs(p)),
+        ["record", p] => manifest::record(&Journal::for_home(&cat.home), &abs(p)).map(|r| {
+            println!("Recorded {} files. Check compares with this from now on.", r.checked);
+        }),
         ["recover"] => recover(&cat),
         ["drives"] => cmd_drives(&cat),
         ["status", rest @ ..] => cmd_status(rest),
@@ -157,6 +161,12 @@ fn cmd_bring_back(cat: &Catalog, path: &Path, yes: bool) -> Result<()> {
 
 fn cmd_check(cat: &Catalog, path: &Path) -> Result<()> {
     let r = manifest::check(&Journal::for_home(&cat.home), path)?;
+    if !r.recorded {
+        println!(
+            "No record yet: this folder was moved before iStash kept them. Run `stowaway-cli record` to make one."
+        );
+        return Ok(());
+    }
     for (label, list) in
         [("missing", &r.missing), ("damaged", &r.damaged), ("changed", &r.changed), ("extra", &r.extra)]
     {

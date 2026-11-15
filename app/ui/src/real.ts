@@ -235,6 +235,7 @@ export function createReal(invoke: Invoke): Api {
     planBack: (id) => plan('back', id),
     bringBack: (id) => start('back', id),
     check: (id) => invoke('check_folder', { path: id }),
+    record: (id) => invoke('record_folder', { path: id }),
     async stop(id) { await invoke('stop_job', { path: id }); },
     async eject(id) {
       // The sheet that leads here already named the open apps and said they will be asked to quit.
