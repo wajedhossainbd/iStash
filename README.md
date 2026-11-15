@@ -102,23 +102,29 @@ iStash does the move safely, keeps track of every link, and tells you when a dri
 **Requirements:** macOS 14 Sonoma or newer, on a Mac with Apple Silicon (M1 or later).
 The download is about 3 MB and the installed app about 6 MB.
 
-### Download
-
-Get [**iStash.dmg**](https://github.com/wajedhossainbd/iStash/releases/latest/download/iStash.dmg), open it,
-and drag iStash into Applications.
-
-### One command
+### One command (recommended)
 
 ```sh
 curl -fsSL https://github.com/wajedhossainbd/iStash/releases/latest/download/install.sh | sh
 ```
 
+It installs iStash in Applications and opens it, with no warnings.
+
+### Download
+
+Get [**iStash.dmg**](https://github.com/wajedhossainbd/iStash/releases/latest/download/iStash.dmg).
+
 > [!NOTE]
-> iStash is not notarised by Apple yet. If macOS says it can't be opened after installing from the DMG, run this
-> once. The one-command install does it for you.
+> iStash isn't notarised by Apple yet, so macOS says **"iStash.dmg" Not Opened**. To open it anyway:
+> 1. Click **Done**.
+> 2. Open **System Settings › Privacy & Security**, scroll down to the message about iStash.dmg and click
+>    **Open Anyway**, then confirm with your password.
+> 3. Drag iStash into Applications. If macOS asks again when you open iStash, repeat step 2.
+>
+> Or clear the download flag in Terminal, then open the DMG as usual:
 >
 > ```sh
-> xattr -dr com.apple.quarantine /Applications/iStash.app
+> xattr -d com.apple.quarantine ~/Downloads/iStash.dmg
 > ```
 
 ### Updates
